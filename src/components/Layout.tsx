@@ -1,8 +1,8 @@
-import { type ReactNode } from 'react'
+import { type ReactNode } from "react";
 
 interface LayoutProps {
-  children: ReactNode
-  onAddClick: () => void
+  children: ReactNode;
+  onAddClick: () => void;
 }
 
 export default function Layout({ children, onAddClick }: LayoutProps) {
@@ -11,7 +11,7 @@ export default function Layout({ children, onAddClick }: LayoutProps) {
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <h1 className="text-xl font-bold tracking-tight text-gray-900">
-            Retro Reader
+            Checkin
           </h1>
           <button
             onClick={onAddClick}
@@ -23,5 +23,5 @@ export default function Layout({ children, onAddClick }: LayoutProps) {
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
     </div>
-  )
+  );
 }
