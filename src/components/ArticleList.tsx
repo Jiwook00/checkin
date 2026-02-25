@@ -1,9 +1,9 @@
-import type { Retrospective } from '../types'
-import ArticleCard from './ArticleCard'
+import type { Retrospective } from "../types";
+import ArticleCard from "./ArticleCard";
 
 interface ArticleListProps {
-  articles: Retrospective[]
-  onArticleClick: (article: Retrospective) => void
+  articles: Retrospective[];
+  onArticleClick: (article: Retrospective) => void;
 }
 
 export default function ArticleList({
@@ -18,7 +18,7 @@ export default function ArticleList({
           상단의 "글 추가" 버튼으로 회고 글을 등록해보세요
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -31,5 +31,5 @@ export default function ArticleList({
         />
       ))}
     </div>
-  )
+  );
 }

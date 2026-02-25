@@ -1,19 +1,19 @@
-export type SourceType = 'notion' | 'tistory' | 'other'
+export type SourceType = "notion" | "tistory" | "other";
 
 export function detectSourceType(url: string): SourceType {
   try {
-    const parsed = new URL(url)
-    const hostname = parsed.hostname.toLowerCase()
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
 
-    if (hostname.includes('notion.so') || hostname.includes('notion.site')) {
-      return 'notion'
+    if (hostname.includes("notion.so") || hostname.includes("notion.site")) {
+      return "notion";
     }
-    if (hostname.includes('tistory.com')) {
-      return 'tistory'
+    if (hostname.includes("tistory.com")) {
+      return "tistory";
     }
-    return 'other'
+    return "other";
   } catch {
-    return 'other'
+    return "other";
   }
 }
 
@@ -28,29 +28,29 @@ export function detectSourceType(url: string): SourceType {
  */
 export function extractNotionPageId(url: string): string | null {
   try {
-    const parsed = new URL(url)
-    const path = parsed.pathname
+    const parsed = new URL(url);
+    const path = parsed.pathname;
 
     // 경로의 마지막 세그먼트에서 32자 hex ID를 추출
-    const segments = path.split('/').filter(Boolean)
-    const lastSegment = segments[segments.length - 1] || ''
+    const segments = path.split("/").filter(Boolean);
+    const lastSegment = segments[segments.length - 1] || "";
 
     // 하이픈 없는 UUID 형태 (32자 hex)를 찾는다
-    const hexMatch = lastSegment.match(/([a-f0-9]{32})$/i)
+    const hexMatch = lastSegment.match(/([a-f0-9]{32})$/i);
     if (hexMatch) {
-      return hexMatch[1]
+      return hexMatch[1];
     }
 
     // 하이픈 포함된 UUID 형태도 시도
     const uuidMatch = lastSegment.match(
-      /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i
-    )
+      /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i,
+    );
     if (uuidMatch) {
-      return uuidMatch[1].replace(/-/g, '')
+      return uuidMatch[1].replace(/-/g, "");
     }
 
-    return null
+    return null;
   } catch {
-    return null
+    return null;
   }
 }

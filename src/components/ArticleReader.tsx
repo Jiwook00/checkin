@@ -1,10 +1,10 @@
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import type { Retrospective } from '../types'
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Retrospective } from "../types";
 
 interface ArticleReaderProps {
-  article: Retrospective
-  onClose: () => void
+  article: Retrospective;
+  onClose: () => void;
 }
 
 export default function ArticleReader({
@@ -46,10 +46,10 @@ export default function ArticleReader({
             <span>{article.session}</span>
             <span>&middot;</span>
             <span>
-              {new Date(article.created_at).toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+              {new Date(article.created_at).toLocaleDateString("ko-KR", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </span>
           </div>
@@ -63,5 +63,5 @@ export default function ArticleReader({
         </div>
       </article>
     </div>
-  )
+  );
 }

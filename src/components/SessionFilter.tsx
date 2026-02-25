@@ -1,10 +1,10 @@
 interface SessionFilterProps {
-  sessions: string[]
-  authors: string[]
-  selectedSession: string
-  selectedAuthor: string
-  onSessionChange: (session: string) => void
-  onAuthorChange: (author: string) => void
+  sessions: string[];
+  authors: string[];
+  selectedSession: string;
+  selectedAuthor: string;
+  onSessionChange: (session: string) => void;
+  onAuthorChange: (author: string) => void;
 }
 
 export default function SessionFilter({
@@ -43,5 +43,5 @@ export default function SessionFilter({
         ))}
       </select>
     </div>
-  )
+  );
 }

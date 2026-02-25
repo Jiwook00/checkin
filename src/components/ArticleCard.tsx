@@ -1,22 +1,25 @@
-import type { Retrospective } from '../types'
+import type { Retrospective } from "../types";
 
 interface ArticleCardProps {
-  article: Retrospective
-  onClick: () => void
+  article: Retrospective;
+  onClick: () => void;
 }
 
 const sourceTypeLabel: Record<string, string> = {
-  notion: 'Notion',
-  tistory: 'Tistory',
-  other: 'Blog',
-}
+  notion: "Notion",
+  tistory: "Tistory",
+  other: "Blog",
+};
 
 export default function ArticleCard({ article, onClick }: ArticleCardProps) {
-  const preview = article.content_markdown.slice(0, 120).replace(/[#*`>\-\[\]]/g, '').trim()
-  const date = new Date(article.created_at).toLocaleDateString('ko-KR', {
-    month: 'short',
-    day: 'numeric',
-  })
+  const preview = article.content_markdown
+    .slice(0, 120)
+    .replace(/[#*`>\-\[\]]/g, "")
+    .trim();
+  const date = new Date(article.created_at).toLocaleDateString("ko-KR", {
+    month: "short",
+    day: "numeric",
+  });
 
   return (
     <button
@@ -45,5 +48,5 @@ export default function ArticleCard({ article, onClick }: ArticleCardProps) {
         <span className="text-xs text-gray-400">{date}</span>
       </div>
     </button>
-  )
+  );
 }

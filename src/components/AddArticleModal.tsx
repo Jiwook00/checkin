@@ -1,15 +1,15 @@
-import { useState } from 'react'
-import type { AddArticleForm } from '../types'
+import { useState } from "react";
+import type { AddArticleForm } from "../types";
 
 interface AddArticleModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (form: AddArticleForm) => Promise<void>
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (form: AddArticleForm) => Promise<void>;
 }
 
 function getCurrentSession(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export default function AddArticleModal({
@@ -18,31 +18,36 @@ export default function AddArticleModal({
   onSubmit,
 }: AddArticleModalProps) {
   const [form, setForm] = useState<AddArticleForm>({
-    title: '',
-    author: '',
-    source_url: '',
+    title: "",
+    author: "",
+    source_url: "",
     session: getCurrentSession(),
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      await onSubmit(form)
-      setForm({ title: '', author: '', source_url: '', session: getCurrentSession() })
-      onClose()
+      await onSubmit(form);
+      setForm({
+        title: "",
+        author: "",
+        source_url: "",
+        session: getCurrentSession(),
+      });
+      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '등록에 실패했습니다')
+      setError(err instanceof Error ? err.message : "등록에 실패했습니다");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -67,16 +72,17 @@ export default function AddArticleModal({
               required
               placeholder="https://notion.so/... 또는 https://xxx.tistory.com/..."
               value={form.source_url}
-              onChange={(e) =>
-                setForm({ ...form, source_url: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, source_url: e.target.value })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              제목 <span className="text-xs text-gray-400">(비워두면 자동 추출)</span>
+              제목{" "}
+              <span className="text-xs text-gray-400">
+                (비워두면 자동 추출)
+              </span>
             </label>
             <input
               type="text"
@@ -128,10 +134,10 @@ export default function AddArticleModal({
             disabled={loading}
             className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            {loading ? '파싱 중...' : '등록'}
+            {loading ? "파싱 중..." : "등록"}
           </button>
         </form>
       </div>
     </div>
-  )
+  );
 }
