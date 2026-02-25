@@ -49,6 +49,52 @@ supabase db push
 supabase functions deploy parse-content
 ```
 
+## 릴리즈 프로세스
+
+버저닝: **SemVer** (MAJOR.MINOR.PATCH), 현재 `v0.x.x` (개발 단계)
+
+### 전체 흐름
+
+```
+develop에서 개발 (feat:/fix:/chore: 커밋)
+  ↓
+main에 PR 머지
+  ↓ 자동 실행
+  ├─ Vercel 배포 (자동)
+  └─ release-please → "Release PR" 생성/업데이트
+        (CHANGELOG.md + package.json 버전 bump)
+  ↓
+Release PR 검토 후 머지
+  ↓
+GitHub Release + Git 태그 자동 생성 (v0.2.0, v0.3.0 ...)
+```
+
+### 버전 자동 결정 규칙
+
+커밋 타입에 따라 다음 버전이 자동으로 결정된다.
+
+| 커밋 예시                              | 버전 변화                  |
+| -------------------------------------- | -------------------------- |
+| `fix: 노션 블록 파싱 오류 수정`        | 0.1.0 → **0.1.1**          |
+| `feat: 회고 글 북마크 기능 추가`       | 0.1.0 → **0.2.0**          |
+| `feat!: 회원 초대 방식 전면 개편`      | 0.1.0 → **0.2.0** ※        |
+| `fix: ...` + `feat: ...` 동시에 쌓이면 | 높은 타입 기준 → **0.2.0** |
+
+> ※ `v0.x.x` 구간에서는 `BREAKING CHANGE`도 MINOR만 올라감 (`bump-minor-pre-major` 설정).
+> `v1.0.0` 이후부터 일반 SemVer 규칙 적용 (BREAKING CHANGE → MAJOR bump).
+
+### 파괴적 변경 (Breaking Change) 표기
+
+```bash
+# 방법 1 — 느낌표 (간단)
+feat!: 회원 초대 방식 전면 개편
+
+# 방법 2 — footer (상세 설명)
+feat(인증): 회원 초대 방식 전면 개편
+
+BREAKING CHANGE: 기존 초대 링크가 만료되며 멤버를 재초대해야 합니다.
+```
+
 ## 접근 제한
 
 Checkin은 멤버 전용 앱이다. 초대된 멤버만 가입 및 이용할 수 있다.
