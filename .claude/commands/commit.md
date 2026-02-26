@@ -32,11 +32,19 @@ Analyze the current git changes and guide the user through creating a commit int
 
 ## Steps
 
-1. Run `git diff HEAD` to see all changes. Also consider any relevant context from the current conversation.
+1. Run these in parallel:
+   - `git diff HEAD` — 변경 내용 확인
+   - `git branch --show-current` — 현재 브랜치명에서 이슈 번호 추출 (e.g. `fix/issue-6-parser` → `#6`)
 
 2. **Analyze change groups**: Identify whether the changes belong to one concern or multiple distinct concerns (e.g., a config file change + a feature change). If multiple distinct concerns exist, suggest splitting into separate commits and ask the user which grouping to proceed with.
 
 3. **Present commit message(s)** in a code block based on the chosen grouping.
+
+   브랜치명에서 이슈 번호가 감지되면 메시지 마지막에 footer 추가:
+
+   ```
+   Closes #6
+   ```
 
 4. **Ask for confirmation**: After showing the message, ask:
    > Commit with this message? (y / edit / cancel)

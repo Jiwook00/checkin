@@ -58,6 +58,17 @@ refactor: 리팩토링
 
 Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `release-please` — do not manually edit `CHANGELOG.md` or bump version in `package.json`.
 
+## Claude 커맨드
+
+`.claude/commands/`에 정의된 슬래시 커맨드:
+
+| 커맨드                | 설명                                    |
+| --------------------- | --------------------------------------- |
+| `/issue-start <번호>` | 이슈 정보 로드 + 브랜치 생성            |
+| `/issue-new`          | 현재 작업 기반으로 새 이슈 생성         |
+| `/commit`             | 이슈 참조(`Closes #X`) 포함 커밋 가이드 |
+| `/create-pr`          | PR 생성                                 |
+
 ## Key Constraints
 
 - **Member-only app** — do not remove or weaken auth guards
