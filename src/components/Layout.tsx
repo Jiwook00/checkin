@@ -3,9 +3,16 @@ import { type ReactNode } from "react";
 interface LayoutProps {
   children: ReactNode;
   onAddClick: () => void;
+  nickname: string;
+  onLogout: () => void;
 }
 
-export default function Layout({ children, onAddClick }: LayoutProps) {
+export default function Layout({
+  children,
+  onAddClick,
+  nickname,
+  onLogout,
+}: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
@@ -37,6 +44,13 @@ export default function Layout({ children, onAddClick }: LayoutProps) {
               className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
             >
               + 글 추가
+            </button>
+            <span className="text-sm text-gray-500">{nickname}</span>
+            <button
+              onClick={onLogout}
+              className="text-sm text-gray-400 transition-colors hover:text-gray-700"
+            >
+              로그아웃
             </button>
           </div>
         </div>
