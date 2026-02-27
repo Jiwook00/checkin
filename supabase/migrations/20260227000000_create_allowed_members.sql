@@ -5,9 +5,12 @@ CREATE TABLE checkin_allowed_members (
 );
 
 INSERT INTO checkin_allowed_members (email, nickname) VALUES
-  ('iris3455@gmail.com',    'iris'),
-  ('siamore9724@gmail.com', 'rony'),
-  ('jwkim775@gmail.com',    'danny');
+  ('iris3455@gmail.com',    '아이리스'),
+  ('siamore9724@gmail.com', '로니'),
+  ('jwkim775@gmail.com',    '대니'),
+  ('dltjstnl7@gmail.com',   '두도'),
+  ('whguswi0408@gmail.com', '벨라'),
+  ('won0539@gmail.com',     '원');
 
 ALTER TABLE checkin_allowed_members ENABLE ROW LEVEL SECURITY;
 
