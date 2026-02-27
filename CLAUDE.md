@@ -34,6 +34,18 @@ supabase functions deploy parse-content # Deploy
 - `supabase/functions/parse-content/` — Edge Function (Deno) for parsing Notion/blog URLs into markdown
 - `supabase/migrations/` — SQL migration files
 
+**Database** (Supabase)
+
+- 모든 테이블은 `checkin_` 프리픽스를 사용 (예: `checkin_retrospectives`, `checkin_members`)
+- `checkin_members` — 앱 유저 프로필, `auth.users`와 1:1 대응, 첫 로그인 시 upsert
+- `checkin_allowed_members` — 접근 제어용 이메일 화이트리스트
+
+**Auth**
+
+- Supabase Google OAuth 사용
+- 로그인 흐름: Google OAuth → `checkin_allowed_members` 화이트리스트 확인 → `checkin_members` upsert
+- 유저 관리는 `auth.users`가 아닌 `checkin_members`에서 수행
+
 **Deployment**: Frontend → Vercel, Backend → Supabase
 
 ## Code Style
