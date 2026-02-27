@@ -6,8 +6,11 @@ import SessionFilter from "./components/SessionFilter";
 import ArticleList from "./components/ArticleList";
 import ArticleReader from "./components/ArticleReader";
 import AddArticleModal from "./components/AddArticleModal";
+import LoginPage from "./components/LoginPage";
+import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
+  const { authState, signInWithGoogle, signOut } = useAuth();
   const [articles, setArticles] = useState<Retrospective[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<Retrospective | null>(
@@ -72,6 +75,18 @@ export default function App() {
     await fetchArticles();
   };
 
+  if (authState.status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-400">로딩 중...</p>
+      </div>
+    );
+  }
+
+  if (authState.status === "unauthenticated") {
+    return <LoginPage onLogin={signInWithGoogle} error={authState.error} />;
+  }
+
   // 리더 뷰가 열려 있으면 리더만 표시
   if (selectedArticle) {
     return (
@@ -83,7 +98,11 @@ export default function App() {
   }
 
   return (
-    <Layout onAddClick={() => setShowAddModal(true)}>
+    <Layout
+      onAddClick={() => setShowAddModal(true)}
+      nickname={authState.member.nickname}
+      onLogout={signOut}
+    >
       <div className="mb-6">
         <SessionFilter
           sessions={sessions}
