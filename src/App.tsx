@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { supabase } from "./lib/supabase";
-import type { AddArticleForm, Retrospective } from "./types";
+import type { AddArticleForm, Retrospective, VotePoll } from "./types";
+import { getActivePoll } from "./lib/vote";
 import Layout from "./components/Layout";
 import SessionBanner from "./components/SessionBanner";
 import SessionFilter from "./components/SessionFilter";
@@ -9,6 +10,7 @@ import ArticleList from "./components/ArticleList";
 import ArticleReader from "./components/ArticleReader";
 import AddArticleModal from "./components/AddArticleModal";
 import LoginPage from "./components/LoginPage";
+import VotePage from "./components/VotePage";
 import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
@@ -21,6 +23,7 @@ export default function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState("");
   const [selectedAuthor, setSelectedAuthor] = useState("");
+  const [activePoll, setActivePoll] = useState<VotePoll | null>(null);
 
   // 글 목록 가져오기
   const fetchArticles = async () => {
@@ -38,6 +41,7 @@ export default function App() {
 
   useEffect(() => {
     fetchArticles();
+    getActivePoll().then(setActivePoll);
   }, []);
 
   // 필터 옵션 추출
@@ -106,7 +110,10 @@ export default function App() {
           path="/"
           element={
             <>
-              <SessionBanner onAddClick={() => setShowAddModal(true)} />
+              <SessionBanner
+                onAddClick={() => setShowAddModal(true)}
+                activePoll={activePoll}
+              />
               <SessionFilter
                 sessions={sessions}
                 authors={authors}
@@ -138,11 +145,7 @@ export default function App() {
         />
         <Route
           path="/vote"
-          element={
-            <div className="py-20 text-center text-stone-400">
-              투표 (준비 중)
-            </div>
-          }
+          element={<VotePage memberId={authState.member.id} />}
         />
         <Route
           path="/profile"

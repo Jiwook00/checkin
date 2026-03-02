@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 const NAV_ITEMS = [
   { label: "메인", to: "/" },
   { label: "아카이브", to: "/archive" },
-  { label: "투표", to: "/vote" },
+  { label: "일정", to: "/vote" },
   { label: "프로필", to: "/profile" },
 ];
 
