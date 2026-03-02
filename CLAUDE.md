@@ -74,12 +74,13 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 
 `.claude/commands/`에 정의된 슬래시 커맨드:
 
-| 커맨드                | 설명                                    |
-| --------------------- | --------------------------------------- |
-| `/issue-start <번호>` | 이슈 정보 로드 + 브랜치 생성            |
-| `/issue-new`          | 현재 작업 기반으로 새 이슈 생성         |
-| `/commit`             | 이슈 참조(`Closes #X`) 포함 커밋 가이드 |
-| `/create-pr`          | PR 생성                                 |
+| 커맨드                | 설명                                              |
+| --------------------- | ------------------------------------------------- |
+| `/issue-start <번호>` | 이슈 정보 로드 + 브랜치 생성                      |
+| `/issue-new`          | 현재 작업 기반으로 새 이슈 생성                   |
+| `/commit`             | 이슈 참조(`Closes #X`) 포함 커밋 가이드           |
+| `/create-pr`          | PR 생성                                           |
+| `/design-preview`     | UI 변경 전 다양한 스타일 프리뷰를 `/dev/*`에 생성 |
 
 ## Key Constraints
 
@@ -88,3 +89,4 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 - **Supabase Edge Functions use Deno**, not Node.js — imports use URL syntax (`https://deno.land/...`), not npm packages
 - Do not add `console.log` statements to production code
 - UI language is **Korean** — keep user-facing strings in Korean
+- **UI 대규모 변경 시** (새 페이지, 레이아웃 교체 등) `/design-preview` 커맨드로 실물 프리뷰 먼저 생성 후 확정
