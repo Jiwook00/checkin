@@ -42,6 +42,30 @@ const OPTIONS = [
     preview: "bg-stone-100",
     dot: "bg-stone-700",
   },
+  {
+    num: 6,
+    name: "세션 헤더 + 투표 밴드",
+    tags: ["컴팩트", "인라인 투표", "pill형"],
+    desc: "현재 세션 제목 + 날짜 투표를 얇은 밴드로 요약. 콘텐츠 영역 방해 최소화.",
+    preview: "bg-stone-50",
+    dot: "bg-stone-500",
+  },
+  {
+    num: 7,
+    name: "세션 배너 카드 + 투표 리스트",
+    tags: ["배너 카드", "프로그레스 바", "강조형"],
+    desc: "세션 정보와 투표를 하나의 카드로 묶어 상단에. 투표 현황이 바 형태로 시각화.",
+    preview: "bg-white",
+    dot: "bg-stone-800",
+  },
+  {
+    num: 8,
+    name: "사이드바 통합형 투표",
+    tags: ["사이드바 통합", "미니 투표", "콘텐츠 집중"],
+    desc: "세션 정보와 날짜 투표를 사이드바에 배치. 메인 영역은 글 목록에만 집중.",
+    preview: "bg-stone-100",
+    dot: "bg-stone-600",
+  },
 ];
 
 export default function DevIndex() {
@@ -53,7 +77,7 @@ export default function DevIndex() {
             Dev Preview
           </span>
           <h1 className="mt-2 text-3xl font-black text-gray-900">
-            레이아웃 5가지 옵션
+            레이아웃 옵션 (5~8: 세션 헤더 + 날짜 투표)
           </h1>
           <p className="mt-2 text-sm text-gray-500">
             각 번호를 클릭해 실물 레이아웃을 확인하세요. 하단 스위처로 빠르게

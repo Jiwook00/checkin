@@ -6,6 +6,9 @@ import Layout2 from "./Layout2";
 import Layout3 from "./Layout3";
 import Layout4 from "./Layout4";
 import Layout5 from "./Layout5";
+import Layout6 from "./Layout6";
+import Layout7 from "./Layout7";
+import Layout8 from "./Layout8";
 
 export default function DevRoutes() {
   return (
@@ -16,6 +19,9 @@ export default function DevRoutes() {
       <Route path="/3" element={<Layout3 />} />
       <Route path="/4" element={<Layout4 />} />
       <Route path="/5" element={<Layout5 />} />
+      <Route path="/6" element={<Layout6 />} />
+      <Route path="/7" element={<Layout7 />} />
+      <Route path="/8" element={<Layout8 />} />
     </Routes>
   );
 }

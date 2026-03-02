@@ -67,7 +67,7 @@ export function Switcher({ current }: { current: number }) {
         목록
       </Link>
       <span className="text-gray-700 text-xs">·</span>
-      {[1, 2, 3, 4, 5].map((n) => (
+      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
         <Link
           key={n}
           to={`/dev/${n}`}
