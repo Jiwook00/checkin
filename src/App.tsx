@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type { AddArticleForm, Retrospective } from "./types";
 import Layout from "./components/Layout";
+import SessionBanner from "./components/SessionBanner";
 import SessionFilter from "./components/SessionFilter";
 import ArticleList from "./components/ArticleList";
 import ArticleReader from "./components/ArticleReader";
@@ -99,16 +100,13 @@ export default function App() {
   }
 
   return (
-    <Layout
-      onAddClick={() => setShowAddModal(true)}
-      nickname={authState.member.nickname}
-      onLogout={signOut}
-    >
+    <Layout nickname={authState.member.nickname} onLogout={signOut}>
       <Routes>
         <Route
           path="/"
           element={
             <>
+              <SessionBanner onAddClick={() => setShowAddModal(true)} />
               <SessionFilter
                 sessions={sessions}
                 authors={authors}

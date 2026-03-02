@@ -10,17 +10,11 @@ const NAV_ITEMS = [
 
 interface LayoutProps {
   children: ReactNode;
-  onAddClick: () => void;
   nickname: string;
   onLogout: () => void;
 }
 
-export default function Layout({
-  children,
-  onAddClick,
-  nickname,
-  onLogout,
-}: LayoutProps) {
+export default function Layout({ children, nickname, onLogout }: LayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
       {/* Sidebar */}
@@ -68,18 +62,7 @@ export default function Layout({
 
       {/* Content panel */}
       <div className="flex-1 overflow-y-auto bg-white border-l border-stone-200">
-        <div className="max-w-4xl mx-auto px-10 py-10 pb-20">
-          {/* Action row */}
-          <div className="mb-8 flex justify-end">
-            <button
-              onClick={onAddClick}
-              className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 transition-colors"
-            >
-              + 글 추가
-            </button>
-          </div>
-          {children}
-        </div>
+        <div className="max-w-4xl mx-auto px-10 py-10 pb-20">{children}</div>
       </div>
     </div>
   );
