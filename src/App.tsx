@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Routes, Route } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type { AddArticleForm, Retrospective } from "./types";
 import Layout from "./components/Layout";
+import SessionBanner from "./components/SessionBanner";
 import SessionFilter from "./components/SessionFilter";
 import ArticleList from "./components/ArticleList";
 import ArticleReader from "./components/ArticleReader";
@@ -77,8 +79,8 @@ export default function App() {
 
   if (authState.status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-400">로딩 중...</p>
+      <div className="flex min-h-screen items-center justify-center bg-stone-50">
+        <p className="text-sm text-stone-400">로딩 중...</p>
       </div>
     );
   }
@@ -98,32 +100,59 @@ export default function App() {
   }
 
   return (
-    <Layout
-      onAddClick={() => setShowAddModal(true)}
-      nickname={authState.member.nickname}
-      onLogout={signOut}
-    >
-      <div className="mb-6">
-        <SessionFilter
-          sessions={sessions}
-          authors={authors}
-          selectedSession={selectedSession}
-          selectedAuthor={selectedAuthor}
-          onSessionChange={setSelectedSession}
-          onAuthorChange={setSelectedAuthor}
+    <Layout nickname={authState.member.nickname} onLogout={signOut}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <SessionBanner onAddClick={() => setShowAddModal(true)} />
+              <SessionFilter
+                sessions={sessions}
+                authors={authors}
+                selectedSession={selectedSession}
+                selectedAuthor={selectedAuthor}
+                onSessionChange={setSelectedSession}
+                onAuthorChange={setSelectedAuthor}
+              />
+              {loading ? (
+                <div className="py-20 text-center">
+                  <p className="text-stone-400">불러오는 중...</p>
+                </div>
+              ) : (
+                <ArticleList
+                  articles={filteredArticles}
+                  onArticleClick={setSelectedArticle}
+                />
+              )}
+            </>
+          }
         />
-      </div>
-
-      {loading ? (
-        <div className="py-20 text-center">
-          <p className="text-gray-400">불러오는 중...</p>
-        </div>
-      ) : (
-        <ArticleList
-          articles={filteredArticles}
-          onArticleClick={setSelectedArticle}
+        <Route
+          path="/archive"
+          element={
+            <div className="py-20 text-center text-stone-400">
+              아카이브 (준비 중)
+            </div>
+          }
         />
-      )}
+        <Route
+          path="/vote"
+          element={
+            <div className="py-20 text-center text-stone-400">
+              투표 (준비 중)
+            </div>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <div className="py-20 text-center text-stone-400">
+              프로필 (준비 중)
+            </div>
+          }
+        />
+      </Routes>
 
       <AddArticleModal
         isOpen={showAddModal}
