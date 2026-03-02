@@ -57,7 +57,13 @@ export const MOCK_ARTICLES = [
   },
 ];
 
-export function Switcher({ current }: { current: number }) {
+export function Switcher({
+  current,
+  total = 8,
+}: {
+  current: number;
+  total?: number;
+}) {
   return (
     <div className="fixed bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-gray-900/90 backdrop-blur-sm px-4 py-2 shadow-xl z-50">
       <Link
@@ -67,7 +73,7 @@ export function Switcher({ current }: { current: number }) {
         목록
       </Link>
       <span className="text-gray-700 text-xs">·</span>
-      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+      {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
         <Link
           key={n}
           to={`/dev/${n}`}
