@@ -16,36 +16,23 @@ export default function ArticleCard({ article, onClick }: ArticleCardProps) {
     .slice(0, 120)
     .replace(/[#*`>\-\[\]]/g, "")
     .trim();
-  const date = new Date(article.created_at).toLocaleDateString("ko-KR", {
-    month: "short",
-    day: "numeric",
-  });
 
   return (
-    <button
-      onClick={onClick}
-      className="group w-full rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition-all hover:border-gray-300 hover:shadow-md"
-    >
-      <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+    <button onClick={onClick} className="group w-full text-left">
+      <div className="rounded-2xl border border-stone-100 bg-stone-50 p-5 hover:bg-white hover:shadow-sm hover:border-stone-200 transition-all">
+        <div className="mb-2 text-xs font-medium text-stone-400">
+          {article.session} &middot;{" "}
           {sourceTypeLabel[article.source_type] || article.source_type}
-        </span>
-        <span className="text-xs text-gray-400">{article.session}</span>
-      </div>
-
-      <h3 className="mb-2 text-base font-semibold text-gray-900 group-hover:text-gray-700">
-        {article.title}
-      </h3>
-
-      <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-gray-500">
-        {preview}...
-      </p>
-
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700">
+        </div>
+        <h3 className="text-sm font-semibold text-stone-900 leading-snug mb-2.5">
+          {article.title}
+        </h3>
+        <p className="text-xs text-stone-400 leading-relaxed mb-3 line-clamp-2">
+          {preview}
+        </p>
+        <div className="text-xs text-stone-400 font-medium">
           {article.author}
-        </span>
-        <span className="text-xs text-gray-400">{date}</span>
+        </div>
       </div>
     </button>
   );
