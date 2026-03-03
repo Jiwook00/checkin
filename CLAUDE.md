@@ -82,6 +82,20 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 | `/create-pr`          | PR 생성                                           |
 | `/design-preview`     | UI 변경 전 다양한 스타일 프리뷰를 `/dev/*`에 생성 |
 
+## Data Flow
+
+**새 컴포넌트를 만들기 전에 반드시 `App.tsx`를 먼저 확인하라.**
+
+- `App.tsx`는 전역 데이터의 유일한 fetch 지점 — `activePoll`, `authState`, `articles` 등
+- 이미 App에서 fetch한 데이터는 **props로 전달**받는다. 컴포넌트 안에서 중복 fetch 금지
+- 컴포넌트 내부 fetch는 그 컴포넌트 route에서만 필요한 데이터(예: 해당 페이지의 responses)에 한정
+
+**상태(state) 설계 원칙**
+
+- 파생 가능한 값은 state로 만들지 말고 렌더 타임에 계산 (`useMemo` 또는 인라인)
+- 하나의 사용자 액션이 여러 `setState`를 동시에 호출해야 한다면 `useReducer` 고려
+- 공유 타입/상수는 `src/types/index.ts` 또는 해당 lib 파일에 단일 정의 — 컴포넌트 파일 내 중복 선언 금지
+
 ## Key Constraints
 
 - **Member-only app** — do not remove or weaken auth guards

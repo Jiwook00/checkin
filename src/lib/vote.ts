@@ -1,5 +1,10 @@
 import { supabase } from "./supabase";
-import type { VotePoll, VoteResponse, VoteDateSelection } from "../types";
+import type {
+  VotePoll,
+  VoteResponse,
+  VoteDateSelection,
+  DateInfo,
+} from "../types";
 
 export async function getActivePoll(): Promise<VotePoll | null> {
   const { data } = await supabase
@@ -27,11 +32,6 @@ export async function getTotalMemberCount(): Promise<number> {
     .from("checkin_members")
     .select("*", { count: "exact", head: true });
   return count ?? 0;
-}
-
-interface DateInfo {
-  date: number;
-  isWeekend: boolean;
 }
 
 export async function upsertVoteResponse(
