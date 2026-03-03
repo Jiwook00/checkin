@@ -104,4 +104,6 @@ Checkin은 멤버 전용 앱이다. 초대된 멤버만 가입 및 이용할 수
 버그 수정, 기능 제안, 문서 개선 모두 환영합니다.
 이슈 없이 바로 PR을 올려도 됩니다.
 
+작업 현황은 [프로젝트 보드](https://github.com/users/Jiwook00/projects/4)에서 확인할 수 있습니다.
+
 자세한 내용은 [기여 가이드](.github/CONTRIBUTING.md)를 참고해주세요.
