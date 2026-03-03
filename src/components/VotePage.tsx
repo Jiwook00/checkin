@@ -5,20 +5,36 @@ import {
   getVoteResponses,
   getTotalMemberCount,
   upsertVoteResponse,
+  createPoll,
+  confirmPoll,
 } from "../lib/vote";
 
-const WEEKEND_HOURS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
-
-function buildDates(year: number, month: number): DateInfo[] {
-  return Array.from({ length: 10 }, (_, i) => {
-    const d = i + 1;
-    const dow = new Date(year, month - 1, d).getDay();
-    return {
-      date: d,
+function buildDates(dateFrom: string, dateTo: string): DateInfo[] {
+  const from = new Date(dateFrom + "T00:00:00");
+  const to = new Date(dateTo + "T00:00:00");
+  const result: DateInfo[] = [];
+  const cur = new Date(from);
+  while (cur <= to) {
+    const dow = cur.getDay();
+    result.push({
+      date: cur.getDate(),
       dayName: DAY_NAMES[dow],
       isWeekend: dow === 0 || dow === 6,
-    };
-  });
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return result;
+}
+
+function getWeekendHourRange(poll: VotePoll): number[] {
+  const start = parseInt(poll.time_start.split(":")[0]);
+  const end = parseInt(poll.time_end.split(":")[0]);
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
+function isDateClickable(dateInfo: DateInfo, poll: VotePoll): boolean {
+  if (poll.type === "offline") return dateInfo.isWeekend;
+  return true;
 }
 
 function buildCalendarRows(year: number, month: number): (number | null)[][] {
@@ -40,11 +56,7 @@ function computeWeekdayVotes(
   for (const { date } of dates.filter((d) => !d.isWeekend)) {
     let count = 0;
     for (const r of others) {
-      if (
-        r.mode === "available" &&
-        r.selected_dates.some((s) => s.date === date)
-      )
-        count++;
+      if (r.selected_dates.some((s) => s.date === date)) count++;
     }
     if (count > 0) result[date] = count;
   }
@@ -54,16 +66,15 @@ function computeWeekdayVotes(
 function computeWeekendHourVotes(
   others: VoteResponse[],
   dates: DateInfo[],
+  weekendHourRange: number[],
 ): Record<number, Record<number, number>> {
   const result: Record<number, Record<number, number>> = {};
   for (const { date } of dates.filter((d) => d.isWeekend)) {
-    for (const hour of WEEKEND_HOURS) {
+    for (const hour of weekendHourRange) {
       let count = 0;
       for (const r of others) {
-        if (r.mode === "available") {
-          const sel = r.selected_dates.find((s) => s.date === date);
-          if (sel?.hours.includes(hour)) count++;
-        }
+        const sel = r.selected_dates.find((s) => s.date === date);
+        if (sel?.hours.includes(hour)) count++;
       }
       if (count > 0) {
         if (!result[date]) result[date] = {};
@@ -85,17 +96,16 @@ interface TallyItem {
 function computeVoteTally(
   allResponses: VoteResponse[],
   dates: DateInfo[],
+  poll: VotePoll,
 ): TallyItem[] {
   return dates
     .map((dateInfo) => {
-      const avail = allResponses.filter(
-        (r) =>
-          r.mode === "available" &&
-          r.selected_dates.some((s) => s.date === dateInfo.date),
+      const avail = allResponses.filter((r) =>
+        r.selected_dates.some((s) => s.date === dateInfo.date),
       );
       if (avail.length === 0) return null;
 
-      let time = "22:00";
+      let time = poll.time_weekday ?? "22:00";
       if (dateInfo.isWeekend) {
         const hourCounts: Record<number, number> = {};
         for (const r of avail) {
@@ -109,7 +119,7 @@ function computeVoteTally(
           const topHour = entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
           time = `${topHour}:00`;
         } else {
-          time = "14:00";
+          time = poll.time_start;
         }
       }
 
@@ -123,6 +133,15 @@ function computeVoteTally(
     })
     .filter((item): item is TallyItem => item !== null)
     .sort((a, b) => b.count - a.count);
+}
+
+interface PollFormData {
+  dateFrom: string;
+  dateTo: string;
+  timeWeekday: string | null;
+  timeStart: string;
+  timeEnd: string;
+  location: string | null;
 }
 
 // --- 투표 UI 상태 (useReducer) ---
@@ -219,19 +238,22 @@ const initialVoteState: VoteState = {
 
 type CreateStep = "preset" | "form";
 type PollType = "online" | "offline";
-type ClosePhase = "dialog" | "date-modal" | "confirmed";
+type ClosePhase = "dialog" | "date-modal";
 
 interface Props {
   memberId: string;
   poll: VotePoll | null;
+  onPollChange: (poll: VotePoll | null) => void;
 }
 
-export default function VotePage({ memberId, poll }: Props) {
+export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [responses, setResponses] = useState<VoteResponse[]>([]);
   const [totalMembers, setTotalMembers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const [createStep, setCreateStep] = useState<CreateStep | null>(null);
   const [pollType, setPollType] = useState<PollType>("online");
@@ -266,17 +288,17 @@ export default function VotePage({ memberId, poll }: Props) {
 
         if (!initializedRef.current) {
           initializedRef.current = true;
+          const effectDates = buildDates(poll.date_from, poll.date_to);
           const mine = allResponses.find((r) => r.member_id === memberId);
-          if (mine && mine.mode === "available") {
+          if (mine) {
             const restoredDates = new Set(
               mine.selected_dates.map((s) => s.date),
             );
             const restoredHours: Record<number, Set<number>> = {};
             for (const s of mine.selected_dates) {
-              if (s.hours.length > 0) {
-                restoredHours[s.date] = new Set(
-                  s.hours.filter((h) => h !== 22),
-                );
+              const info = effectDates.find((d) => d.date === s.date);
+              if (info?.isWeekend && s.hours.length > 0) {
+                restoredHours[s.date] = new Set(s.hours);
               }
             }
             dispatch({
@@ -286,7 +308,10 @@ export default function VotePage({ memberId, poll }: Props) {
               activeDate: mine.selected_dates[0]?.date ?? null,
             });
           } else {
-            dispatch({ type: "SET_ACTIVE_DATE", date: 2 });
+            dispatch({
+              type: "SET_ACTIVE_DATE",
+              date: effectDates[0]?.date ?? null,
+            });
           }
         }
       } catch {
@@ -317,6 +342,24 @@ export default function VotePage({ memberId, poll }: Props) {
     );
   }
 
+  const handleCreatePoll = async (data: PollFormData) => {
+    setCreating(true);
+    const { poll: newPoll, error } = await createPoll({
+      type: pollType,
+      location: data.location,
+      date_from: data.dateFrom,
+      date_to: data.dateTo,
+      time_weekday: data.timeWeekday,
+      time_start: data.timeStart,
+      time_end: data.timeEnd,
+    });
+    if (!error && newPoll) {
+      onPollChange(newPoll);
+      setCreateStep(null);
+    }
+    setCreating(false);
+  };
+
   // --- poll 없음: 새 일정 만들기 플로우 ---
   if (!poll) {
     if (createStep === null) {
@@ -344,19 +387,25 @@ export default function VotePage({ memberId, poll }: Props) {
         <PollForm
           pollType={pollType}
           onBack={() => setCreateStep("preset")}
-          onSubmit={() => setCreateStep(null)} // TODO: 실제 API 연동
+          onSubmit={handleCreatePoll}
+          disabled={creating}
         />
       </div>
     );
   }
 
   // --- 활성 poll ---
-  const dates = buildDates(poll.year, poll.month);
+  const dates = buildDates(poll.date_from, poll.date_to);
   const calendarRows = buildCalendarRows(poll.year, poll.month);
+  const weekendHourRange = getWeekendHourRange(poll);
   const otherResponses = responses.filter((r) => r.member_id !== memberId);
   const weekdayVotes = computeWeekdayVotes(otherResponses, dates);
-  const weekendHourVotes = computeWeekendHourVotes(otherResponses, dates);
-  const voteTally = computeVoteTally(responses, dates);
+  const weekendHourVotes = computeWeekendHourVotes(
+    otherResponses,
+    dates,
+    weekendHourRange,
+  );
+  const voteTally = computeVoteTally(responses, dates, poll);
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
   const activeDateInfo = dates.find((d) => d.date === activeDate);
@@ -365,11 +414,15 @@ export default function VotePage({ memberId, poll }: Props) {
       ? Math.max(...Object.values(weekdayVotes))
       : 0;
 
+  const dateFromDay = parseInt(poll.date_from.split("-")[2]);
+  const dateToDay = parseInt(poll.date_to.split("-")[2]);
+
   const getSummaryLines = () =>
     dates
       .filter((d) => selectedDates.has(d.date))
       .map((d) => {
-        if (!d.isWeekend) return `${d.date}일 (${d.dayName}) 22:00`;
+        if (!d.isWeekend)
+          return `${d.date}일 (${d.dayName}) ${poll.time_weekday ?? "22:00"}`;
         const h = weekendHours[d.date];
         const hList =
           h && h.size > 0
@@ -396,10 +449,10 @@ export default function VotePage({ memberId, poll }: Props) {
     const { error } = await upsertVoteResponse(
       poll.id,
       memberId,
-      "available",
       selectedDates,
       weekendHours,
       dates,
+      poll,
     );
     if (error) {
       dispatch({
@@ -414,12 +467,33 @@ export default function VotePage({ memberId, poll }: Props) {
     setSaving(false);
   };
 
+  const handleConfirm = async () => {
+    if (!confirmedDate) return;
+    setConfirming(true);
+    const dateStr = `${poll.year}-${String(poll.month).padStart(2, "0")}-${String(confirmedDate).padStart(2, "0")}`;
+    const { error } = await confirmPoll(poll.id, dateStr);
+    if (!error) {
+      onPollChange({ ...poll, status: "confirmed", confirmed_date: dateStr });
+      setClosePhase(null);
+      setConfirmedDate(null);
+    }
+    setConfirming(false);
+  };
+
   const MONTH_KO = `${poll.year}년 ${poll.month}월`;
   const retroMonth = poll.month === 1 ? 12 : poll.month - 1;
   const retroYear = poll.month === 1 ? poll.year - 1 : poll.year;
   const sessionLabel = `${poll.month}월에 하는 ${retroYear}년 ${retroMonth}월 회고`;
 
-  const confirmedTallyItem = voteTally.find((t) => t.date === confirmedDate);
+  const confirmedDay = poll.confirmed_date
+    ? parseInt(poll.confirmed_date.split("-")[2])
+    : null;
+  const confirmedDateInfo = confirmedDay
+    ? dates.find((d) => d.date === confirmedDay)
+    : null;
+  const confirmedTallyItem = confirmedDay
+    ? voteTally.find((t) => t.date === confirmedDay)
+    : null;
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -446,7 +520,7 @@ export default function VotePage({ memberId, poll }: Props) {
                 일정 마감
               </button>
             )}
-            {closePhase === "confirmed" && (
+            {poll.status === "confirmed" && (
               <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 rounded-full px-3 py-1.5">
                 확정됨
               </span>
@@ -456,7 +530,7 @@ export default function VotePage({ memberId, poll }: Props) {
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-6">
-        {closePhase === "confirmed" && confirmedTallyItem ? (
+        {poll.status === "confirmed" ? (
           /* 확정 완료 화면 */
           <div className="text-center">
             <div className="bg-white rounded-2xl border border-emerald-200 p-8 max-w-sm mx-auto">
@@ -465,31 +539,39 @@ export default function VotePage({ memberId, poll }: Props) {
                 일정 확정
               </p>
               <p className="text-2xl font-black text-stone-900 mb-1">
-                {poll.month}월 {confirmedTallyItem.date}일 (
-                {confirmedTallyItem.dayName})
+                {poll.month}월 {confirmedDay}일 (
+                {confirmedDateInfo?.dayName ?? ""})
               </p>
               <p className="text-lg font-bold text-stone-600 mb-4">
-                {confirmedTallyItem.time} 시작
+                {confirmedTallyItem?.time ??
+                  poll.time_weekday ??
+                  poll.time_start}{" "}
+                시작
               </p>
-              <p className="text-sm text-stone-400 mb-3">
-                {confirmedTallyItem.count}명이 참여 가능한 날짜예요
-              </p>
-              <div className="flex justify-center gap-1">
-                {Array.from({ length: totalMembers }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`w-2.5 h-2.5 rounded-sm ${i < confirmedTallyItem.count ? "bg-emerald-500" : "bg-stone-200"}`}
-                  />
-                ))}
-              </div>
+              {confirmedTallyItem && (
+                <>
+                  <p className="text-sm text-stone-400 mb-3">
+                    {confirmedTallyItem.count}명이 참여 가능한 날짜예요
+                  </p>
+                  <div className="flex justify-center gap-1">
+                    {Array.from({ length: totalMembers }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`w-2.5 h-2.5 rounded-sm ${i < confirmedTallyItem.count ? "bg-emerald-500" : "bg-stone-200"}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : (
           /* 투표 중 화면 */
           <>
             <p className="text-xs text-stone-400 mb-5">
-              가능한 날짜를 선택하세요. 평일은 22:00, 주말은 시간도
-              선택해주세요.
+              {poll.type === "offline"
+                ? "가능한 주말을 선택하고 시작 시간을 골라주세요."
+                : `가능한 날짜를 선택하세요. 평일은 ${poll.time_weekday ?? "22:00"}, 주말은 시간도 선택해주세요.`}
             </p>
 
             {/* 메인 2열 그리드: 왼쪽 달력 / 오른쪽 상세 패널 */}
@@ -501,7 +583,7 @@ export default function VotePage({ memberId, poll }: Props) {
                     {MONTH_KO}
                   </span>
                   <span className="text-xs text-stone-400 bg-stone-50 rounded-full px-2 py-0.5">
-                    1일 ~ 10일
+                    {dateFromDay}일 ~ {dateToDay}일
                   </span>
                 </div>
 
@@ -523,12 +605,14 @@ export default function VotePage({ memberId, poll }: Props) {
                     {row.map((day, di) => {
                       if (!day)
                         return <div key={di} className="aspect-square" />;
-                      const inRange = day <= 10;
+                      const dateInfo = dates.find((d) => d.date === day);
+                      const inRange = !!dateInfo;
+                      const clickable =
+                        inRange && isDateClickable(dateInfo!, poll);
                       const isMarked = selectedDates.has(day);
                       const isActive = activeDate === day;
                       const isSun = di === 0;
                       const isSat = di === 6;
-                      const dateInfo = dates.find((d) => d.date === day);
                       const isWeekend = dateInfo?.isWeekend ?? false;
                       const weekdayCount =
                         inRange && !isWeekend ? (weekdayVotes[day] ?? 0) : 0;
@@ -539,11 +623,11 @@ export default function VotePage({ memberId, poll }: Props) {
                       const isTopVote =
                         weekdayCount === maxVoteCount && weekdayCount > 0;
 
-                      if (!inRange) {
+                      if (!inRange || !clickable) {
                         return (
                           <div
                             key={di}
-                            className={`aspect-square flex items-center justify-center text-xs ${isSun ? "text-red-200" : isSat ? "text-blue-200" : "text-stone-200"}`}
+                            className={`aspect-square flex items-center justify-center text-xs ${!inRange ? (isSun ? "text-red-200" : isSat ? "text-blue-200" : "text-stone-200") : isSun ? "text-red-300" : isSat ? "text-blue-300" : "text-stone-300"}`}
                           >
                             {day}
                           </div>
@@ -646,7 +730,9 @@ export default function VotePage({ memberId, poll }: Props) {
                                 /{totalMembers - 1}명
                               </span>
                             </p>
-                            <p className="text-xs text-stone-400">22:00 가능</p>
+                            <p className="text-xs text-stone-400">
+                              {poll.time_weekday ?? "22:00"} 가능
+                            </p>
                           </div>
                         )}
                     </div>
@@ -660,11 +746,11 @@ export default function VotePage({ memberId, poll }: Props) {
                               참여 가능한 시작 시간
                             </p>
                             <p className="text-xs text-stone-400">
-                              복수 선택 가능
+                              {poll.time_start} ~ {poll.time_end}
                             </p>
                           </div>
                           <div className="grid grid-cols-4 gap-1.5 mb-3">
-                            {WEEKEND_HOURS.map((hour) => {
+                            {weekendHourRange.map((hour) => {
                               const mySelected =
                                 weekendHours[activeDateInfo.date]?.has(hour) ??
                                 false;
@@ -714,15 +800,16 @@ export default function VotePage({ memberId, poll }: Props) {
                           )}
                         </div>
                       ) : (
-                        /* 평일: 22:00 단일 토글 */
+                        /* 평일: 고정 시간 토글 */
                         <div>
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <p className="text-sm font-semibold text-stone-800">
-                                22:00 시작
+                                {poll.time_weekday ?? "22:00"} 시작
                               </p>
                               <p className="text-xs text-stone-400 mt-0.5">
-                                평일은 밤 10시 시작으로 고정
+                                평일은 {poll.time_weekday ?? "22:00"} 시작으로
+                                고정
                               </p>
                             </div>
                             {weekdayVotes[activeDateInfo.date] !==
@@ -747,8 +834,8 @@ export default function VotePage({ memberId, poll }: Props) {
                             }`}
                           >
                             {selectedDates.has(activeDateInfo.date)
-                              ? "✓ 22:00 가능"
-                              : "22:00 가능으로 표시"}
+                              ? `✓ ${poll.time_weekday ?? "22:00"} 가능`
+                              : `${poll.time_weekday ?? "22:00"} 가능으로 표시`}
                           </button>
                         </div>
                       )}
@@ -959,16 +1046,15 @@ export default function VotePage({ memberId, poll }: Props) {
                 취소
               </button>
               <button
-                disabled={!confirmedDate}
-                onClick={() => {
-                  if (confirmedDate) {
-                    setClosePhase("confirmed");
-                    // TODO: API — poll status를 "confirmed"로 업데이트, confirmed_date 설정
-                  }
-                }}
+                disabled={!confirmedDate || confirming}
+                onClick={handleConfirm}
                 className="flex-1 py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {confirmedDate ? "이 날짜로 확정" : "날짜를 선택하세요"}
+                {confirming
+                  ? "확정 중..."
+                  : confirmedDate
+                    ? "이 날짜로 확정"
+                    : "날짜를 선택하세요"}
               </button>
             </div>
           </div>
@@ -1066,15 +1152,33 @@ function PollForm({
   pollType,
   onBack,
   onSubmit,
+  disabled,
 }: {
   pollType: PollType;
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (data: PollFormData) => void;
+  disabled?: boolean;
 }) {
   const isOnline = pollType === "online";
+  const [dateFrom, setDateFrom] = useState(
+    isOnline ? "2026-03-01" : "2026-03-07",
+  );
+  const [dateTo, setDateTo] = useState(isOnline ? "2026-03-10" : "2026-03-15");
   const [weekdayTime, setWeekdayTime] = useState("22:00");
   const [weekendStart, setWeekendStart] = useState("10:00");
   const [weekendEnd, setWeekendEnd] = useState(isOnline ? "22:00" : "18:00");
+  const [location, setLocation] = useState("");
+
+  const handleSubmit = () => {
+    onSubmit({
+      dateFrom,
+      dateTo,
+      timeWeekday: isOnline ? weekdayTime : null,
+      timeStart: weekendStart,
+      timeEnd: weekendEnd,
+      location: location.trim() || null,
+    });
+  };
 
   return (
     <div className="max-w-lg mx-auto">
@@ -1104,13 +1208,15 @@ function PollForm({
           <div className="flex items-center gap-2">
             <input
               type="date"
-              defaultValue={isOnline ? "2026-03-01" : "2026-03-07"}
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
               className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
             />
             <span className="text-stone-400 flex-shrink-0">~</span>
             <input
               type="date"
-              defaultValue={isOnline ? "2026-03-10" : "2026-03-15"}
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
               className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
             />
           </div>
@@ -1160,6 +1266,8 @@ function PollForm({
             </label>
             <input
               type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
               placeholder="예: 강남역 카페, 잠실 공유 오피스"
               className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-stone-400 placeholder:text-stone-300"
             />
@@ -1168,10 +1276,11 @@ function PollForm({
 
         <div className="p-5">
           <button
-            onClick={onSubmit}
-            className="w-full py-3 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors"
+            onClick={handleSubmit}
+            disabled={disabled}
+            className="w-full py-3 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
           >
-            일정 만들기
+            {disabled ? "생성 중..." : "일정 만들기"}
           </button>
         </div>
       </div>

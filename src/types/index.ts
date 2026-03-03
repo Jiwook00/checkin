@@ -28,11 +28,18 @@ export interface DateInfo {
 
 export interface VotePoll {
   id: string;
+  type: "online" | "offline";
+  location: string | null;
+  date_from: string; // "2026-03-01"
+  date_to: string; // "2026-03-10"
+  time_weekday: string | null; // "22:00" (온라인 전용)
+  time_start: string; // "10:00"
+  time_end: string; // "22:00" or "18:00"
   session: string;
   year: number;
   month: number;
-  status: "open" | "closed" | "confirmed";
-  confirmed_date: string | null;
+  status: "open" | "confirmed";
+  confirmed_date: string | null; // "2026-03-07"
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +53,6 @@ export interface VoteResponse {
   id: string;
   poll_id: string;
   member_id: string;
-  mode: "available" | "unavailable";
   selected_dates: VoteDateSelection[];
   created_at: string;
   updated_at: string;
