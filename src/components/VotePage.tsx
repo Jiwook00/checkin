@@ -1,21 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import type { VotePoll, VoteResponse } from "../types";
+import { useEffect, useReducer, useRef, useState } from "react";
+import type { VotePoll, VoteResponse, DateInfo } from "../types";
+import { DAY_NAMES } from "../types";
 import {
-  getActivePoll,
   getVoteResponses,
   getTotalMemberCount,
   upsertVoteResponse,
 } from "../lib/vote";
 
 const WEEKEND_HOURS = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
-const WEEKDAYS_HEADER = ["일", "월", "화", "수", "목", "금", "토"];
-const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
-
-interface DateInfo {
-  date: number;
-  dayName: string;
-  isWeekend: boolean;
-}
 
 function buildDates(year: number, month: number): DateInfo[] {
   return Array.from({ length: 10 }, (_, i) => {
@@ -40,7 +32,6 @@ function buildCalendarRows(year: number, month: number): (number | null)[][] {
   return rows;
 }
 
-// 다른 멤버 응답 기반 집계: 평일 날짜별 가능 인원 수
 function computeWeekdayVotes(
   others: VoteResponse[],
   dates: DateInfo[],
@@ -52,7 +43,6 @@ function computeWeekdayVotes(
       if (r.mode === "available") {
         if (r.selected_dates.some((s) => s.date === date)) count++;
       } else {
-        // unavailable 모드: 해당 날짜가 불가능 목록에 없으면 가능
         if (!r.selected_dates.some((s) => s.date === date)) count++;
       }
     }
@@ -61,7 +51,6 @@ function computeWeekdayVotes(
   return result;
 }
 
-// 다른 멤버 응답 기반 집계: 주말 시간별 가능 인원 수
 function computeWeekendHourVotes(
   others: VoteResponse[],
   dates: DateInfo[],
@@ -75,7 +64,6 @@ function computeWeekendHourVotes(
           const sel = r.selected_dates.find((s) => s.date === date);
           if (sel?.hours.includes(hour)) count++;
         } else {
-          // unavailable 모드: 날짜가 불가능 목록에 없으면 모든 시간 가능
           if (!r.selected_dates.some((s) => s.date === date)) count++;
         }
       }
@@ -88,77 +76,179 @@ function computeWeekendHourVotes(
   return result;
 }
 
+// --- 투표 UI 상태 (useReducer) ---
+
 type Mode = "available" | "unavailable";
+
+interface VoteState {
+  mode: Mode;
+  selectedDates: Set<number>;
+  weekendHours: Record<number, Set<number>>;
+  activeDate: number | null;
+  saved: boolean;
+  saveError: string | null;
+}
+
+type VoteAction =
+  | { type: "SET_MODE"; mode: Mode }
+  | { type: "TOGGLE_DATE"; date: number }
+  | { type: "TOGGLE_HOUR"; date: number; hour: number }
+  | { type: "SET_ACTIVE_DATE"; date: number | null }
+  | { type: "MARK_SAVED" }
+  | { type: "MARK_UNSAVED" }
+  | { type: "SET_SAVE_ERROR"; error: string | null }
+  | {
+      type: "RESTORE";
+      mode: Mode;
+      selectedDates: Set<number>;
+      weekendHours: Record<number, Set<number>>;
+      activeDate: number | null;
+    };
+
+function voteReducer(state: VoteState, action: VoteAction): VoteState {
+  switch (action.type) {
+    case "SET_MODE":
+      return {
+        ...state,
+        mode: action.mode,
+        selectedDates: new Set(),
+        weekendHours: {},
+        saved: false,
+        saveError: null,
+      };
+    case "TOGGLE_DATE": {
+      const next = new Set(state.selectedDates);
+      const nextHours = { ...state.weekendHours };
+      if (next.has(action.date)) {
+        next.delete(action.date);
+        delete nextHours[action.date];
+      } else {
+        next.add(action.date);
+      }
+      return {
+        ...state,
+        selectedDates: next,
+        weekendHours: nextHours,
+        activeDate: action.date,
+        saved: false,
+        saveError: null,
+      };
+    }
+    case "TOGGLE_HOUR": {
+      const cur = state.weekendHours[action.date]
+        ? new Set(state.weekendHours[action.date])
+        : new Set<number>();
+      if (cur.has(action.hour)) cur.delete(action.hour);
+      else cur.add(action.hour);
+      // 시간 선택 시 날짜도 자동 선택
+      const nextDates = new Set(state.selectedDates);
+      nextDates.add(action.date);
+      return {
+        ...state,
+        selectedDates: nextDates,
+        weekendHours: { ...state.weekendHours, [action.date]: cur },
+        saved: false,
+        saveError: null,
+      };
+    }
+    case "SET_ACTIVE_DATE":
+      return { ...state, activeDate: action.date };
+    case "MARK_SAVED":
+      return { ...state, saved: true, saveError: null };
+    case "MARK_UNSAVED":
+      return { ...state, saved: false };
+    case "SET_SAVE_ERROR":
+      return { ...state, saveError: action.error };
+    case "RESTORE":
+      return {
+        ...state,
+        mode: action.mode,
+        selectedDates: action.selectedDates,
+        weekendHours: action.weekendHours,
+        activeDate: action.activeDate,
+        saved: true,
+        saveError: null,
+      };
+    default:
+      return state;
+  }
+}
+
+const initialVoteState: VoteState = {
+  mode: "available",
+  selectedDates: new Set(),
+  weekendHours: {},
+  activeDate: null,
+  saved: false,
+  saveError: null,
+};
+
+// ---
 
 interface Props {
   memberId: string;
+  poll: VotePoll | null;
 }
 
-export default function VotePage({ memberId }: Props) {
-  const [poll, setPoll] = useState<VotePoll | null>(null);
+export default function VotePage({ memberId, poll }: Props) {
   const [responses, setResponses] = useState<VoteResponse[]>([]);
   const [totalMembers, setTotalMembers] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // 투표 UI 상태
-  const [mode, setMode] = useState<Mode>("available");
-  const [selectedDates, setSelectedDates] = useState<Set<number>>(new Set());
-  const [weekendHours, setWeekendHours] = useState<Record<number, Set<number>>>(
-    {},
-  );
-  const [activeDate, setActiveDate] = useState<number | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [voteState, dispatch] = useReducer(voteReducer, initialVoteState);
+  const { mode, selectedDates, weekendHours, activeDate, saved, saveError } =
+    voteState;
 
-  // 기존 응답 불러오기 후 초기화 (한 번만)
   const initializedRef = useRef(false);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [activePoll, memberCount] = await Promise.all([
-        getActivePoll(),
-        getTotalMemberCount(),
-      ]);
-      setTotalMembers(memberCount);
+      setLoadError(false);
 
-      if (!activePoll) {
+      if (!poll) {
         setLoading(false);
         return;
       }
 
-      setPoll(activePoll);
-      const allResponses = await getVoteResponses(activePoll.id);
-      setResponses(allResponses);
+      const [allResponses, memberCount] = await Promise.all([
+        getVoteResponses(poll.id),
+        getTotalMemberCount(),
+      ]);
 
-      // 기존 내 응답이 있으면 상태 복원
+      if (allResponses === null || memberCount === null) {
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
+
+      setResponses(allResponses);
+      setTotalMembers(memberCount);
+
       if (!initializedRef.current) {
         initializedRef.current = true;
         const mine = allResponses.find((r) => r.member_id === memberId);
         if (mine) {
-          setMode(mine.mode);
           const dates = new Set(mine.selected_dates.map((s) => s.date));
-          setSelectedDates(dates);
+          const hours: Record<number, Set<number>> = {};
           if (mine.mode === "available") {
-            const hours: Record<number, Set<number>> = {};
             for (const s of mine.selected_dates) {
               if (s.hours.length > 0) {
-                hours[s.date] = new Set(
-                  // 평일(22시 고정)은 UI에서 hours로 저장하지 않음
-                  s.hours.filter((h) => h !== 22),
-                );
+                hours[s.date] = new Set(s.hours.filter((h) => h !== 22));
               }
             }
-            setWeekendHours(hours);
           }
-          setSaved(true);
-          // 기존 응답이 있으면 첫 번째 선택 날짜를 activeDate로
-          const firstDate = mine.selected_dates[0]?.date ?? null;
-          setActiveDate(firstDate);
+          dispatch({
+            type: "RESTORE",
+            mode: mine.mode,
+            selectedDates: dates,
+            weekendHours: hours,
+            activeDate: mine.selected_dates[0]?.date ?? null,
+          });
         } else {
-          // 응답 없을 때 기본 activeDate: 해당 월 2일
-          setActiveDate(2);
+          dispatch({ type: "SET_ACTIVE_DATE", date: 2 });
         }
       }
 
@@ -166,12 +256,22 @@ export default function VotePage({ memberId }: Props) {
     }
 
     load();
-  }, [memberId]);
+  }, [memberId, poll]);
 
   if (loading) {
     return (
       <div className="py-20 text-center">
         <p className="text-stone-400">불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-sm text-red-400">
+          데이터를 불러오지 못했어요. 새로고침해주세요.
+        </p>
       </div>
     );
   }
@@ -199,37 +299,6 @@ export default function VotePage({ memberId }: Props) {
       ? Math.max(...Object.values(weekdayVotes))
       : 0;
 
-  const toggleDate = (date: number) => {
-    setSelectedDates((prev) => {
-      const next = new Set(prev);
-      if (next.has(date)) {
-        next.delete(date);
-        setWeekendHours((h) => {
-          const n = { ...h };
-          delete n[date];
-          return n;
-        });
-      } else {
-        next.add(date);
-      }
-      return next;
-    });
-    setActiveDate(date);
-    setSaved(false);
-    setSaveError(null);
-  };
-
-  const toggleHour = (date: number, hour: number) => {
-    setWeekendHours((prev) => {
-      const cur = prev[date] ? new Set(prev[date]) : new Set<number>();
-      if (cur.has(hour)) cur.delete(hour);
-      else cur.add(hour);
-      return { ...prev, [date]: new Set(cur) };
-    });
-    setSaved(false);
-    setSaveError(null);
-  };
-
   const getSummaryLines = () => {
     if (mode === "available") {
       return dates
@@ -255,14 +324,20 @@ export default function VotePage({ memberId }: Props) {
     }
   };
 
-  const canSave =
-    mode === "available"
-      ? selectedDates.size > 0
-      : selectedDates.size < dates.length;
+  const canSave = (() => {
+    if (mode === "unavailable") return selectedDates.size < dates.length;
+    if (selectedDates.size === 0) return false;
+    // 주말 선택 시 시간이 하나도 없으면 저장 불가
+    for (const date of selectedDates) {
+      const info = dates.find((d) => d.date === date);
+      if (info?.isWeekend && !(weekendHours[date]?.size > 0)) return false;
+    }
+    return true;
+  })();
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveError(null);
+    dispatch({ type: "SET_SAVE_ERROR", error: null });
     const { error } = await upsertVoteResponse(
       poll.id,
       memberId,
@@ -272,10 +347,12 @@ export default function VotePage({ memberId }: Props) {
       dates,
     );
     if (error) {
-      setSaveError("저장에 실패했어요. 다시 시도해주세요.");
+      dispatch({
+        type: "SET_SAVE_ERROR",
+        error: "저장에 실패했어요. 다시 시도해주세요.",
+      });
     } else {
-      setSaved(true);
-      // 응답 목록 갱신
+      dispatch({ type: "MARK_SAVED" });
       const updated = await getVoteResponses(poll.id);
       setResponses(updated);
     }
@@ -284,7 +361,8 @@ export default function VotePage({ memberId }: Props) {
 
   const MONTH_KO = `${poll.year}년 ${poll.month}월`;
   const retroMonth = poll.month === 1 ? 12 : poll.month - 1;
-  const sessionLabel = `${poll.month}월에 하는 ${retroMonth}월 회고`;
+  const retroYear = poll.month === 1 ? poll.year - 1 : poll.year;
+  const sessionLabel = `${poll.month}월에 하는 ${retroYear}년 ${retroMonth}월 회고`;
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -310,25 +388,15 @@ export default function VotePage({ memberId }: Props) {
         <div className="flex items-center gap-2 mb-6">
           <div className="flex bg-stone-100 rounded-full p-0.5 gap-0.5">
             <button
-              onClick={() => {
-                setMode("available");
-                setSelectedDates(new Set());
-                setWeekendHours({});
-                setSaved(false);
-                setSaveError(null);
-              }}
+              onClick={() => dispatch({ type: "SET_MODE", mode: "available" })}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${mode === "available" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
             >
               가능한 날 선택
             </button>
             <button
-              onClick={() => {
-                setMode("unavailable");
-                setSelectedDates(new Set());
-                setWeekendHours({});
-                setSaved(false);
-                setSaveError(null);
-              }}
+              onClick={() =>
+                dispatch({ type: "SET_MODE", mode: "unavailable" })
+              }
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${mode === "unavailable" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-700"}`}
             >
               불가능한 날 선택
@@ -356,7 +424,7 @@ export default function VotePage({ memberId }: Props) {
 
             {/* 요일 헤더 */}
             <div className="grid grid-cols-7 mb-1">
-              {WEEKDAYS_HEADER.map((d, i) => (
+              {DAY_NAMES.map((d, i) => (
                 <div
                   key={d}
                   className={`text-center text-xs font-medium py-1 ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-stone-400"}`}
@@ -406,7 +474,9 @@ export default function VotePage({ memberId }: Props) {
                   return (
                     <button
                       key={di}
-                      onClick={() => toggleDate(day)}
+                      onClick={() =>
+                        dispatch({ type: "TOGGLE_DATE", date: day })
+                      }
                       className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg transition-all relative
                         ${isMarked ? markedStyle : isActive ? "ring-2 ring-stone-300 text-stone-800 font-semibold" : isTopVote ? "bg-emerald-50 ring-1 ring-emerald-200 text-stone-900" : "hover:bg-stone-50 text-stone-700 font-medium"}
                         ${isWeekend && !isMarked && !isActive && isSun ? "text-red-500" : ""}
@@ -507,7 +577,12 @@ export default function VotePage({ memberId }: Props) {
                     /* 불가능 모드: 날짜 단위 토글만 */
                     <div>
                       <button
-                        onClick={() => toggleDate(activeDateInfo.date)}
+                        onClick={() =>
+                          dispatch({
+                            type: "TOGGLE_DATE",
+                            date: activeDateInfo.date,
+                          })
+                        }
                         className={`w-full py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
                           selectedDates.has(activeDateInfo.date)
                             ? "border-stone-300 bg-stone-100 text-stone-500"
@@ -543,14 +618,13 @@ export default function VotePage({ memberId }: Props) {
                           return (
                             <button
                               key={hour}
-                              onClick={() => {
-                                if (!selectedDates.has(activeDateInfo.date)) {
-                                  setSelectedDates(
-                                    (p) => new Set([...p, activeDateInfo.date]),
-                                  );
-                                }
-                                toggleHour(activeDateInfo.date, hour);
-                              }}
+                              onClick={() =>
+                                dispatch({
+                                  type: "TOGGLE_HOUR",
+                                  date: activeDateInfo.date,
+                                  hour,
+                                })
+                              }
                               className={`py-2 rounded-lg text-xs font-medium transition-all relative ${
                                 mySelected
                                   ? "bg-stone-900 text-white"
@@ -569,16 +643,19 @@ export default function VotePage({ memberId }: Props) {
                           );
                         })}
                       </div>
-                      <button
-                        onClick={() => {
-                          if (selectedDates.has(activeDateInfo.date)) {
-                            toggleDate(activeDateInfo.date);
+                      {selectedDates.has(activeDateInfo.date) && (
+                        <button
+                          onClick={() =>
+                            dispatch({
+                              type: "TOGGLE_DATE",
+                              date: activeDateInfo.date,
+                            })
                           }
-                        }}
-                        className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-600"
-                      >
-                        이 날짜 선택 해제
-                      </button>
+                          className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-600"
+                        >
+                          이 날짜 선택 해제
+                        </button>
+                      )}
                     </div>
                   ) : (
                     /* 가능 모드 + 평일: 22:00 단일 토글 */
@@ -599,7 +676,12 @@ export default function VotePage({ memberId }: Props) {
                         )}
                       </div>
                       <button
-                        onClick={() => toggleDate(activeDateInfo.date)}
+                        onClick={() =>
+                          dispatch({
+                            type: "TOGGLE_DATE",
+                            date: activeDateInfo.date,
+                          })
+                        }
                         className={`w-full py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
                           selectedDates.has(activeDateInfo.date)
                             ? "border-stone-900 bg-stone-900 text-white"
@@ -643,7 +725,7 @@ export default function VotePage({ memberId }: Props) {
                       ))}
                     </div>
                     <button
-                      onClick={() => setSaved(false)}
+                      onClick={() => dispatch({ type: "MARK_UNSAVED" })}
                       className="mt-3 text-xs text-stone-400 underline"
                     >
                       수정하기

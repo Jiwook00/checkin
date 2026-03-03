@@ -43,7 +43,7 @@ PR을 열면 템플릿이 자동으로 채워집니다.
 - **`CLAUDE.md`**: Claude가 프로젝트 구조, 명령어, 컨벤션을 파악하기 위한 파일입니다.
 - **Stop 훅** (`.claude/hooks/check-claude-md.sh`): `package.json`, `vite.config.ts` 등 주요 설정 파일이 변경됐을 때 세션 종료 시 `CLAUDE.md` 업데이트를 검토하라고 알려줍니다.
 
-이슈 작업 시 슬래시 커맨드를 활용할 수 있습니다 — `/issue-start <번호>`, `/issue-new`, `/commit`, `/create-pr`. 자세한 내용은 [`CLAUDE.md`](../CLAUDE.md#claude-커맨드)를 참고하세요.
+이슈 작업 시 슬래시 커맨드를 활용할 수 있습니다 — `/issue-start <번호>`, `/issue-new`, `/commit`, `/pr-new`. 자세한 내용은 [`CLAUDE.md`](../CLAUDE.md#claude-커맨드)를 참고하세요.
 
 `CLAUDE.md`를 업데이트해야 하는 경우:
 

@@ -18,6 +18,14 @@ export interface AddArticleForm {
   session: string;
 }
 
+export const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"] as const;
+
+export interface DateInfo {
+  date: number;
+  dayName: string;
+  isWeekend: boolean;
+}
+
 export interface VotePoll {
   id: string;
   session: string;
