@@ -79,7 +79,7 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 | `/issue-start <번호>` | 이슈 정보 로드 + 브랜치 생성                      |
 | `/issue-new`          | 현재 작업 기반으로 새 이슈 생성                   |
 | `/commit`             | 이슈 참조(`Closes #X`) 포함 커밋 가이드           |
-| `/create-pr`          | PR 생성                                           |
+| `/pr-new`             | PR 생성                                           |
 | `/design-preview`     | UI 변경 전 다양한 스타일 프리뷰를 `/dev/*`에 생성 |
 
 ## Data Flow
