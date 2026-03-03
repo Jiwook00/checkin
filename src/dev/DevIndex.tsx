@@ -26,6 +26,12 @@ const PREVIEWS = [
     desc: "마감 확인 다이얼로그 → 득표 현황 + 날짜 선택 모달 → 확정 완료 화면.",
     tags: ["Close dialog", "Confirm modal", "Tally"],
   },
+  {
+    n: 5,
+    title: "전체 플로우 모킹 테스트",
+    desc: "새 데이터 구조(type/location/date_from~to/time 필드, mode 제거) 기준. 생성→투표→마감→확정 전체 플로우를 인메모리로 테스트. ⚙ Dev 패널에서 다른 멤버 투표 추가 가능.",
+    tags: ["Full flow", "Mock data", "New API shape", "Interactive"],
+  },
 ];
 
 export default function DevIndex() {

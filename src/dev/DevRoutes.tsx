@@ -5,6 +5,7 @@ import VoteV2Create from "./VoteV2Create";
 import VoteV2VoteA from "./VoteV2VoteA";
 import VoteV2VoteB from "./VoteV2VoteB";
 import VoteV2Close from "./VoteV2Close";
+import VoteFlowMock from "./VoteFlowMock";
 
 export default function DevRoutes() {
   return (
@@ -14,6 +15,7 @@ export default function DevRoutes() {
       <Route path="/2" element={<VoteV2VoteA />} />
       <Route path="/3" element={<VoteV2VoteB />} />
       <Route path="/4" element={<VoteV2Close />} />
+      <Route path="/5" element={<VoteFlowMock />} />
     </Routes>
   );
 }
