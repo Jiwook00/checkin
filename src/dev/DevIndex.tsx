@@ -1,59 +1,8 @@
 // DEV ONLY — 레이아웃 프리뷰 목록
 import { Link } from "react-router-dom";
 
-const PREVIEWS = [
-  {
-    n: 1,
-    title: "되는시간 스타일",
-    desc: "왼쪽 달력 + 오른쪽 날짜 상세 패널. 날짜 클릭 시 참여자 목록 표시.",
-    tags: ["Split", "Calendar", "Detail panel"],
-  },
-  {
-    n: 2,
-    title: "Doodle 그리드",
-    desc: "멤버 × 날짜 표. 전체 응답 현황을 한눈에 파악 가능. 최다 득표 날짜 강조.",
-    tags: ["Grid", "Table", "All members"],
-  },
-  {
-    n: 3,
-    title: "날짜 카드 리스트",
-    desc: "날짜별 카드 + 진행률 바. 가장 직관적. 모바일 친화적.",
-    tags: ["Cards", "Progress bar", "Simple"],
-  },
-  {
-    n: 4,
-    title: "큰 달력 + 현황 사이드",
-    desc: "달력이 메인. 후보 날짜에 득표 수 표시. 오른쪽에 현황 패널.",
-    tags: ["Large calendar", "Hover preview", "Side panel"],
-  },
-  {
-    n: 5,
-    title: "단계별 선택 플로우",
-    desc: "선택 → 확인 → 완료 스텝. 달력 + 버튼 리스트 조합. 모바일 퍼스트.",
-    tags: ["Step flow", "Mobile first", "CTA focused"],
-  },
-  {
-    n: 6,
-    title: "현황 A: 달력 히트맵",
-    desc: "달력 셀 안에 가능 인원 수 표시. 최다 득표 날짜 emerald로 강조.",
-    tags: ["Heatmap", "Cell badge", "Minimal"],
-    badge: "현황",
-  },
-  {
-    n: 7,
-    title: "현황 B: 상단 현황 배너",
-    desc: "달력 위에 요약 카드 추가. 응답 진행률 바 + 유력 날짜 칩 + 미응답 멤버.",
-    tags: ["Banner", "Progress bar", "Summary card"],
-    badge: "현황",
-  },
-  {
-    n: 8,
-    title: "현황 C: 멤버 응답 그리드",
-    desc: "달력 아래에 멤버 × 날짜 응답 표. 누가 어느 날 가능한지 한눈에.",
-    tags: ["Grid", "Member list", "Table"],
-    badge: "현황",
-  },
-];
+const PREVIEWS: { n: number; title: string; desc: string; tags: string[] }[] =
+  [];
 
 export default function DevIndex() {
   return (
@@ -61,14 +10,13 @@ export default function DevIndex() {
       <div className="max-w-2xl mx-auto">
         <div className="mb-10">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-            Dev Preview — Issue #11
+            Dev Preview — Issue #22
           </span>
           <h1 className="mt-2 text-3xl font-black text-gray-900">
-            일정 조율 페이지
+            일정 조율 개편
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            8가지 옵션을 비교하고 마음에 드는 스타일을 선택하세요. (6~8번: 현황
-            표시 방식)
+            등록된 프리뷰가 없습니다.
           </p>
         </div>
 
@@ -83,14 +31,9 @@ export default function DevIndex() {
                 {p.n}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-bold text-gray-900">{p.title}</span>
-                  {"badge" in p && p.badge && (
-                    <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5">
-                      {p.badge}
-                    </span>
-                  )}
-                </div>
+                <span className="font-bold text-gray-900 block mb-0.5">
+                  {p.title}
+                </span>
                 <p className="text-sm text-gray-500 mb-2">{p.desc}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {p.tags.map((tag) => (

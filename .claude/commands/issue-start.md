@@ -10,7 +10,7 @@ Start working on a GitHub issue. Usage: /issue-start <issue-number>
    gh issue view $ARGUMENTS --json number,title,body,labels
    ```
 
-   이슈가 없으면 "이슈 #$ARGUMENTS 를 찾을 수 없습니다." 라고 알리고 중단.
+   이슈가 없으면 "이슈 #$ARGUMENTS 를 찾을 수 없습니다." 라고 알리고 중단. 이슈의 코멘트까지 확인해서 컨텍스트를 더 잘 이해할 수 있도록 한다.
 
 2. **브랜치명 제안**
 

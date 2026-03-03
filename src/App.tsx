@@ -146,7 +146,11 @@ export default function App() {
         <Route
           path="/vote"
           element={
-            <VotePage memberId={authState.member.id} poll={activePoll} />
+            <VotePage
+              memberId={authState.member.id}
+              poll={activePoll}
+              onPollChange={setActivePoll}
+            />
           }
         />
         <Route

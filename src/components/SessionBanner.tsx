@@ -23,6 +23,12 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
       : activePoll.month - 1
     : null;
 
+  const confirmedDay = activePoll?.confirmed_date
+    ? parseInt(activePoll.confirmed_date.split("-")[2])
+    : null;
+
+  const isConfirmed = activePoll?.status === "confirmed" && confirmedDay;
+
   return (
     <div className="mb-6 rounded-2xl border border-stone-200 bg-stone-50 p-6">
       <div className="flex items-start justify-between mb-4">
@@ -33,7 +39,11 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
           <h1 className="text-xl font-black text-stone-900 leading-tight">
             {RETRO_TITLE}
           </h1>
-          <p className="text-xs text-stone-400 mt-1.5">날짜 미정</p>
+          <p className="text-xs text-stone-400 mt-1.5">
+            {isConfirmed
+              ? `${activePoll!.month}월 ${confirmedDay}일 확정`
+              : "날짜 미정"}
+          </p>
         </div>
         <button
           onClick={onAddClick}
@@ -47,7 +57,18 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
       <div className="border-t border-stone-200 pt-4">
         <span className="text-xs font-semibold text-stone-500">날짜</span>
         <p className="text-xs text-stone-400 mt-2">
-          {activePoll ? (
+          {isConfirmed ? (
+            <>
+              {pollRetroMonth}월 회고: {activePoll!.month}월 {confirmedDay}일
+              확정 ·{" "}
+              <Link
+                to="/vote"
+                className="underline underline-offset-2 hover:text-stone-700 transition-colors"
+              >
+                자세히 보기 →
+              </Link>
+            </>
+          ) : activePoll ? (
             <>
               아직 {pollRetroMonth}월 회고 날짜가 정해지지 않았어요 ·{" "}
               <Link
