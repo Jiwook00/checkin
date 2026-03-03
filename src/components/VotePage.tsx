@@ -172,17 +172,14 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
   switch (action.type) {
     case "TOGGLE_DATE": {
       const next = new Set(state.selectedDates);
-      const nextHours = { ...state.weekendHours };
       if (next.has(action.date)) {
         next.delete(action.date);
-        delete nextHours[action.date];
       } else {
         next.add(action.date);
       }
       return {
         ...state,
         selectedDates: next,
-        weekendHours: nextHours,
         activeDate: action.date,
         saved: false,
         saveError: null,
@@ -399,9 +396,17 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const calendarRows = buildCalendarRows(poll.year, poll.month);
   const weekendHourRange = getWeekendHourRange(poll);
   const otherResponses = responses.filter((r) => r.member_id !== memberId);
+  // 오른쪽 패널 "다른 멤버 응답" 표시용 (나 제외)
   const weekdayVotes = computeWeekdayVotes(otherResponses, dates);
   const weekendHourVotes = computeWeekendHourVotes(
     otherResponses,
+    dates,
+    weekendHourRange,
+  );
+  // 달력 셀 인원 표시용 (나 포함 전체)
+  const allWeekdayVotes = computeWeekdayVotes(responses, dates);
+  const allWeekendHourVotes = computeWeekendHourVotes(
+    responses,
     dates,
     weekendHourRange,
   );
@@ -410,8 +415,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
   const activeDateInfo = dates.find((d) => d.date === activeDate);
   const maxVoteCount =
-    Object.keys(weekdayVotes).length > 0
-      ? Math.max(...Object.values(weekdayVotes))
+    Object.keys(allWeekdayVotes).length > 0
+      ? Math.max(...Object.values(allWeekdayVotes))
       : 0;
 
   const dateFromDay = parseInt(poll.date_from.split("-")[2]);
@@ -615,10 +620,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       const isSat = di === 6;
                       const isWeekend = dateInfo?.isWeekend ?? false;
                       const weekdayCount =
-                        inRange && !isWeekend ? (weekdayVotes[day] ?? 0) : 0;
+                        inRange && !isWeekend ? (allWeekdayVotes[day] ?? 0) : 0;
                       const weekendMaxCount =
-                        inRange && isWeekend && weekendHourVotes[day]
-                          ? Math.max(...Object.values(weekendHourVotes[day]))
+                        inRange && isWeekend && allWeekendHourVotes[day]
+                          ? Math.max(...Object.values(allWeekendHourVotes[day]))
                           : 0;
                       const isTopVote =
                         weekdayCount === maxVoteCount && weekdayCount > 0;
@@ -690,8 +695,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       <span>최다 득표</span>
                     </div>
                   )}
-                  {(Object.keys(weekdayVotes).length > 0 ||
-                    Object.keys(weekendHourVotes).length > 0) && (
+                  {(Object.keys(allWeekdayVotes).length > 0 ||
+                    Object.keys(allWeekendHourVotes).length > 0) && (
                     <div className="flex items-center gap-1 text-xs text-stone-400">
                       <span className="text-[10px] font-bold">N명</span>
                       <span>= 셀 안 응답 인원</span>
