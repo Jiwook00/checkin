@@ -1,38 +1,8 @@
 // DEV ONLY — 레이아웃 프리뷰 목록
 import { Link } from "react-router-dom";
 
-const PREVIEWS = [
-  {
-    n: 1,
-    title: "새 일정 만들기",
-    desc: "빈 상태 → 온라인/오프라인 프리셋 선택 → 날짜·시간·장소 설정 폼. 3단계 플로우.",
-    tags: ["Create flow", "Preset", "Step-by-step"],
-  },
-  {
-    n: 2,
-    title: "투표 중 — Split 레이아웃",
-    desc: "기존 달력+패널 구조 유지. 모드 토글 제거, 가능 날만 선택. 상단 마감 버튼.",
-    tags: ["Split", "Calendar", "Detail panel"],
-  },
-  {
-    n: 3,
-    title: "투표 중 — 단일 컬럼",
-    desc: "달력 전체 너비. 주말 선택 시 인라인 시간 피커 확장. 하단 고정 저장 바. 모바일 친화.",
-    tags: ["Single column", "Inline picker", "Mobile-first"],
-  },
-  {
-    n: 4,
-    title: "마감 → 확정 플로우",
-    desc: "마감 확인 다이얼로그 → 득표 현황 + 날짜 선택 모달 → 확정 완료 화면.",
-    tags: ["Close dialog", "Confirm modal", "Tally"],
-  },
-  {
-    n: 5,
-    title: "전체 플로우 모킹 테스트",
-    desc: "새 데이터 구조(type/location/date_from~to/time 필드, mode 제거) 기준. 생성→투표→마감→확정 전체 플로우를 인메모리로 테스트. ⚙ Dev 패널에서 다른 멤버 투표 추가 가능.",
-    tags: ["Full flow", "Mock data", "New API shape", "Interactive"],
-  },
-];
+const PREVIEWS: { n: number; title: string; desc: string; tags: string[] }[] =
+  [];
 
 export default function DevIndex() {
   return (
@@ -46,7 +16,7 @@ export default function DevIndex() {
             일정 조율 개편
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            4가지 화면을 비교하고 마음에 드는 스타일을 선택하세요.
+            등록된 프리뷰가 없습니다.
           </p>
         </div>
 
