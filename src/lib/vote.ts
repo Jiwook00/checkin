@@ -75,12 +75,14 @@ export async function createPoll(
 export async function confirmPoll(
   pollId: string,
   confirmedDate: string,
+  confirmedTime: string | null,
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from("checkin_vote_polls")
     .update({
       status: "confirmed",
       confirmed_date: confirmedDate,
+      confirmed_time: confirmedTime,
       updated_at: new Date().toISOString(),
     })
     .eq("id", pollId);

@@ -1,15 +1,21 @@
 import { Link } from "react-router-dom";
 import type { VotePoll } from "../types";
 
-// 현재 날짜 기준으로 세션/회고 월 계산
-// 예: 3월 → "3월에 하는 2월 회고", 1월 → "1월에 하는 12월 회고"
-const now = new Date();
-const currentMonth = now.getMonth() + 1; // 1–12
-const currentYear = now.getFullYear();
-const retroMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+function formatTime(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h < 12 ? "오전" : "오후";
+  const hour = h > 12 ? h - 12 : h;
+  return m === 0 ? `${ampm} ${hour}시` : `${ampm} ${hour}시 ${m}분`;
+}
 
-const SESSION_LABEL = `${currentYear}년 ${currentMonth}월`;
-const RETRO_TITLE = `${currentMonth}월에 하는 ${retroMonth}월 회고`;
+function formatConfirmedDate(dateStr: string, timeStr: string | null) {
+  const d = new Date(dateStr + "T00:00:00");
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const dayName = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  const timePart = timeStr ? ` ${formatTime(timeStr)}` : "";
+  return `${month}월 ${day}일 (${dayName})${timePart}`;
+}
 
 interface Props {
   onAddClick: () => void;
@@ -17,71 +23,95 @@ interface Props {
 }
 
 export default function SessionBanner({ onAddClick, activePoll }: Props) {
-  const pollRetroMonth = activePoll
-    ? activePoll.month === 1
-      ? 12
-      : activePoll.month - 1
-    : null;
+  const currentMonth = new Date().getMonth() + 1;
+  const sessionMonth = activePoll?.month ?? currentMonth;
+  const retroMonth = sessionMonth === 1 ? 12 : sessionMonth - 1;
+  const retroTitle = `${sessionMonth}월에 하는 ${retroMonth}월 회고`;
 
-  const confirmedDay = activePoll?.confirmed_date
-    ? parseInt(activePoll.confirmed_date.split("-")[2])
-    : null;
-
-  const isConfirmed = activePoll?.status === "confirmed" && confirmedDay;
+  const isConfirmed =
+    activePoll?.status === "confirmed" && !!activePoll.confirmed_date;
+  const confirmedTime =
+    activePoll?.confirmed_time ?? activePoll?.time_weekday ?? null;
 
   return (
-    <div className="mb-6 rounded-2xl border border-stone-200 bg-stone-50 p-6">
-      <div className="flex items-start justify-between mb-4">
+    <div className="mb-6 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-xs text-stone-400 mb-1.5 font-medium uppercase tracking-widest">
-            {SESSION_LABEL}
-          </div>
-          <h1 className="text-xl font-black text-stone-900 leading-tight">
-            {RETRO_TITLE}
+          <h1 className="text-lg font-black text-stone-900 leading-tight">
+            {retroTitle}
           </h1>
-          <p className="text-xs text-stone-400 mt-1.5">
-            {isConfirmed
-              ? `${activePoll!.month}월 ${confirmedDay}일 확정`
-              : "날짜 미정"}
-          </p>
+
+          {isConfirmed && activePoll!.type === "online" && (
+            <>
+              <p className="text-sm text-stone-500 mt-1.5">
+                {formatConfirmedDate(
+                  activePoll!.confirmed_date!,
+                  confirmedTime,
+                )}{" "}
+                · 온라인
+              </p>
+              {(activePoll!.meeting_url || activePoll!.meeting_password) && (
+                <div className="flex items-center gap-3 mt-2">
+                  {activePoll!.meeting_url && (
+                    <a
+                      href={activePoll!.meeting_url}
+                      className="text-sm font-medium text-stone-700 underline underline-offset-2 hover:text-stone-900"
+                    >
+                      회의 참여하기 →
+                    </a>
+                  )}
+                  {activePoll!.meeting_password && (
+                    <span className="text-xs text-stone-400">
+                      비밀번호: {activePoll!.meeting_password}
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {isConfirmed && activePoll!.type === "offline" && (
+            <>
+              <p className="text-sm text-stone-500 mt-1.5">
+                {formatConfirmedDate(
+                  activePoll!.confirmed_date!,
+                  confirmedTime,
+                )}{" "}
+                · 오프라인
+              </p>
+              {activePoll!.location && (
+                <p className="text-xs text-stone-400 mt-1">
+                  📍 {activePoll!.location}
+                </p>
+              )}
+            </>
+          )}
+
+          {!isConfirmed && activePoll && (
+            <p className="text-sm text-stone-400 mt-1.5">
+              날짜 조율 중 ·{" "}
+              <Link
+                to="/vote"
+                className="underline underline-offset-2 hover:text-stone-700"
+              >
+                일정 투표하러 가기 →
+              </Link>
+            </p>
+          )}
+
+          {!activePoll && (
+            <p className="text-sm text-stone-400 mt-1.5">
+              아직 일정이 만들어지지 않았어요
+            </p>
+          )}
         </div>
+
         <button
           onClick={onAddClick}
-          className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 transition-colors"
+          className="shrink-0 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 transition-colors"
         >
           + 글 추가
         </button>
-      </div>
-
-      {/* 날짜 투표 섹션 */}
-      <div className="border-t border-stone-200 pt-4">
-        <span className="text-xs font-semibold text-stone-500">날짜</span>
-        <p className="text-xs text-stone-400 mt-2">
-          {isConfirmed ? (
-            <>
-              {pollRetroMonth}월 회고: {activePoll!.month}월 {confirmedDay}일
-              확정 ·{" "}
-              <Link
-                to="/vote"
-                className="underline underline-offset-2 hover:text-stone-700 transition-colors"
-              >
-                자세히 보기 →
-              </Link>
-            </>
-          ) : activePoll ? (
-            <>
-              아직 {pollRetroMonth}월 회고 날짜가 정해지지 않았어요 ·{" "}
-              <Link
-                to="/vote"
-                className="underline underline-offset-2 hover:text-stone-700 transition-colors"
-              >
-                일정 조율하러 가기 →
-              </Link>
-            </>
-          ) : (
-            "아직 진행 중인 투표가 없어요"
-          )}
-        </p>
       </div>
     </div>
   );
