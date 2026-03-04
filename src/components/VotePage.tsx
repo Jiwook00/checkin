@@ -476,9 +476,16 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     if (!confirmedDate) return;
     setConfirming(true);
     const dateStr = `${poll.year}-${String(poll.month).padStart(2, "0")}-${String(confirmedDate).padStart(2, "0")}`;
-    const { error } = await confirmPoll(poll.id, dateStr);
+    const tallyTime =
+      voteTally.find((t) => t.date === confirmedDate)?.time ?? null;
+    const { error } = await confirmPoll(poll.id, dateStr, tallyTime);
     if (!error) {
-      onPollChange({ ...poll, status: "confirmed", confirmed_date: dateStr });
+      onPollChange({
+        ...poll,
+        status: "confirmed",
+        confirmed_date: dateStr,
+        confirmed_time: tallyTime,
+      });
       setClosePhase(null);
       setConfirmedDate(null);
     }

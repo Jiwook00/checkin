@@ -40,6 +40,9 @@ export interface VotePoll {
   month: number;
   status: "open" | "confirmed";
   confirmed_date: string | null; // "2026-03-07"
+  confirmed_time: string | null; // "22:00" — 확정 시각
+  meeting_url: string | null;
+  meeting_password: string | null;
   created_at: string;
   updated_at: string;
 }
