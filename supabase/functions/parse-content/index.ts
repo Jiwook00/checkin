@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
 
     // Supabase에 저장
     const { data, error } = await supabaseAdmin
-      .from("retrospectives")
+      .from("checkin_retrospectives")
       .insert({
         title: finalTitle,
         member_id: user.id,

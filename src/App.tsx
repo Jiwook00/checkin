@@ -33,7 +33,7 @@ export default function App() {
   const fetchArticles = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("retrospectives")
+      .from("checkin_retrospectives")
       .select("*, checkin_members!member_id(nickname)")
       .order("created_at", { ascending: false });
 
@@ -107,7 +107,7 @@ export default function App() {
     data: { title: string; session: string },
   ) => {
     const { error } = await supabase
-      .from("retrospectives")
+      .from("checkin_retrospectives")
       .update(data)
       .eq("id", id);
     if (error) throw new Error(error.message);
@@ -117,7 +117,7 @@ export default function App() {
   // 글 삭제
   const handleDeleteArticle = async (id: string) => {
     const { error } = await supabase
-      .from("retrospectives")
+      .from("checkin_retrospectives")
       .delete()
       .eq("id", id);
     if (error) throw new Error(error.message);
