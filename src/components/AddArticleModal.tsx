@@ -5,6 +5,8 @@ interface AddArticleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (form: AddArticleForm) => Promise<void>;
+  defaultAuthor?: string;
+  defaultSession?: string;
 }
 
 function getCurrentSession(): string {
@@ -16,12 +18,15 @@ export default function AddArticleModal({
   isOpen,
   onClose,
   onSubmit,
+  defaultAuthor = "",
+  defaultSession,
 }: AddArticleModalProps) {
+  const sessionInit = defaultSession ?? getCurrentSession();
   const [form, setForm] = useState<AddArticleForm>({
     title: "",
-    author: "",
+    author: defaultAuthor,
     source_url: "",
-    session: getCurrentSession(),
+    session: sessionInit,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,9 +42,9 @@ export default function AddArticleModal({
       await onSubmit(form);
       setForm({
         title: "",
-        author: "",
+        author: defaultAuthor,
         source_url: "",
-        session: getCurrentSession(),
+        session: defaultSession ?? getCurrentSession(),
       });
       onClose();
     } catch (err) {
@@ -96,15 +101,13 @@ export default function AddArticleModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
-                작성자 <span className="text-red-500">*</span>
+                작성자
               </label>
               <input
                 type="text"
-                required
-                placeholder="이름"
+                readOnly
                 value={form.author}
-                onChange={(e) => setForm({ ...form, author: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
               />
             </div>
 

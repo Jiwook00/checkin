@@ -24,6 +24,57 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 호출자 인증 검증
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "인증이 필요합니다" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // JWT로 유저 확인
+    const supabaseWithAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseWithAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "유효하지 않은 세션입니다" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // 화이트리스트 확인
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: allowed } = await supabaseAdmin
+      .from("checkin_allowed_members")
+      .select("nickname")
+      .eq("email", user.email)
+      .maybeSingle();
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: "접근 권한이 없습니다" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const { title, author, source_url, session } = await req.json();
 
     // 입력 검증
@@ -73,11 +124,7 @@ Deno.serve(async (req) => {
     const finalTitle = title?.trim() || parsed.title;
 
     // Supabase에 저장
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("retrospectives")
       .insert({
         title: finalTitle,

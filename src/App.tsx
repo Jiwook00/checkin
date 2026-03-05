@@ -65,6 +65,11 @@ export default function App() {
 
   // 글 추가
   const handleAddArticle = async (form: AddArticleForm) => {
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
+    }
+
     const { data, error } = await supabase.functions.invoke("parse-content", {
       body: form,
     });
@@ -167,6 +172,14 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
+        defaultAuthor={authState.member.nickname}
+        defaultSession={(() => {
+          if (!activePoll?.confirmed_date) return undefined;
+          const retroYear =
+            activePoll.month === 1 ? activePoll.year - 1 : activePoll.year;
+          const retroMonth = activePoll.month === 1 ? 12 : activePoll.month - 1;
+          return `${retroYear}-${String(retroMonth).padStart(2, "0")}`;
+        })()}
       />
     </Layout>
   );
