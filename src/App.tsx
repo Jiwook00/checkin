@@ -172,6 +172,14 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
+        defaultAuthor={authState.member.nickname}
+        defaultSession={(() => {
+          if (!activePoll?.confirmed_date) return undefined;
+          const retroYear =
+            activePoll.month === 1 ? activePoll.year - 1 : activePoll.year;
+          const retroMonth = activePoll.month === 1 ? 12 : activePoll.month - 1;
+          return `${retroYear}-${String(retroMonth).padStart(2, "0")}`;
+        })()}
       />
     </Layout>
   );
