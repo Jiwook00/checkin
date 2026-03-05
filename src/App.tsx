@@ -65,6 +65,11 @@ export default function App() {
 
   // 글 추가
   const handleAddArticle = async (form: AddArticleForm) => {
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
+    }
+
     const { data, error } = await supabase.functions.invoke("parse-content", {
       body: form,
     });
