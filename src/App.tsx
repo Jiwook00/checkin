@@ -20,8 +20,11 @@ export default function App() {
   const [articles, setArticles] = useState<Retrospective[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedSession, setSelectedSession] = useState("");
-  const [selectedAuthor, setSelectedAuthor] = useState("");
+  const [selectedSession, setSelectedSession] = useState(() => {
+    const today = new Date();
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [activePoll, setActivePoll] = useState<VotePoll | null>(null);
   const [editingArticle, setEditingArticle] = useState<Retrospective | null>(
     null,
@@ -46,35 +49,23 @@ export default function App() {
     getActivePoll().then(setActivePoll);
   }, []);
 
-  // 필터 옵션 추출
-  const sessions = useMemo(
-    () => [...new Set(articles.map((a) => a.session))].sort().reverse(),
-    [articles],
-  );
-  const authors = useMemo(
-    () =>
-      [
-        ...new Set(
-          articles
-            .map((a) => a.checkin_members?.nickname ?? "")
-            .filter(Boolean),
-        ),
-      ].sort(),
-    [articles],
-  );
+  // 최근 3개월 세션 목록 (동적 계산)
+  const recentSessions = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - 1 - i, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    });
+  }, []);
 
   // 필터링된 글 목록
   const filteredArticles = useMemo(() => {
     return articles.filter((a) => {
+      if (!recentSessions.includes(a.session)) return false;
       if (selectedSession && a.session !== selectedSession) return false;
-      if (
-        selectedAuthor &&
-        (a.checkin_members?.nickname ?? "") !== selectedAuthor
-      )
-        return false;
       return true;
     });
-  }, [articles, selectedSession, selectedAuthor]);
+  }, [articles, recentSessions, selectedSession]);
 
   // 글 추가
   const handleAddArticle = async (form: AddArticleForm) => {
@@ -146,12 +137,9 @@ export default function App() {
                 activePoll={activePoll}
               />
               <SessionFilter
-                sessions={sessions}
-                authors={authors}
+                sessions={recentSessions}
                 selectedSession={selectedSession}
-                selectedAuthor={selectedAuthor}
                 onSessionChange={setSelectedSession}
-                onAuthorChange={setSelectedAuthor}
               />
               {loading ? (
                 <div className="py-20 text-center">
