@@ -75,14 +75,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { title, author, source_url, session } = await req.json();
+    const { title, source_url, session } = await req.json();
 
     // 입력 검증
-    if (!author || !source_url || !session) {
+    if (!source_url || !session) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "필수 필드가 누락되었습니다 (author, source_url, session)",
+          error: "필수 필드가 누락되었습니다 (source_url, session)",
         }),
         {
           status: 400,
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
       .from("retrospectives")
       .insert({
         title: finalTitle,
-        author,
+        member_id: user.id,
         source_url,
         source_type: sourceType,
         content_html: parsed.content_html,

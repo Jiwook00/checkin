@@ -41,7 +41,9 @@ export default function ArticleReader({
             {article.title}
           </h1>
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span className="font-medium text-gray-700">{article.author}</span>
+            <span className="font-medium text-gray-700">
+              {article.checkin_members?.nickname ?? "알 수 없음"}
+            </span>
             <span>&middot;</span>
             <span>{article.session}</span>
             <span>&middot;</span>

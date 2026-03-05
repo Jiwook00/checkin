@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type { AddArticleForm, Retrospective, VotePoll } from "./types";
+import EditArticleModal from "./components/EditArticleModal";
 import { getActivePoll } from "./lib/vote";
 import Layout from "./components/Layout";
 import SessionBanner from "./components/SessionBanner";
@@ -24,13 +25,16 @@ export default function App() {
   const [selectedSession, setSelectedSession] = useState("");
   const [selectedAuthor, setSelectedAuthor] = useState("");
   const [activePoll, setActivePoll] = useState<VotePoll | null>(null);
+  const [editingArticle, setEditingArticle] = useState<Retrospective | null>(
+    null,
+  );
 
   // 글 목록 가져오기
   const fetchArticles = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("retrospectives")
-      .select("*")
+      .select("*, checkin_members!member_id(nickname)")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -50,7 +54,14 @@ export default function App() {
     [articles],
   );
   const authors = useMemo(
-    () => [...new Set(articles.map((a) => a.author))].sort(),
+    () =>
+      [
+        ...new Set(
+          articles
+            .map((a) => a.checkin_members?.nickname ?? "")
+            .filter(Boolean),
+        ),
+      ].sort(),
     [articles],
   );
 
@@ -58,7 +69,11 @@ export default function App() {
   const filteredArticles = useMemo(() => {
     return articles.filter((a) => {
       if (selectedSession && a.session !== selectedSession) return false;
-      if (selectedAuthor && a.author !== selectedAuthor) return false;
+      if (
+        selectedAuthor &&
+        (a.checkin_members?.nickname ?? "") !== selectedAuthor
+      )
+        return false;
       return true;
     });
   }, [articles, selectedSession, selectedAuthor]);
@@ -84,6 +99,29 @@ export default function App() {
 
     // 목록 갱신
     await fetchArticles();
+  };
+
+  // 글 수정
+  const handleEditArticle = async (
+    id: string,
+    data: { title: string; session: string },
+  ) => {
+    const { error } = await supabase
+      .from("retrospectives")
+      .update(data)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    await fetchArticles();
+  };
+
+  // 글 삭제
+  const handleDeleteArticle = async (id: string) => {
+    const { error } = await supabase
+      .from("retrospectives")
+      .delete()
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    setArticles((prev) => prev.filter((a) => a.id !== id));
   };
 
   if (authState.status === "loading") {
@@ -135,6 +173,9 @@ export default function App() {
                 <ArticleList
                   articles={filteredArticles}
                   onArticleClick={setSelectedArticle}
+                  currentMemberId={authState.member.id}
+                  onEdit={setEditingArticle}
+                  onDelete={handleDeleteArticle}
                 />
               )}
             </>
@@ -172,7 +213,6 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
-        defaultAuthor={authState.member.nickname}
         defaultSession={(() => {
           if (!activePoll?.confirmed_date) return undefined;
           const retroYear =
@@ -180,6 +220,13 @@ export default function App() {
           const retroMonth = activePoll.month === 1 ? 12 : activePoll.month - 1;
           return `${retroYear}-${String(retroMonth).padStart(2, "0")}`;
         })()}
+      />
+
+      <EditArticleModal
+        isOpen={editingArticle !== null}
+        article={editingArticle}
+        onClose={() => setEditingArticle(null)}
+        onSubmit={(data) => handleEditArticle(editingArticle!.id, data)}
       />
     </Layout>
   );

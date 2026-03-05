@@ -1,7 +1,7 @@
 export interface Retrospective {
   id: string;
+  member_id: string;
   title: string;
-  author: string;
   source_url: string;
   source_type: "notion" | "tistory" | "other";
   content_html: string | null;
@@ -9,11 +9,11 @@ export interface Retrospective {
   session: string;
   created_at: string;
   updated_at: string;
+  checkin_members: { nickname: string } | null;
 }
 
 export interface AddArticleForm {
   title: string;
-  author: string;
   source_url: string;
   session: string;
 }

@@ -4,11 +4,17 @@ import ArticleCard from "./ArticleCard";
 interface ArticleListProps {
   articles: Retrospective[];
   onArticleClick: (article: Retrospective) => void;
+  currentMemberId: string;
+  onEdit: (article: Retrospective) => void;
+  onDelete: (id: string) => Promise<void>;
 }
 
 export default function ArticleList({
   articles,
   onArticleClick,
+  currentMemberId,
+  onEdit,
+  onDelete,
 }: ArticleListProps) {
   if (articles.length === 0) {
     return (
@@ -28,6 +34,9 @@ export default function ArticleList({
           key={article.id}
           article={article}
           onClick={() => onArticleClick(article)}
+          currentMemberId={currentMemberId}
+          onEdit={onEdit}
+          onDelete={onDelete}
         />
       ))}
     </div>
