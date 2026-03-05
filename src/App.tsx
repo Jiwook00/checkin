@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type { AddArticleForm, Retrospective, VotePoll } from "./types";
 import EditArticleModal from "./components/EditArticleModal";
@@ -16,11 +16,9 @@ import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
   const { authState, signInWithGoogle, signOut } = useAuth();
+  const navigate = useNavigate();
   const [articles, setArticles] = useState<Retrospective[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedArticle, setSelectedArticle] = useState<Retrospective | null>(
-    null,
-  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState("");
   const [selectedAuthor, setSelectedAuthor] = useState("");
@@ -136,16 +134,6 @@ export default function App() {
     return <LoginPage onLogin={signInWithGoogle} error={authState.error} />;
   }
 
-  // 리더 뷰가 열려 있으면 리더만 표시
-  if (selectedArticle) {
-    return (
-      <ArticleReader
-        article={selectedArticle}
-        onClose={() => setSelectedArticle(null)}
-      />
-    );
-  }
-
   return (
     <Layout nickname={authState.member.nickname} onLogout={signOut}>
       <Routes>
@@ -172,7 +160,9 @@ export default function App() {
               ) : (
                 <ArticleList
                   articles={filteredArticles}
-                  onArticleClick={setSelectedArticle}
+                  onArticleClick={(article) =>
+                    navigate(`/articles/${article.id}`)
+                  }
                   currentMemberId={authState.member.id}
                   onEdit={setEditingArticle}
                   onDelete={handleDeleteArticle}
@@ -180,6 +170,10 @@ export default function App() {
               )}
             </>
           }
+        />
+        <Route
+          path="/articles/:id"
+          element={<ArticleReader articles={articles} />}
         />
         <Route
           path="/archive"

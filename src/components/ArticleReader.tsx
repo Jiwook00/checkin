@@ -1,23 +1,32 @@
+import { useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Retrospective } from "../types";
 
 interface ArticleReaderProps {
-  article: Retrospective;
-  onClose: () => void;
+  articles: Retrospective[];
 }
 
-export default function ArticleReader({
-  article,
-  onClose,
-}: ArticleReaderProps) {
+export default function ArticleReader({ articles }: ArticleReaderProps) {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const article = articles.find((a) => a.id === id);
+
+  if (!article) {
+    return (
+      <div className="py-20 text-center text-stone-400">
+        글을 찾을 수 없습니다.
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
+    <div className="overflow-y-auto">
       {/* 상단 바 */}
       <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <button
-            onClick={onClose}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-1 text-sm text-gray-500 transition-colors hover:text-gray-900"
           >
             <span>&larr;</span> 목록으로
