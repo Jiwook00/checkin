@@ -68,17 +68,8 @@ export function useAuth() {
   };
 
   useEffect(() => {
-    // 현재 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) {
-        setAuthState({ status: "unauthenticated" });
-        return;
-      }
-      const { id, email } = session.user;
-      validateAndUpsertMember(id, email ?? "");
-    });
-
-    // 세션 변경 감지 (OAuth 콜백 포함)
+    // onAuthStateChange가 마운트 시 INITIAL_SESSION 이벤트로 현재 세션을 즉시 전달하므로
+    // 별도의 getSession() 호출 불필요
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -93,6 +84,7 @@ export function useAuth() {
         return;
       }
       const { id, email } = session.user;
+      // INITIAL_SESSION: 기존 세션 복원 시에도 upsert 필요 (nickname 조회)
       validateAndUpsertMember(id, email ?? "");
     });
 
