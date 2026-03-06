@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { VotePoll } from "../types";
 
@@ -23,6 +24,15 @@ interface Props {
 }
 
 export default function SessionBanner({ onAddClick, activePoll }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  function copyPassword(pw: string) {
+    navigator.clipboard.writeText(pw).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   const currentMonth = new Date().getMonth() + 1;
   const sessionMonth = activePoll?.month ?? currentMonth;
   const retroMonth = sessionMonth === 1 ? 12 : sessionMonth - 1;
@@ -51,7 +61,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
                 · 온라인
               </p>
               {(activePoll!.meeting_url || activePoll!.meeting_password) && (
-                <div className="flex items-center gap-3 mt-2">
+                <div className="flex flex-col gap-1 mt-2">
                   {activePoll!.meeting_url && (
                     <a
                       href={activePoll!.meeting_url}
@@ -61,9 +71,25 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
                     </a>
                   )}
                   {activePoll!.meeting_password && (
-                    <span className="text-xs text-stone-400">
-                      비밀번호: {activePoll!.meeting_password}
-                    </span>
+                    <button
+                      onClick={() =>
+                        copyPassword(activePoll!.meeting_password!)
+                      }
+                      title="클릭하면 복사돼요"
+                      className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 cursor-pointer transition-colors self-start"
+                    >
+                      {copied ? (
+                        <>
+                          <span>✓</span>
+                          <span>복사됨</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>비밀번호: {activePoll!.meeting_password}</span>
+                          <span className="opacity-50">⎘</span>
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
               )}
