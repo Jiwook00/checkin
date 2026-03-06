@@ -14,6 +14,32 @@ import LoginPage from "./components/LoginPage";
 import VotePage from "./components/VotePage";
 import { useAuth } from "./hooks/useAuth";
 
+const BUCKET_PREFIX = "/checkin-images/";
+
+function extractStorageImagePaths(
+  html: string | null,
+  markdown: string,
+): string[] {
+  const urls = new Set<string>();
+
+  if (html) {
+    const imgRegex = /<img[^>]+src="([^"]+)"/gi;
+    let m: RegExpExecArray | null;
+    while ((m = imgRegex.exec(html)) !== null) urls.add(m[1]);
+  }
+
+  const mdRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = mdRegex.exec(markdown)) !== null) urls.add(m[1]);
+
+  const paths: string[] = [];
+  for (const url of urls) {
+    const idx = url.indexOf(BUCKET_PREFIX);
+    if (idx !== -1) paths.push(url.slice(idx + BUCKET_PREFIX.length));
+  }
+  return paths;
+}
+
 export default function App() {
   const { authState, signInWithGoogle, signOut } = useAuth();
   const navigate = useNavigate();
@@ -133,6 +159,17 @@ export default function App() {
 
   // 글 삭제
   const handleDeleteArticle = async (id: string) => {
+    const article = articles.find((a) => a.id === id);
+    if (article) {
+      const storagePaths = extractStorageImagePaths(
+        article.content_html,
+        article.content_markdown,
+      );
+      if (storagePaths.length > 0) {
+        await supabase.storage.from("checkin-images").remove(storagePaths);
+      }
+    }
+
     const { error } = await supabase
       .from("checkin_retrospectives")
       .delete()
