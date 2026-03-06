@@ -68,26 +68,54 @@ export default function App() {
   }, [articles, recentSessions, selectedSession]);
 
   // 글 추가
-  const handleAddArticle = async (form: AddArticleForm) => {
-    const { error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) {
+  const handleAddArticle = async (
+    form: AddArticleForm,
+  ): Promise<{ parseFailed: boolean }> => {
+    const { data: sessionData, error: refreshError } =
+      await supabase.auth.refreshSession();
+    if (refreshError || !sessionData.session) {
       throw new Error("세션이 만료되었습니다. 다시 로그인해주세요.");
     }
+    const memberId = sessionData.session.user.id;
 
     const { data, error } = await supabase.functions.invoke("parse-content", {
       body: form,
     });
 
-    if (error) {
-      throw new Error(error.message || "서버 오류가 발생했습니다");
-    }
+    const parseSucceeded = !error && data?.success;
 
-    if (!data.success) {
-      throw new Error(data.error || "파싱에 실패했습니다");
+    if (!parseSucceeded) {
+      // 파싱 실패 시 원본 링크만 저장
+      const detectSourceType = (
+        url: string,
+      ): "notion" | "tistory" | "other" => {
+        if (url.includes("notion.so") || url.includes("notion.site"))
+          return "notion";
+        if (url.includes("tistory.com")) return "tistory";
+        return "other";
+      };
+
+      const { error: insertError } = await supabase
+        .from("checkin_retrospectives")
+        .insert({
+          member_id: memberId,
+          title: form.title || form.source_url,
+          source_url: form.source_url,
+          source_type: detectSourceType(form.source_url),
+          content_markdown: "",
+          content_html: null,
+          session: form.session,
+        });
+
+      if (insertError) throw new Error(insertError.message);
+
+      await fetchArticles();
+      return { parseFailed: true };
     }
 
     // 목록 갱신
     await fetchArticles();
+    return { parseFailed: false };
   };
 
   // 글 수정
