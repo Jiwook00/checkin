@@ -47,7 +47,20 @@ Analyze the current git changes and guide the user through creating a commit int
    ```
 
 4. **Ask for confirmation**: After showing the message, ask:
+
    > Commit with this message? (y / edit / cancel)
    - `y` → run `git add -A && git commit -m "..."` with the message
    - `edit` → ask what to change, revise the message, then confirm again
    - `cancel` → stop, do nothing
+
+5. **체크포인트 업데이트 (커밋 성공 후)**
+
+   커밋이 성공하면, `local/` 폴더에 `progress-issue-*.md` 파일이 있는지 확인한다.
+
+   파일이 존재하면:
+
+   > 체크포인트 파일을 업데이트할까요? (y / skip)
+   - `y` → `/checkpoint-update` 로직 실행 (파일에서 첫 번째 ⬜ 항목을 ✅로 업데이트, 커밋 해시 기록)
+   - `skip` → 아무것도 하지 않음
+
+   파일이 없으면: 이 단계 생략.

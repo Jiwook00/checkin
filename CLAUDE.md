@@ -78,6 +78,8 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 | --------------------- | ------------------------------------------------- |
 | `/issue-start <번호>` | 이슈 정보 로드 + 브랜치 생성                      |
 | `/issue-new`          | 현재 작업 기반으로 새 이슈 생성                   |
+| `/checkpoint-init`    | 작업 계획 → `local/progress-issue-N.md` 생성      |
+| `/checkpoint-update`  | 커밋 완료 후 progress 파일 업데이트               |
 | `/commit`             | 이슈 참조(`Closes #X`) 포함 커밋 가이드           |
 | `/pr-new`             | PR 생성                                           |
 | `/design-preview`     | UI 변경 전 다양한 스타일 프리뷰를 `/dev/*`에 생성 |
