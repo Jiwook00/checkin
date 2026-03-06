@@ -35,6 +35,9 @@ export async function parseBlog(url: string): Promise<ParsedContent> {
   // 3. 본문 추출 (사이트별 셀렉터 시도 후 폴백)
   let title = "";
   let contentHtml = "";
+  // deno_dom Element — TurndownService에 직접 전달해 내부 HTML 재파싱을 건너뜀
+  // deno-lint-ignore no-explicit-any
+  let contentNode: any = null;
 
   // 타이틀 추출
   const ogTitle = doc.querySelector('meta[property="og:title"]');
@@ -67,13 +70,14 @@ export async function parseBlog(url: string): Promise<ParsedContent> {
   for (const selector of allSelectors) {
     const el = doc.querySelector(selector);
     if (el && el.innerHTML.trim().length > 100) {
+      contentNode = el;
       contentHtml = el.innerHTML;
       break;
     }
   }
 
   // 폴백: body 전체에서 스크립트/스타일/nav 제거
-  if (!contentHtml) {
+  if (!contentNode) {
     const body = doc.querySelector("body");
     if (body) {
       // 불필요한 요소 제거
@@ -89,17 +93,19 @@ export async function parseBlog(url: string): Promise<ParsedContent> {
         "#comments",
       ];
       for (const sel of removeSelectors) {
-        body.querySelectorAll(sel).forEach((el) => el.remove());
+        body.querySelectorAll(sel).forEach((el: Element) => el.remove());
       }
+      contentNode = body;
       contentHtml = body.innerHTML;
     }
   }
 
-  if (!contentHtml) {
+  if (!contentNode) {
     throw new Error("본문 콘텐츠를 찾을 수 없습니다");
   }
 
   // 4. HTML → 마크다운 변환
+  // DOM 노드를 직접 전달해 TurndownService 내부의 HTML 재파싱(createDocument)을 우회
   const turndown = new TurndownService({
     headingStyle: "atx",
     codeBlockStyle: "fenced",
@@ -108,7 +114,7 @@ export async function parseBlog(url: string): Promise<ParsedContent> {
   // 불필요한 태그 제거 규칙
   turndown.remove(["script", "style", "nav"]);
 
-  const markdown = turndown.turndown(contentHtml);
+  const markdown = turndown.turndown(contentNode);
 
   return {
     title,
