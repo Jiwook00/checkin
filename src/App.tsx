@@ -18,6 +18,7 @@ import AddArticleModal from "./components/AddArticleModal";
 import LoginPage from "./components/LoginPage";
 import VotePage from "./components/VotePage";
 import AnnouncementBanner from "./components/AnnouncementBanner";
+import UpdatesPage from "./components/UpdatesPage";
 import { useAuth } from "./hooks/useAuth";
 
 const BUCKET_PREFIX = "/checkin-images/";
@@ -290,6 +291,7 @@ export default function App() {
             />
           }
         />
+        <Route path="/updates" element={<UpdatesPage />} />
         <Route
           path="/profile"
           element={
