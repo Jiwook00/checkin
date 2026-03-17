@@ -115,6 +115,14 @@ export default function App() {
     setAnnouncement(null);
   };
 
+  const defaultSession = useMemo(() => {
+    if (!activePoll?.confirmed_date) return undefined;
+    const retroYear =
+      activePoll.month === 1 ? activePoll.year - 1 : activePoll.year;
+    const retroMonth = activePoll.month === 1 ? 12 : activePoll.month - 1;
+    return `${retroYear}-${String(retroMonth).padStart(2, "0")}`;
+  }, [activePoll]);
+
   // 최근 3개월 세션 목록 (동적 계산)
   const recentSessions = useMemo(() => {
     const today = new Date();
@@ -313,13 +321,7 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
-        defaultSession={(() => {
-          if (!activePoll?.confirmed_date) return undefined;
-          const retroYear =
-            activePoll.month === 1 ? activePoll.year - 1 : activePoll.year;
-          const retroMonth = activePoll.month === 1 ? 12 : activePoll.month - 1;
-          return `${retroYear}-${String(retroMonth).padStart(2, "0")}`;
-        })()}
+        defaultSession={defaultSession}
       />
 
       <EditArticleModal
