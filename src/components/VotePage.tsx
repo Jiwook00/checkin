@@ -582,8 +582,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* 헤더 */}
-      <div className="bg-white border-b border-stone-100 px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+      <div className="bg-white border-b border-stone-100 px-4 py-3 md:px-6 md:py-4">
+        <div className="max-w-3xl mx-auto flex items-start justify-between gap-3">
           <div>
             <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">
               {sessionLabel}
@@ -592,21 +592,21 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               일정 조율
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
             <span className="text-xs text-stone-400 bg-stone-100 rounded-full px-3 py-1.5">
-              {respondedCount}/{totalMembers}명 응답 완료
+              {respondedCount}/{totalMembers}명
             </span>
             {poll.status === "open" && closePhase === null && (
               <>
                 <button
                   onClick={() => setEditModalOpen(true)}
-                  className="text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
+                  className="hidden md:inline-flex text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
                 >
                   수정
                 </button>
                 <button
                   onClick={() => setDeleteConfirmOpen(true)}
-                  className="text-xs text-stone-400 border border-stone-200 rounded-full px-3 py-1.5 hover:border-red-200 hover:text-red-500 transition-all"
+                  className="hidden md:inline-flex text-xs text-stone-400 border border-stone-200 rounded-full px-3 py-1.5 hover:border-red-200 hover:text-red-500 transition-all"
                 >
                   삭제
                 </button>
@@ -627,7 +627,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-6">
+      <div className="max-w-3xl mx-auto px-4 py-4 md:px-6 md:py-6">
         {poll.status === "confirmed" ? (
           /* 확정 완료 화면 */
           <div className="text-center">
@@ -694,8 +694,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                 : `가능한 날짜를 선택하세요. 평일은 ${poll.time_weekday ?? "22:00"}, 주말은 시간도 선택해주세요.`}
             </p>
 
-            {/* 메인 2열 그리드: 왼쪽 달력 / 오른쪽 상세 패널 */}
-            <div className="grid grid-cols-[1fr_1.15fr] gap-6 items-start">
+            {/* 메인 레이아웃: 모바일 1열 / 데스크톱 2열 */}
+            <div className="md:grid md:grid-cols-[1fr_1.15fr] md:gap-6 md:items-start">
               {/* 왼쪽: 달력 */}
               <div className="bg-white rounded-2xl border border-stone-200 p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -820,8 +820,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                 </div>
               </div>
 
-              {/* 오른쪽: 선택 날짜 상세 패널 + 저장 카드 */}
-              <div className="space-y-4">
+              {/* 오른쪽(데스크톱): 선택 날짜 상세 패널 + 저장 카드 */}
+              <div className="hidden md:block space-y-4">
                 {activeDateInfo && !cannotAttend ? (
                   <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                     {/* 날짜 헤더 */}
@@ -1085,6 +1085,256 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* 모바일 전용: 선택 칩 */}
+            {selectedDates.size > 0 && !cannotAttend && (
+              <div className="md:hidden flex flex-wrap gap-2 mt-3">
+                {dates
+                  .filter((d) => selectedDates.has(d.date))
+                  .map((d) => {
+                    const hrs = weekendHours[d.date];
+                    const hourLabel = d.isWeekend
+                      ? hrs && hrs.size > 0
+                        ? [...hrs]
+                            .sort((a, b) => a - b)
+                            .map((h) => `${h}시`)
+                            .join("·")
+                        : "시간 미선택"
+                      : (poll.time_weekday ?? "22:00");
+                    return (
+                      <div
+                        key={d.date}
+                        className="flex items-center gap-1.5 bg-stone-900 text-white rounded-full px-3 py-1.5 text-xs"
+                      >
+                        <span>
+                          {d.date}일 ({d.dayName})
+                        </span>
+                        <span className="text-stone-400 text-[10px]">
+                          {hourLabel}
+                        </span>
+                        <button
+                          onClick={() =>
+                            dispatch({ type: "TOGGLE_DATE", date: d.date })
+                          }
+                          className="text-stone-400 ml-0.5"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* 모바일 전용: 참석 불가 상태 카드 */}
+            {cannotAttend && (
+              <div className="md:hidden mt-4 bg-white rounded-2xl border border-stone-200 p-4">
+                <p className="text-sm font-semibold text-stone-700 mb-1">
+                  이번 일정에 참여하기 어려워요
+                </p>
+                <p className="text-xs text-stone-400">
+                  아래 버튼으로 저장하거나 날짜 선택으로 돌아갈 수 있어요.
+                </p>
+              </div>
+            )}
+
+            {/* 모바일 전용: 바텀시트 딤 오버레이 */}
+            {activeDateInfo && !cannotAttend && (
+              <div
+                className="md:hidden fixed inset-0 bg-stone-900/30 z-30"
+                onClick={() =>
+                  dispatch({ type: "SET_ACTIVE_DATE", date: null })
+                }
+              />
+            )}
+
+            {/* 모바일 전용: 바텀시트 */}
+            {activeDateInfo && !cannotAttend && (
+              <div
+                className="md:hidden fixed left-0 right-0 bg-white rounded-t-3xl shadow-2xl ring-1 ring-stone-200/60 z-40"
+                style={{ bottom: 68 }}
+              >
+                {/* 드래그 핸들 */}
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-10 h-1 rounded-full bg-stone-300" />
+                </div>
+
+                <div className="px-4 pt-2 pb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-base font-black text-stone-900">
+                        {poll.month}월 {activeDate}일 ({activeDateInfo.dayName})
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">
+                        {activeDateInfo.isWeekend ? "주말" : "평일"}
+                        {activeDateInfo.isWeekend &&
+                          weekendHourVotes[activeDateInfo.date] &&
+                          Object.keys(weekendHourVotes[activeDateInfo.date])
+                            .length > 0 && (
+                            <span>
+                              {" "}
+                              · 다른 멤버{" "}
+                              {
+                                otherResponses.filter((r) =>
+                                  r.selected_dates.some(
+                                    (s) => s.date === activeDateInfo.date,
+                                  ),
+                                ).length
+                              }
+                              명 응답
+                            </span>
+                          )}
+                        {!activeDateInfo.isWeekend &&
+                          weekdayVotes[activeDate!] !== undefined && (
+                            <span>
+                              {" "}
+                              · 다른 멤버 {weekdayVotes[activeDate!]}명 응답
+                            </span>
+                          )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        dispatch({ type: "SET_ACTIVE_DATE", date: null })
+                      }
+                      className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {activeDateInfo.isWeekend ? (
+                    <>
+                      <p className="text-[11px] font-semibold text-stone-600 mb-2.5">
+                        참여 가능한 시작 시간을 선택하세요
+                      </p>
+                      <div className="grid grid-cols-4 gap-1.5 mb-4">
+                        {weekendHourRange.map((hour) => {
+                          const mySelected =
+                            weekendHours[activeDateInfo.date]?.has(hour) ??
+                            false;
+                          const othersCount =
+                            weekendHourVotes[activeDateInfo.date]?.[hour] ?? 0;
+                          return (
+                            <button
+                              key={hour}
+                              onClick={() =>
+                                dispatch({
+                                  type: "TOGGLE_HOUR",
+                                  date: activeDateInfo.date,
+                                  hour,
+                                })
+                              }
+                              className={`rounded-xl py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 border ${
+                                mySelected
+                                  ? "bg-stone-900 text-white border-transparent"
+                                  : "border-stone-200 text-stone-500"
+                              }`}
+                            >
+                              <span>{hour}시</span>
+                              {othersCount > 0 && (
+                                <span
+                                  className={`text-[9px] ${mySelected ? "text-stone-400" : "text-blue-400"}`}
+                                >
+                                  {othersCount}명
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mb-4">
+                      <button
+                        onClick={() =>
+                          dispatch({
+                            type: "TOGGLE_DATE",
+                            date: activeDateInfo.date,
+                          })
+                        }
+                        className={`w-full py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
+                          selectedDates.has(activeDateInfo.date)
+                            ? "border-stone-900 bg-stone-900 text-white"
+                            : "border-stone-200 bg-white text-stone-700"
+                        }`}
+                      >
+                        {selectedDates.has(activeDateInfo.date)
+                          ? `✓ ${poll.time_weekday ?? "22:00"} 가능`
+                          : `${poll.time_weekday ?? "22:00"} 가능으로 표시`}
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() =>
+                      dispatch({ type: "SET_ACTIVE_DATE", date: null })
+                    }
+                    className="w-full bg-stone-900 text-white rounded-2xl py-3 text-sm font-bold"
+                  >
+                    완료
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 모바일 전용: 하단 고정 액션바 */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 px-4 py-3 z-30 flex gap-2">
+              {saveError && (
+                <p className="absolute -top-6 left-4 text-xs text-red-500">
+                  {saveError}
+                </p>
+              )}
+              {saved ? (
+                <div className="flex-1 flex items-center justify-between px-1">
+                  <p className="text-sm font-semibold text-stone-700">
+                    ✓ 저장됐어요
+                  </p>
+                  <button
+                    onClick={() => dispatch({ type: "MARK_UNSAVED" })}
+                    className="text-xs text-stone-400 underline"
+                  >
+                    수정하기
+                  </button>
+                </div>
+              ) : cannotAttend ? (
+                <>
+                  <button
+                    onClick={() =>
+                      dispatch({ type: "SET_CANNOT_ATTEND", value: false })
+                    }
+                    className="flex-1 border border-stone-200 text-stone-500 rounded-2xl py-2.5 text-sm font-medium"
+                  >
+                    날짜 선택으로
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex-[2] bg-stone-900 text-white rounded-2xl py-2.5 text-sm font-bold disabled:opacity-50"
+                  >
+                    {saving ? "저장 중..." : "참여 불가로 저장"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() =>
+                      dispatch({ type: "SET_CANNOT_ATTEND", value: true })
+                    }
+                    className="flex-1 border border-stone-200 text-stone-500 rounded-2xl py-2.5 text-sm font-medium"
+                  >
+                    참석 불가
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={!canSave || saving}
+                    className="flex-[2] bg-stone-900 text-white rounded-2xl py-2.5 text-sm font-bold disabled:opacity-40"
+                  >
+                    {saving ? "저장 중..." : "저장하기"}
+                  </button>
+                </>
+              )}
             </div>
           </>
         )}

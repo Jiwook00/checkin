@@ -141,6 +141,11 @@ export default function App() {
     });
   }, [articles, recentSessions, selectedSession]);
 
+  // 모바일용 — 세션 필터 없이 최근 전체
+  const mobileArticles = useMemo(() => {
+    return articles.filter((a) => recentSessions.includes(a.session));
+  }, [articles, recentSessions]);
+
   // 글 추가
   const handleAddArticle = async (
     form: AddArticleForm,
@@ -239,7 +244,11 @@ export default function App() {
   }
 
   return (
-    <Layout nickname={authState.member.nickname} onLogout={signOut}>
+    <Layout
+      nickname={authState.member.nickname}
+      onLogout={signOut}
+      onAddClick={() => setShowAddModal(true)}
+    >
       <Routes>
         <Route
           path="/"
@@ -254,11 +263,13 @@ export default function App() {
                 onAddClick={() => setShowAddModal(true)}
                 activePoll={activePoll}
               />
-              <SessionFilter
-                sessions={recentSessions}
-                selectedSession={selectedSession}
-                onSessionChange={setSelectedSession}
-              />
+              <div className="hidden md:block">
+                <SessionFilter
+                  sessions={recentSessions}
+                  selectedSession={selectedSession}
+                  onSessionChange={setSelectedSession}
+                />
+              </div>
               {loading ? (
                 <div className="py-20 text-center">
                   <p className="text-stone-400">불러오는 중...</p>
@@ -266,6 +277,7 @@ export default function App() {
               ) : (
                 <ArticleList
                   articles={filteredArticles}
+                  mobileArticles={mobileArticles}
                   onArticleClick={(article) =>
                     navigate(`/articles/${article.id}`)
                   }
