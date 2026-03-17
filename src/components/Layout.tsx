@@ -1,5 +1,5 @@
 import { type ReactNode, useRef, useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 
 const NAV_ITEMS = [
   { label: "메인", to: "/" },
@@ -51,9 +51,12 @@ export default function Layout({
       <aside className="hidden md:flex w-44 flex-shrink-0 flex-col px-4 pt-7 pb-5">
         {/* Logo */}
         <div className="mb-8">
-          <span className="text-base font-black text-stone-900 tracking-tight">
+          <Link
+            to="/"
+            className="text-base font-black text-stone-900 tracking-tight"
+          >
             Checkin
-          </span>
+          </Link>
         </div>
 
         {/* Nav */}
@@ -97,9 +100,12 @@ export default function Layout({
           headerVisible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
-        <span className="text-base font-black text-stone-900 tracking-tight">
+        <Link
+          to="/"
+          className="text-base font-black text-stone-900 tracking-tight"
+        >
           Checkin
-        </span>
+        </Link>
         <button
           onClick={() => setDrawerOpen(true)}
           className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-stone-100 text-stone-700 text-lg"
@@ -128,9 +134,13 @@ export default function Layout({
           <div className="absolute top-0 right-0 bottom-0 w-64 bg-white shadow-2xl flex flex-col">
             {/* Drawer header */}
             <div className="h-14 flex items-center justify-between px-5 border-b border-stone-100">
-              <span className="text-base font-black text-stone-900 tracking-tight">
+              <Link
+                to="/"
+                className="text-base font-black text-stone-900 tracking-tight"
+                onClick={() => setDrawerOpen(false)}
+              >
                 Checkin
-              </span>
+              </Link>
               <button
                 onClick={() => setDrawerOpen(false)}
                 className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-stone-100 text-stone-500"
