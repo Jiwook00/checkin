@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { label: "메인", to: "/" },
   { label: "아카이브", to: "/archive" },
   { label: "일정", to: "/vote" },
+  { label: "업데이트", to: "/updates" },
   { label: "프로필", to: "/profile" },
 ];
 
@@ -57,6 +58,7 @@ export default function Layout({ children, nickname, onLogout }: LayoutProps) {
           >
             로그아웃
           </button>
+          <p className="text-xs text-stone-300 mt-2">v{__APP_VERSION__}</p>
         </div>
       </aside>
 
