@@ -284,11 +284,18 @@ export default function App() {
         <Route
           path="/vote"
           element={
-            <VotePage
-              memberId={authState.member.id}
-              poll={activePoll}
-              onPollChange={setActivePoll}
-            />
+            <>
+              <AnnouncementBanner
+                announcement={announcement}
+                onAdd={handleAddAnnouncement}
+                onDeactivate={handleDeactivateAnnouncement}
+              />
+              <VotePage
+                memberId={authState.member.id}
+                poll={activePoll}
+                onPollChange={setActivePoll}
+              />
+            </>
           }
         />
         <Route path="/updates" element={<UpdatesPage />} />
