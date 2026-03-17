@@ -52,6 +52,15 @@ export interface VoteDateSelection {
   hours: number[];
 }
 
+export interface Announcement {
+  id: string;
+  content: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  checkin_members: { nickname: string } | null;
+}
+
 export interface VoteResponse {
   id: string;
   poll_id: string;
