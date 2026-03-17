@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.2.0...checkin-v0.3.0) (2026-03-17)
+
+
+### Features
+
+* VotePage 모바일 반응형 레이아웃 구현 (바텀시트 패턴) ([735c7e0](https://github.com/Jiwook00/checkin/commit/735c7e0b4c271ad30edd256323cdb694644ead2b)), closes [#39](https://github.com/Jiwook00/checkin/issues/39)
+* 모바일 반응형 UI 대응 — 메인 피드 및 일정 투표 페이지 ([c078858](https://github.com/Jiwook00/checkin/commit/c078858c06da01b9b50283feb053502ef5bdcf4b))
+* 모바일 반응형 레이아웃 및 네비게이션 구현 ([de3f48c](https://github.com/Jiwook00/checkin/commit/de3f48caac9a8be2918891799733cf7e9f0c0201)), closes [#39](https://github.com/Jiwook00/checkin/issues/39)
+* 업데이트 페이지 추가 및 버전 표시 ([0e2bc4b](https://github.com/Jiwook00/checkin/commit/0e2bc4b5f40e24e5448c3fc1927223998cd75251))
+* 업데이트 페이지 추가 및 버전 표시 ([4d5b6f8](https://github.com/Jiwook00/checkin/commit/4d5b6f89c28781473d0b05b48b8c4100894e2240))
+* 일정 탭 상단에 공지 배너 표시 ([588f9df](https://github.com/Jiwook00/checkin/commit/588f9df92424f884800771fd7332f7916e44d6b0))
+
 ## [0.2.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.1.0...checkin-v0.2.0) (2026-03-17)
 
 
