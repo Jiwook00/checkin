@@ -157,6 +157,7 @@ interface VoteState {
   activeDate: number | null;
   saved: boolean;
   saveError: string | null;
+  cannotAttend: boolean;
 }
 
 type VoteAction =
@@ -166,11 +167,13 @@ type VoteAction =
   | { type: "MARK_SAVED" }
   | { type: "MARK_UNSAVED" }
   | { type: "SET_SAVE_ERROR"; error: string | null }
+  | { type: "SET_CANNOT_ATTEND"; value: boolean }
   | {
       type: "RESTORE";
       selectedDates: Set<number>;
       weekendHours: Record<number, Set<number>>;
       activeDate: number | null;
+      cannotAttend: boolean;
     };
 
 function voteReducer(state: VoteState, action: VoteAction): VoteState {
@@ -186,6 +189,7 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
         ...state,
         selectedDates: next,
         activeDate: action.date,
+        cannotAttend: false,
         saved: false,
         saveError: null,
       };
@@ -202,6 +206,7 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
         ...state,
         selectedDates: nextDates,
         weekendHours: { ...state.weekendHours, [action.date]: cur },
+        cannotAttend: false,
         saved: false,
         saveError: null,
       };
@@ -214,12 +219,22 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
       return { ...state, saved: false };
     case "SET_SAVE_ERROR":
       return { ...state, saveError: action.error };
+    case "SET_CANNOT_ATTEND":
+      return {
+        ...state,
+        cannotAttend: action.value,
+        selectedDates: action.value ? new Set() : state.selectedDates,
+        weekendHours: action.value ? {} : state.weekendHours,
+        saved: false,
+        saveError: null,
+      };
     case "RESTORE":
       return {
         ...state,
         selectedDates: action.selectedDates,
         weekendHours: action.weekendHours,
         activeDate: action.activeDate,
+        cannotAttend: action.cannotAttend,
         saved: true,
         saveError: null,
       };
@@ -234,13 +249,14 @@ const initialVoteState: VoteState = {
   activeDate: null,
   saved: false,
   saveError: null,
+  cannotAttend: false,
 };
 
 // ---
 
 type CreateStep = "preset" | "form";
 type PollType = "online" | "offline";
-type ClosePhase = "dialog" | "date-modal";
+type ClosePhase = "tally" | "date-modal";
 
 interface Props {
   memberId: string;
@@ -268,8 +284,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   const [voteState, dispatch] = useReducer(voteReducer, initialVoteState);
-  const { selectedDates, weekendHours, activeDate, saved, saveError } =
-    voteState;
+  const {
+    selectedDates,
+    weekendHours,
+    activeDate,
+    saved,
+    saveError,
+    cannotAttend,
+  } = voteState;
 
   const initializedRef = useRef(false);
 
@@ -312,6 +334,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               selectedDates: restoredDates,
               weekendHours: restoredHours,
               activeDate: mine.selected_dates[0]?.date ?? null,
+              cannotAttend: mine.cannot_attend,
             });
           } else {
             dispatch({
@@ -458,6 +481,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const voteTally = computeVoteTally(responses, dates, poll);
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
+  const cannotAttendCount = responses.filter((r) => r.cannot_attend).length;
   const activeDateInfo = dates.find((d) => d.date === activeDate);
   const maxVoteCount =
     Object.keys(allWeekdayVotes).length > 0
@@ -484,14 +508,16 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         return `${d.date}일 (${d.dayName}) — ${hList}`;
       });
 
-  const canSave = (() => {
-    if (selectedDates.size === 0) return false;
-    for (const date of selectedDates) {
-      const info = dates.find((d) => d.date === date);
-      if (info?.isWeekend && !(weekendHours[date]?.size > 0)) return false;
-    }
-    return true;
-  })();
+  const canSave =
+    cannotAttend ||
+    (() => {
+      if (selectedDates.size === 0) return false;
+      for (const date of selectedDates) {
+        const info = dates.find((d) => d.date === date);
+        if (info?.isWeekend && !(weekendHours[date]?.size > 0)) return false;
+      }
+      return true;
+    })();
 
   const handleSave = async () => {
     setSaving(true);
@@ -503,6 +529,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       weekendHours,
       dates,
       poll,
+      cannotAttend,
     );
     if (error) {
       dispatch({
@@ -584,10 +611,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                   삭제
                 </button>
                 <button
-                  onClick={() => setClosePhase("dialog")}
+                  onClick={() => setClosePhase("tally")}
                   className="text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
                 >
-                  일정 마감
+                  현황 보기
                 </button>
               </>
             )}
@@ -795,7 +822,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
               {/* 오른쪽: 선택 날짜 상세 패널 + 저장 카드 */}
               <div className="space-y-4">
-                {activeDateInfo ? (
+                {activeDateInfo && !cannotAttend ? (
                   <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                     {/* 날짜 헤더 */}
                     <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
@@ -934,63 +961,128 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       )}
                     </div>
                   </div>
-                ) : (
+                ) : !cannotAttend ? (
                   <div className="bg-white rounded-2xl border border-dashed border-stone-200 p-8 text-center">
                     <p className="text-sm text-stone-400">
                       달력에서 날짜를 선택하세요
                     </p>
                   </div>
-                )}
+                ) : null}
 
                 {/* 선택 요약 + 저장 카드 */}
                 {canSave && (
                   <div className="bg-white rounded-2xl border border-stone-200 p-5">
-                    <p className="text-xs font-semibold text-stone-500 mb-3">
-                      내 가능 일정 요약
-                    </p>
-                    {saved ? (
-                      <div className="text-center py-2">
-                        <p className="text-sm font-bold text-stone-900 mb-1">
-                          ✓ 저장됐어요
-                        </p>
-                        <div className="space-y-1">
-                          {getSummaryLines().map((line, i) => (
-                            <p key={i} className="text-xs text-stone-500">
-                              {line}
-                            </p>
-                          ))}
+                    {cannotAttend ? (
+                      saved ? (
+                        <div className="text-center py-2">
+                          <p className="text-sm font-bold text-stone-900 mb-1">
+                            ✓ 참여 불가로 저장됐어요
+                          </p>
+                          <p className="text-xs text-stone-400 mt-1">
+                            응답 완료로 카운트됩니다
+                          </p>
+                          <button
+                            onClick={() => dispatch({ type: "MARK_UNSAVED" })}
+                            className="mt-3 text-xs text-stone-400 underline"
+                          >
+                            수정하기
+                          </button>
                         </div>
-                        <button
-                          onClick={() => dispatch({ type: "MARK_UNSAVED" })}
-                          className="mt-3 text-xs text-stone-400 underline"
-                        >
-                          수정하기
-                        </button>
-                      </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-semibold text-stone-500 mb-1">
+                            이번 일정에 참여하기 어려워요
+                          </p>
+                          <p className="text-xs text-stone-400 mb-4">
+                            불참으로 저장해도 응답 완료로 카운트됩니다.
+                          </p>
+                          {saveError && (
+                            <p className="text-xs text-red-500 mb-2">
+                              {saveError}
+                            </p>
+                          )}
+                          <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
+                          >
+                            {saving ? "저장 중..." : "참여 불가로 저장하기"}
+                          </button>
+                          <button
+                            onClick={() =>
+                              dispatch({
+                                type: "SET_CANNOT_ATTEND",
+                                value: false,
+                              })
+                            }
+                            className="mt-2 w-full text-xs text-stone-400 underline"
+                          >
+                            날짜 선택으로 돌아가기
+                          </button>
+                        </div>
+                      )
                     ) : (
                       <>
-                        <div className="space-y-1 mb-4">
-                          {getSummaryLines().map((line, i) => (
-                            <p key={i} className="text-xs text-stone-600">
-                              {line}
+                        <p className="text-xs font-semibold text-stone-500 mb-3">
+                          내 가능 일정 요약
+                        </p>
+                        {saved ? (
+                          <div className="text-center py-2">
+                            <p className="text-sm font-bold text-stone-900 mb-1">
+                              ✓ 저장됐어요
                             </p>
-                          ))}
-                        </div>
-                        {saveError && (
-                          <p className="text-xs text-red-500 mb-2">
-                            {saveError}
-                          </p>
+                            <div className="space-y-1">
+                              {getSummaryLines().map((line, i) => (
+                                <p key={i} className="text-xs text-stone-500">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => dispatch({ type: "MARK_UNSAVED" })}
+                              className="mt-3 text-xs text-stone-400 underline"
+                            >
+                              수정하기
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="space-y-1 mb-4">
+                              {getSummaryLines().map((line, i) => (
+                                <p key={i} className="text-xs text-stone-600">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                            {saveError && (
+                              <p className="text-xs text-red-500 mb-2">
+                                {saveError}
+                              </p>
+                            )}
+                            <button
+                              onClick={handleSave}
+                              disabled={saving}
+                              className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
+                            >
+                              {saving ? "저장 중..." : "저장하기"}
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={handleSave}
-                          disabled={saving}
-                          className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
-                        >
-                          {saving ? "저장 중..." : "저장하기"}
-                        </button>
                       </>
                     )}
                   </div>
+                )}
+
+                {/* 참여 불가 버튼 */}
+                {!cannotAttend && !saved && (
+                  <button
+                    onClick={() =>
+                      dispatch({ type: "SET_CANNOT_ATTEND", value: true })
+                    }
+                    className="w-full py-3 border border-dashed border-stone-200 rounded-2xl text-xs text-stone-400 hover:border-stone-400 hover:text-stone-600 transition-all"
+                  >
+                    이번에 참여 불가
+                  </button>
                 )}
               </div>
             </div>
@@ -998,24 +1090,105 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         )}
       </div>
 
-      {/* 마감 확인 다이얼로그 */}
-      {closePhase === "dialog" && (
-        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <p className="text-base font-black text-stone-900 mb-1">
-              일정을 마감할까요?
-            </p>
-            <p className="text-sm text-stone-400 mb-5 leading-relaxed">
-              마감 후에는 투표 변경이 불가해요.
-              <br />
-              가장 많이 선택된 날짜로 확정 날짜를 고를 수 있어요.
-            </p>
-            <div className="flex gap-2">
+      {/* 득표 현황 팝업 */}
+      {closePhase === "tally" && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
+                  {MONTH_KO}
+                </p>
+                <h2 className="text-lg font-black text-stone-900">득표 현황</h2>
+                <p className="text-xs text-stone-400 mt-1">
+                  {respondedCount}/{totalMembers}명 응답 완료
+                  {cannotAttendCount > 0 && (
+                    <span className="ml-2 text-stone-400">
+                      (불참 {cannotAttendCount}명)
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => setClosePhase(null)}
+                className="text-stone-400 hover:text-stone-600 text-xl font-light transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 max-h-80 overflow-y-auto">
+              <div className="space-y-2">
+                {voteTally.length > 0 ? (
+                  voteTally.map((item, idx) => {
+                    const isTop = item.count === voteTally[0]?.count;
+                    return (
+                      <div
+                        key={item.date}
+                        className={`flex items-center gap-3 p-3 rounded-xl border ${
+                          isTop
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-stone-100 bg-white"
+                        }`}
+                      >
+                        <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 bg-white border border-stone-100">
+                          <span className="text-sm font-black text-stone-900">
+                            {item.date}
+                          </span>
+                          <span className="text-[10px] text-stone-400">
+                            {item.dayName}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-stone-800">
+                            {poll.month}월 {item.date}일 ({item.dayName}){" "}
+                            {item.time}
+                          </p>
+                          {isTop && idx === 0 && (
+                            <p className="text-xs text-emerald-600 font-semibold mt-0.5">
+                              최다 득표
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-sm font-black text-stone-900">
+                            {item.count}
+                            <span className="text-xs font-normal text-stone-400">
+                              /{totalMembers}명
+                            </span>
+                          </p>
+                          <div className="flex gap-0.5 justify-end mt-1">
+                            {Array.from({ length: totalMembers }, (_, i) => (
+                              <div
+                                key={i}
+                                className={`w-2 h-2 rounded-sm ${
+                                  i < item.count
+                                    ? isTop
+                                      ? "bg-emerald-500"
+                                      : "bg-stone-500"
+                                    : "bg-stone-200"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-stone-400 text-center py-4">
+                    아직 투표 데이터가 없어요
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-stone-100 flex gap-2">
               <button
                 onClick={() => setClosePhase(null)}
                 className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
               >
-                취소
+                닫기
               </button>
               <button
                 onClick={() => setClosePhase("date-modal")}
@@ -1034,7 +1207,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="px-6 py-5 border-b border-stone-100">
               <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
-                마감 완료
+                마감하기
               </p>
               <h2 className="text-lg font-black text-stone-900">
                 확정 날짜를 선택하세요
@@ -1131,12 +1304,12 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             <div className="p-4 border-t border-stone-100 flex gap-2">
               <button
                 onClick={() => {
-                  setClosePhase(null);
+                  setClosePhase("tally");
                   setConfirmedDate(null);
                 }}
                 className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
               >
-                취소
+                ← 돌아가기
               </button>
               <button
                 disabled={!confirmedDate || confirming}

@@ -57,6 +57,7 @@ export interface VoteResponse {
   poll_id: string;
   member_id: string;
   selected_dates: VoteDateSelection[];
+  cannot_attend: boolean;
   created_at: string;
   updated_at: string;
 }
