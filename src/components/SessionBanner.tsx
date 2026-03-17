@@ -134,7 +134,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
 
         <button
           onClick={onAddClick}
-          className="shrink-0 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 transition-colors"
+          className="hidden md:block shrink-0 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 transition-colors"
         >
           + 글 추가
         </button>
