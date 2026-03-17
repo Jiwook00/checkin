@@ -333,13 +333,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               type: "RESTORE",
               selectedDates: restoredDates,
               weekendHours: restoredHours,
-              activeDate: mine.selected_dates[0]?.date ?? null,
+              activeDate: null,
               cannotAttend: mine.cannot_attend,
-            });
-          } else {
-            dispatch({
-              type: "SET_ACTIVE_DATE",
-              date: effectDates[0]?.date ?? null,
             });
           }
         }
