@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
-import type { AddArticleForm, Retrospective, VotePoll } from "./types";
+import type {
+  AddArticleForm,
+  Announcement,
+  Retrospective,
+  VotePoll,
+} from "./types";
 import EditArticleModal from "./components/EditArticleModal";
 import { getActivePoll } from "./lib/vote";
 import Layout from "./components/Layout";
@@ -12,6 +17,7 @@ import ArticleReader from "./components/ArticleReader";
 import AddArticleModal from "./components/AddArticleModal";
 import LoginPage from "./components/LoginPage";
 import VotePage from "./components/VotePage";
+import AnnouncementBanner from "./components/AnnouncementBanner";
 import { useAuth } from "./hooks/useAuth";
 
 const BUCKET_PREFIX = "/checkin-images/";
@@ -52,6 +58,7 @@ export default function App() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [activePoll, setActivePoll] = useState<VotePoll | null>(null);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [editingArticle, setEditingArticle] = useState<Retrospective | null>(
     null,
   );
@@ -70,10 +77,42 @@ export default function App() {
     setLoading(false);
   };
 
+  const fetchAnnouncement = async () => {
+    const { data } = await supabase
+      .from("checkin_announcements")
+      .select("*, checkin_members!created_by(nickname)")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setAnnouncement(data ?? null);
+  };
+
   useEffect(() => {
     fetchArticles();
     getActivePoll().then(setActivePoll);
+    fetchAnnouncement();
   }, []);
+
+  const handleAddAnnouncement = async (content: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) return;
+    const { error } = await supabase.from("checkin_announcements").insert({
+      content,
+      created_by: sessionData.session.user.id,
+    });
+    if (error) throw new Error(error.message);
+    await fetchAnnouncement();
+  };
+
+  const handleDeactivateAnnouncement = async (id: string) => {
+    const { error } = await supabase
+      .from("checkin_announcements")
+      .update({ is_active: false })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    setAnnouncement(null);
+  };
 
   // 최근 3개월 세션 목록 (동적 계산)
   const recentSessions = useMemo(() => {
@@ -197,6 +236,11 @@ export default function App() {
           path="/"
           element={
             <>
+              <AnnouncementBanner
+                announcement={announcement}
+                onAdd={handleAddAnnouncement}
+                onDeactivate={handleDeactivateAnnouncement}
+              />
               <SessionBanner
                 onAddClick={() => setShowAddModal(true)}
                 activePoll={activePoll}
