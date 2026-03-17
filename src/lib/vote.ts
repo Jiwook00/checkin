@@ -170,23 +170,26 @@ export async function upsertVoteResponse(
   weekendHours: Record<number, Set<number>>,
   dateInfos: DateInfo[],
   poll: VotePoll,
+  cannotAttend: boolean = false,
 ): Promise<{ error: string | null }> {
   const weekdayHour = poll.time_weekday
     ? parseInt(poll.time_weekday.split(":")[0])
     : 22;
 
   const selected: VoteDateSelection[] = [];
-  for (const date of selectedDates) {
-    const info = dateInfos.find((d) => d.date === date);
-    if (!info) continue;
+  if (!cannotAttend) {
+    for (const date of selectedDates) {
+      const info = dateInfos.find((d) => d.date === date);
+      if (!info) continue;
 
-    if (info.isWeekend) {
-      const hours = weekendHours[date]
-        ? [...weekendHours[date]].sort((a, b) => a - b)
-        : [];
-      selected.push({ date, hours });
-    } else {
-      selected.push({ date, hours: [weekdayHour] });
+      if (info.isWeekend) {
+        const hours = weekendHours[date]
+          ? [...weekendHours[date]].sort((a, b) => a - b)
+          : [];
+        selected.push({ date, hours });
+      } else {
+        selected.push({ date, hours: [weekdayHour] });
+      }
     }
   }
 
@@ -195,6 +198,7 @@ export async function upsertVoteResponse(
       poll_id: pollId,
       member_id: memberId,
       selected_dates: selected,
+      cannot_attend: cannotAttend,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "poll_id,member_id" },

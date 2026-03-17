@@ -157,6 +157,7 @@ interface VoteState {
   activeDate: number | null;
   saved: boolean;
   saveError: string | null;
+  cannotAttend: boolean;
 }
 
 type VoteAction =
@@ -166,11 +167,13 @@ type VoteAction =
   | { type: "MARK_SAVED" }
   | { type: "MARK_UNSAVED" }
   | { type: "SET_SAVE_ERROR"; error: string | null }
+  | { type: "SET_CANNOT_ATTEND"; value: boolean }
   | {
       type: "RESTORE";
       selectedDates: Set<number>;
       weekendHours: Record<number, Set<number>>;
       activeDate: number | null;
+      cannotAttend: boolean;
     };
 
 function voteReducer(state: VoteState, action: VoteAction): VoteState {
@@ -186,6 +189,7 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
         ...state,
         selectedDates: next,
         activeDate: action.date,
+        cannotAttend: false,
         saved: false,
         saveError: null,
       };
@@ -202,6 +206,7 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
         ...state,
         selectedDates: nextDates,
         weekendHours: { ...state.weekendHours, [action.date]: cur },
+        cannotAttend: false,
         saved: false,
         saveError: null,
       };
@@ -214,12 +219,22 @@ function voteReducer(state: VoteState, action: VoteAction): VoteState {
       return { ...state, saved: false };
     case "SET_SAVE_ERROR":
       return { ...state, saveError: action.error };
+    case "SET_CANNOT_ATTEND":
+      return {
+        ...state,
+        cannotAttend: action.value,
+        selectedDates: action.value ? new Set() : state.selectedDates,
+        weekendHours: action.value ? {} : state.weekendHours,
+        saved: false,
+        saveError: null,
+      };
     case "RESTORE":
       return {
         ...state,
         selectedDates: action.selectedDates,
         weekendHours: action.weekendHours,
         activeDate: action.activeDate,
+        cannotAttend: action.cannotAttend,
         saved: true,
         saveError: null,
       };
@@ -234,6 +249,7 @@ const initialVoteState: VoteState = {
   activeDate: null,
   saved: false,
   saveError: null,
+  cannotAttend: false,
 };
 
 // ---
@@ -268,8 +284,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   const [voteState, dispatch] = useReducer(voteReducer, initialVoteState);
-  const { selectedDates, weekendHours, activeDate, saved, saveError } =
-    voteState;
+  const {
+    selectedDates,
+    weekendHours,
+    activeDate,
+    saved,
+    saveError,
+    cannotAttend,
+  } = voteState;
 
   const initializedRef = useRef(false);
 
@@ -312,6 +334,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               selectedDates: restoredDates,
               weekendHours: restoredHours,
               activeDate: mine.selected_dates[0]?.date ?? null,
+              cannotAttend: mine.cannot_attend,
             });
           } else {
             dispatch({
@@ -458,6 +481,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const voteTally = computeVoteTally(responses, dates, poll);
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
+  const cannotAttendCount = responses.filter((r) => r.cannot_attend).length;
   const activeDateInfo = dates.find((d) => d.date === activeDate);
   const maxVoteCount =
     Object.keys(allWeekdayVotes).length > 0
@@ -484,14 +508,16 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         return `${d.date}일 (${d.dayName}) — ${hList}`;
       });
 
-  const canSave = (() => {
-    if (selectedDates.size === 0) return false;
-    for (const date of selectedDates) {
-      const info = dates.find((d) => d.date === date);
-      if (info?.isWeekend && !(weekendHours[date]?.size > 0)) return false;
-    }
-    return true;
-  })();
+  const canSave =
+    cannotAttend ||
+    (() => {
+      if (selectedDates.size === 0) return false;
+      for (const date of selectedDates) {
+        const info = dates.find((d) => d.date === date);
+        if (info?.isWeekend && !(weekendHours[date]?.size > 0)) return false;
+      }
+      return true;
+    })();
 
   const handleSave = async () => {
     setSaving(true);
@@ -503,6 +529,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       weekendHours,
       dates,
       poll,
+      cannotAttend,
     );
     if (error) {
       dispatch({
@@ -795,7 +822,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
               {/* 오른쪽: 선택 날짜 상세 패널 + 저장 카드 */}
               <div className="space-y-4">
-                {activeDateInfo ? (
+                {activeDateInfo && !cannotAttend ? (
                   <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                     {/* 날짜 헤더 */}
                     <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
@@ -934,63 +961,128 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       )}
                     </div>
                   </div>
-                ) : (
+                ) : !cannotAttend ? (
                   <div className="bg-white rounded-2xl border border-dashed border-stone-200 p-8 text-center">
                     <p className="text-sm text-stone-400">
                       달력에서 날짜를 선택하세요
                     </p>
                   </div>
-                )}
+                ) : null}
 
                 {/* 선택 요약 + 저장 카드 */}
                 {canSave && (
                   <div className="bg-white rounded-2xl border border-stone-200 p-5">
-                    <p className="text-xs font-semibold text-stone-500 mb-3">
-                      내 가능 일정 요약
-                    </p>
-                    {saved ? (
-                      <div className="text-center py-2">
-                        <p className="text-sm font-bold text-stone-900 mb-1">
-                          ✓ 저장됐어요
-                        </p>
-                        <div className="space-y-1">
-                          {getSummaryLines().map((line, i) => (
-                            <p key={i} className="text-xs text-stone-500">
-                              {line}
-                            </p>
-                          ))}
+                    {cannotAttend ? (
+                      saved ? (
+                        <div className="text-center py-2">
+                          <p className="text-sm font-bold text-stone-900 mb-1">
+                            ✓ 참여 불가로 저장됐어요
+                          </p>
+                          <p className="text-xs text-stone-400 mt-1">
+                            응답 완료로 카운트됩니다
+                          </p>
+                          <button
+                            onClick={() => dispatch({ type: "MARK_UNSAVED" })}
+                            className="mt-3 text-xs text-stone-400 underline"
+                          >
+                            수정하기
+                          </button>
                         </div>
-                        <button
-                          onClick={() => dispatch({ type: "MARK_UNSAVED" })}
-                          className="mt-3 text-xs text-stone-400 underline"
-                        >
-                          수정하기
-                        </button>
-                      </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-semibold text-stone-500 mb-1">
+                            이번 일정에 참여하기 어려워요
+                          </p>
+                          <p className="text-xs text-stone-400 mb-4">
+                            불참으로 저장해도 응답 완료로 카운트됩니다.
+                          </p>
+                          {saveError && (
+                            <p className="text-xs text-red-500 mb-2">
+                              {saveError}
+                            </p>
+                          )}
+                          <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
+                          >
+                            {saving ? "저장 중..." : "참여 불가로 저장하기"}
+                          </button>
+                          <button
+                            onClick={() =>
+                              dispatch({
+                                type: "SET_CANNOT_ATTEND",
+                                value: false,
+                              })
+                            }
+                            className="mt-2 w-full text-xs text-stone-400 underline"
+                          >
+                            날짜 선택으로 돌아가기
+                          </button>
+                        </div>
+                      )
                     ) : (
                       <>
-                        <div className="space-y-1 mb-4">
-                          {getSummaryLines().map((line, i) => (
-                            <p key={i} className="text-xs text-stone-600">
-                              {line}
+                        <p className="text-xs font-semibold text-stone-500 mb-3">
+                          내 가능 일정 요약
+                        </p>
+                        {saved ? (
+                          <div className="text-center py-2">
+                            <p className="text-sm font-bold text-stone-900 mb-1">
+                              ✓ 저장됐어요
                             </p>
-                          ))}
-                        </div>
-                        {saveError && (
-                          <p className="text-xs text-red-500 mb-2">
-                            {saveError}
-                          </p>
+                            <div className="space-y-1">
+                              {getSummaryLines().map((line, i) => (
+                                <p key={i} className="text-xs text-stone-500">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => dispatch({ type: "MARK_UNSAVED" })}
+                              className="mt-3 text-xs text-stone-400 underline"
+                            >
+                              수정하기
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="space-y-1 mb-4">
+                              {getSummaryLines().map((line, i) => (
+                                <p key={i} className="text-xs text-stone-600">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                            {saveError && (
+                              <p className="text-xs text-red-500 mb-2">
+                                {saveError}
+                              </p>
+                            )}
+                            <button
+                              onClick={handleSave}
+                              disabled={saving}
+                              className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
+                            >
+                              {saving ? "저장 중..." : "저장하기"}
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={handleSave}
-                          disabled={saving}
-                          className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
-                        >
-                          {saving ? "저장 중..." : "저장하기"}
-                        </button>
                       </>
                     )}
                   </div>
+                )}
+
+                {/* 참여 불가 버튼 */}
+                {!cannotAttend && !saved && (
+                  <button
+                    onClick={() =>
+                      dispatch({ type: "SET_CANNOT_ATTEND", value: true })
+                    }
+                    className="w-full py-3 border border-dashed border-stone-200 rounded-2xl text-xs text-stone-400 hover:border-stone-400 hover:text-stone-600 transition-all"
+                  >
+                    이번에 참여 불가
+                  </button>
                 )}
               </div>
             </div>
@@ -1010,6 +1102,11 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                 <h2 className="text-lg font-black text-stone-900">득표 현황</h2>
                 <p className="text-xs text-stone-400 mt-1">
                   {respondedCount}/{totalMembers}명 응답 완료
+                  {cannotAttendCount > 0 && (
+                    <span className="ml-2 text-stone-400">
+                      (불참 {cannotAttendCount}명)
+                    </span>
+                  )}
                 </p>
               </div>
               <button
