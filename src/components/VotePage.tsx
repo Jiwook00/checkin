@@ -7,6 +7,11 @@ import {
   upsertVoteResponse,
   createPoll,
   confirmPoll,
+  updatePollMeta,
+  updatePollSchedule,
+  deletePoll,
+  type UpdatePollMetaData,
+  type UpdatePollScheduleData,
 } from "../lib/vote";
 
 function buildDates(dateFrom: string, dateTo: string): DateInfo[] {
@@ -258,6 +263,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [closePhase, setClosePhase] = useState<ClosePhase | null>(null);
   const [confirmedDate, setConfirmedDate] = useState<number | null>(null);
 
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const [voteState, dispatch] = useReducer(voteReducer, initialVoteState);
   const { selectedDates, weekendHours, activeDate, saved, saveError } =
     voteState;
@@ -357,28 +366,21 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     setCreating(false);
   };
 
-  // --- poll 없음: 새 일정 만들기 플로우 ---
-  if (!poll) {
-    if (createStep === null) {
-      return (
-        <div className="py-20">
-          <EmptyState onStart={() => setCreateStep("preset")} />
-        </div>
-      );
-    }
-    if (createStep === "preset") {
-      return (
-        <div className="py-12 px-6">
-          <PresetSelect
-            onSelect={(type) => {
-              setPollType(type);
-              setCreateStep("form");
-            }}
-            onBack={() => setCreateStep(null)}
-          />
-        </div>
-      );
-    }
+  // --- 새 일정 만들기 플로우 (poll 없음 또는 confirmed 상태에서 다음 회차 생성) ---
+  if (createStep === "preset") {
+    return (
+      <div className="py-12 px-6">
+        <PresetSelect
+          onSelect={(type) => {
+            setPollType(type);
+            setCreateStep("form");
+          }}
+          onBack={() => setCreateStep(null)}
+        />
+      </div>
+    );
+  }
+  if (createStep === "form") {
     return (
       <div className="py-12 px-6">
         <PollForm
@@ -390,6 +392,49 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       </div>
     );
   }
+
+  if (!poll) {
+    return (
+      <div className="py-20">
+        <EmptyState onStart={() => setCreateStep("preset")} />
+      </div>
+    );
+  }
+
+  const handleDeletePoll = async () => {
+    setDeleting(true);
+    const { error } = await deletePoll(poll.id);
+    if (!error) {
+      onPollChange(null);
+    }
+    setDeleting(false);
+    setDeleteConfirmOpen(false);
+  };
+
+  const handleUpdateMeta = async (data: UpdatePollMetaData) => {
+    const { error } = await updatePollMeta(poll.id, data);
+    if (!error) {
+      onPollChange({ ...poll, ...data } as typeof poll);
+      setEditModalOpen(false);
+    }
+  };
+
+  const handleUpdateSchedule = async (data: UpdatePollScheduleData) => {
+    const fromDate = new Date(data.date_from + "T00:00:00");
+    const year = fromDate.getFullYear();
+    const month = fromDate.getMonth() + 1;
+    const { error } = await updatePollSchedule(poll.id, data);
+    if (!error) {
+      onPollChange({
+        ...poll,
+        ...data,
+        year,
+        month,
+        session: `${year}-${String(month).padStart(2, "0")}`,
+      });
+      setEditModalOpen(false);
+    }
+  };
 
   // --- 활성 poll ---
   const dates = buildDates(poll.date_from, poll.date_to);
@@ -525,12 +570,26 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               {respondedCount}/{totalMembers}명 응답 완료
             </span>
             {poll.status === "open" && closePhase === null && (
-              <button
-                onClick={() => setClosePhase("dialog")}
-                className="text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
-              >
-                일정 마감
-              </button>
+              <>
+                <button
+                  onClick={() => setEditModalOpen(true)}
+                  className="text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
+                >
+                  수정
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-xs text-stone-400 border border-stone-200 rounded-full px-3 py-1.5 hover:border-red-200 hover:text-red-500 transition-all"
+                >
+                  삭제
+                </button>
+                <button
+                  onClick={() => setClosePhase("dialog")}
+                  className="text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
+                >
+                  일정 마감
+                </button>
+              </>
             )}
             {poll.status === "confirmed" && (
               <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 rounded-full px-3 py-1.5">
@@ -575,6 +634,28 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                   </div>
                 </>
               )}
+              <div className="flex flex-col gap-2 mt-6">
+                <button
+                  onClick={() => setCreateStep("preset")}
+                  className="w-full bg-stone-900 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-stone-700 transition-colors"
+                >
+                  + 다음 회차 일정 만들기
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditModalOpen(true)}
+                    className="flex-1 border border-stone-200 text-stone-600 rounded-xl py-2 text-xs font-medium hover:border-stone-400 hover:text-stone-800 transition-colors"
+                  >
+                    일정 수정
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="flex-1 border border-stone-200 text-stone-400 rounded-xl py-2 text-xs font-medium hover:border-red-200 hover:text-red-500 transition-colors"
+                  >
+                    일정 삭제
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -1072,6 +1153,46 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
           </div>
         </div>
       )}
+
+      {/* 수정 모달 */}
+      {editModalOpen && (
+        <EditPollModal
+          poll={poll}
+          hasVotes={responses.length > 0}
+          onClose={() => setEditModalOpen(false)}
+          onSaveMeta={handleUpdateMeta}
+          onSaveSchedule={handleUpdateSchedule}
+        />
+      )}
+
+      {/* 삭제 확인 다이얼로그 */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-xl">
+            <p className="text-sm font-bold text-stone-900 mb-1">
+              일정을 삭제할까요?
+            </p>
+            <p className="text-xs text-stone-400 mb-5">
+              투표 응답도 함께 삭제되며 되돌릴 수 없어요.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeletePoll}
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-40"
+              >
+                {deleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1293,6 +1414,214 @@ function PollForm({
             className="w-full py-3 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
           >
             {disabled ? "생성 중..." : "일정 만들기"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- 수정 모달 ---
+
+function EditPollModal({
+  poll,
+  hasVotes,
+  onClose,
+  onSaveMeta,
+  onSaveSchedule,
+}: {
+  poll: VotePoll;
+  hasVotes: boolean;
+  onClose: () => void;
+  onSaveMeta: (data: UpdatePollMetaData) => Promise<void>;
+  onSaveSchedule: (data: UpdatePollScheduleData) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // 메타 정보
+  const [location, setLocation] = useState(poll.location ?? "");
+  const [meetingUrl, setMeetingUrl] = useState(poll.meeting_url ?? "");
+  const [meetingPassword, setMeetingPassword] = useState(
+    poll.meeting_password ?? "",
+  );
+
+  // 일정 범위 (투표 없을 때만 수정 가능)
+  const [dateFrom, setDateFrom] = useState(poll.date_from);
+  const [dateTo, setDateTo] = useState(poll.date_to);
+  const [timeWeekday, setTimeWeekday] = useState(poll.time_weekday ?? "22:00");
+  const [timeStart, setTimeStart] = useState(poll.time_start);
+  const [timeEnd, setTimeEnd] = useState(poll.time_end);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+
+    const metaChanged =
+      location !== (poll.location ?? "") ||
+      meetingUrl !== (poll.meeting_url ?? "") ||
+      meetingPassword !== (poll.meeting_password ?? "");
+
+    const scheduleChanged =
+      !hasVotes &&
+      (dateFrom !== poll.date_from ||
+        dateTo !== poll.date_to ||
+        timeWeekday !== (poll.time_weekday ?? "22:00") ||
+        timeStart !== poll.time_start ||
+        timeEnd !== poll.time_end);
+
+    if (metaChanged) {
+      await onSaveMeta({
+        location: location.trim() || null,
+        meeting_url: meetingUrl.trim() || null,
+        meeting_password: meetingPassword.trim() || null,
+      });
+    }
+    if (scheduleChanged) {
+      await onSaveSchedule({
+        date_from: dateFrom,
+        date_to: dateTo,
+        time_weekday: poll.type === "online" ? timeWeekday : null,
+        time_start: timeStart,
+        time_end: timeEnd,
+      });
+    }
+    if (!metaChanged && !scheduleChanged) {
+      onClose();
+    }
+
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+          <p className="text-sm font-bold text-stone-900">일정 수정</p>
+          <button
+            onClick={onClose}
+            className="text-stone-400 hover:text-stone-600 transition-colors text-lg leading-none"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* 날짜 범위 — 투표 없을 때만 */}
+          {!hasVotes && (
+            <div>
+              <p className="text-xs font-semibold text-stone-500 mb-2">
+                날짜 범위
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                />
+                <span className="text-stone-400 flex-shrink-0">~</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 시간 — 투표 없을 때만 */}
+          {!hasVotes && (
+            <div>
+              <p className="text-xs font-semibold text-stone-500 mb-2">
+                {poll.type === "online" ? "평일 시간" : "시간 범위"}
+              </p>
+              {poll.type === "online" ? (
+                <input
+                  type="time"
+                  value={timeWeekday}
+                  onChange={(e) => setTimeWeekday(e.target.value)}
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={timeStart}
+                    onChange={(e) => setTimeStart(e.target.value)}
+                    className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                  />
+                  <span className="text-stone-400">~</span>
+                  <input
+                    type="time"
+                    value={timeEnd}
+                    onChange={(e) => setTimeEnd(e.target.value)}
+                    className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {hasVotes && (
+            <p className="text-xs text-stone-400 bg-stone-50 rounded-xl px-3 py-2.5">
+              이미 투표한 멤버가 있어 날짜·시간은 수정할 수 없어요.
+            </p>
+          )}
+
+          {/* 메타 정보 */}
+          {poll.type === "offline" && (
+            <div>
+              <p className="text-xs font-semibold text-stone-500 mb-2">장소</p>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="예: 강남역 스타벅스"
+                className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+              />
+            </div>
+          )}
+          {poll.type === "online" && (
+            <>
+              <div>
+                <p className="text-xs font-semibold text-stone-500 mb-2">
+                  회의 링크
+                </p>
+                <input
+                  type="url"
+                  value={meetingUrl}
+                  onChange={(e) => setMeetingUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-500 mb-2">
+                  비밀번호
+                </p>
+                <input
+                  type="text"
+                  value={meetingPassword}
+                  onChange={(e) => setMeetingPassword(e.target.value)}
+                  placeholder="없으면 비워두세요"
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
+                />
+              </div>
+            </>
+          )}
+
+          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+        </div>
+
+        <div className="p-5 border-t border-stone-100">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors disabled:opacity-40"
+          >
+            {saving ? "저장 중..." : "저장"}
           </button>
         </div>
       </div>

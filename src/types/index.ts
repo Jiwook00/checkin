@@ -38,7 +38,7 @@ export interface VotePoll {
   session: string;
   year: number;
   month: number;
-  status: "open" | "confirmed";
+  status: "open" | "closed" | "confirmed";
   confirmed_date: string | null; // "2026-03-07"
   confirmed_time: string | null; // "22:00" — 확정 시각
   meeting_url: string | null;
