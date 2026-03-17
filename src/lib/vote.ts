@@ -7,14 +7,24 @@ import type {
 } from "../types";
 
 export async function getActivePoll(): Promise<VotePoll | null> {
-  const { data } = await supabase
+  // open poll 우선, 없으면 가장 최근 confirmed
+  const { data: openPoll } = await supabase
     .from("checkin_vote_polls")
     .select("*")
-    .in("status", ["open", "confirmed"])
+    .eq("status", "open")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data as VotePoll | null;
+  if (openPoll) return openPoll as VotePoll;
+
+  const { data: confirmedPoll } = await supabase
+    .from("checkin_vote_polls")
+    .select("*")
+    .eq("status", "confirmed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return confirmedPoll as VotePoll | null;
 }
 
 export async function getVoteResponses(
@@ -85,6 +95,64 @@ export async function confirmPoll(
       confirmed_time: confirmedTime,
       updated_at: new Date().toISOString(),
     })
+    .eq("id", pollId);
+  return { error: error?.message ?? null };
+}
+
+export interface UpdatePollMetaData {
+  location?: string | null;
+  meeting_url?: string | null;
+  meeting_password?: string | null;
+}
+
+export async function updatePollMeta(
+  pollId: string,
+  data: UpdatePollMetaData,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("checkin_vote_polls")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", pollId);
+  return { error: error?.message ?? null };
+}
+
+export interface UpdatePollScheduleData {
+  date_from: string;
+  date_to: string;
+  time_weekday: string | null;
+  time_start: string;
+  time_end: string;
+}
+
+export async function updatePollSchedule(
+  pollId: string,
+  data: UpdatePollScheduleData,
+): Promise<{ error: string | null }> {
+  const fromDate = new Date(data.date_from + "T00:00:00");
+  const year = fromDate.getFullYear();
+  const month = fromDate.getMonth() + 1;
+  const session = `${year}-${String(month).padStart(2, "0")}`;
+
+  const { error } = await supabase
+    .from("checkin_vote_polls")
+    .update({
+      ...data,
+      year,
+      month,
+      session,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", pollId);
+  return { error: error?.message ?? null };
+}
+
+export async function deletePoll(
+  pollId: string,
+): Promise<{ error: string | null }> {
+  await supabase.from("checkin_vote_responses").delete().eq("poll_id", pollId);
+  const { error } = await supabase
+    .from("checkin_vote_polls")
+    .delete()
     .eq("id", pollId);
   return { error: error?.message ?? null };
 }
