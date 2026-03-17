@@ -62,6 +62,12 @@ export async function createPoll(
   const month = fromDate.getMonth() + 1;
   const session = `${year}-${String(month).padStart(2, "0")}`;
 
+  // 기존 open/confirmed poll을 모두 closed로 전환
+  await supabase
+    .from("checkin_vote_polls")
+    .update({ status: "closed", updated_at: new Date().toISOString() })
+    .in("status", ["open", "confirmed"]);
+
   const { data: poll, error } = await supabase
     .from("checkin_vote_polls")
     .insert({
