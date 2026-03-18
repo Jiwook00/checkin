@@ -101,30 +101,16 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 ## 일정 투표 시스템 (VotePage)
 
 **관련 파일**: `src/components/VotePage.tsx`, `src/lib/vote.ts`, `src/types/index.ts`
+**전체 플로우 다이어그램**: [`docs/vote-flow.md`](docs/vote-flow.md)
 
-### Poll 상태 전이
-
-```
-(없음) → open        관리자가 투표 생성 (기존 open/confirmed poll은 자동 closed 처리)
-open   → confirmed   관리자가 마감하기 → 날짜 확정
-confirmed → closed   다음 투표 생성 시 자동 전환
-```
-
-`getActivePoll()`: open poll 우선 반환, 없으면 가장 최근 confirmed poll.
-
-### Poll 타입
-
-- **offline**: 주말 날짜만 선택 가능. 시간대(`hours`) 직접 선택 (`time_start`~`time_end` 범위).
-- **online**: 모든 날짜 선택 가능. 평일은 `time_weekday`로 고정(시간 선택 없음), 주말은 시간대 선택.
-
-### selected_dates 구조
+### selected_dates 구조 — 주의
 
 `VoteResponse.selected_dates: { date: number, hours: number[] }[]`
 
-- `date`: 일(day) 숫자 (월 정보 없음, poll의 year/month로 맥락 파악)
-- `hours`: 선택한 시(hour) 배열. 평일은 고정 1개, 주말은 복수 가능.
+- `date`: 일(day) 숫자. 월 정보 없음 — poll의 `year`/`month`로 맥락 파악
+- `hours`: 선택한 시(hour) 배열. 평일은 고정 1개, 주말은 복수 가능
 
-### 집계 로직 — 두 종류가 존재, 혼동 주의
+### 집계 로직 두 종류 — 혼동 주의
 
 |            | `buildCalendarVotes`     | `computeVoteTally`                   |
 | ---------- | ------------------------ | ------------------------------------ |
