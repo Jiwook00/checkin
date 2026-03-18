@@ -678,8 +678,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         {poll.status === "confirmed" ? (
           /* 확정 완료 화면 */
           <div className="text-center">
-            <div className="bg-white rounded-2xl border border-emerald-200 p-8 max-w-sm mx-auto">
-              <div className="text-4xl mb-4">🎉</div>
+            <div className="bg-white rounded-2xl border border-emerald-200 p-8 max-w-sm md:max-w-md mx-auto">
+              <div className="text-4xl mb-4">📆</div>
               <p className="text-xs font-semibold text-emerald-600 uppercase tracking-widest mb-2">
                 일정 확정
               </p>
@@ -698,13 +698,27 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                   <p className="text-sm text-stone-400 mb-3">
                     {confirmedTallyItem.count}명이 참여 가능한 날짜예요
                   </p>
-                  <div className="flex justify-center gap-1">
-                    {Array.from({ length: totalMembers }, (_, i) => (
-                      <div
-                        key={i}
-                        className={`w-2.5 h-2.5 rounded-sm ${i < confirmedTallyItem.count ? "bg-emerald-500" : "bg-stone-200"}`}
-                      />
-                    ))}
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    {Object.entries(memberNicknames)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([id, nickname]) => {
+                        const attending = confirmedTallyItem.voters.some(
+                          (v) => v.memberId === id,
+                        );
+                        return (
+                          <div
+                            key={id}
+                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ring-1 ${
+                              attending
+                                ? `${memberColorClass(id)} text-white ring-transparent`
+                                : "bg-stone-100 text-stone-300 ring-stone-200"
+                            }`}
+                            title={nickname}
+                          >
+                            {nickname[0]}
+                          </div>
+                        );
+                      })}
                   </div>
                 </>
               )}
