@@ -103,41 +103,44 @@ function computeVoteTally(
   dates: DateInfo[],
   poll: VotePoll,
 ): TallyItem[] {
-  return dates
-    .map((dateInfo) => {
+  const items: TallyItem[] = [];
+
+  for (const dateInfo of dates) {
+    if (dateInfo.isWeekend) {
+      // 주말: (날짜 × 시간) 단위로 각각 집계
+      const hourCounts: Record<number, number> = {};
+      for (const r of allResponses) {
+        const sel = r.selected_dates.find((s) => s.date === dateInfo.date);
+        for (const h of sel?.hours ?? []) {
+          hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+        }
+      }
+      for (const [hourStr, count] of Object.entries(hourCounts)) {
+        items.push({
+          date: dateInfo.date,
+          dayName: dateInfo.dayName,
+          isWeekend: true,
+          count,
+          time: `${hourStr}:00`,
+        });
+      }
+    } else {
+      // 평일: 날짜 단위 집계
       const avail = allResponses.filter((r) =>
         r.selected_dates.some((s) => s.date === dateInfo.date),
       );
-      if (avail.length === 0) return null;
-
-      let time = poll.time_weekday ?? "22:00";
-      if (dateInfo.isWeekend) {
-        const hourCounts: Record<number, number> = {};
-        for (const r of avail) {
-          const sel = r.selected_dates.find((s) => s.date === dateInfo.date);
-          for (const h of sel?.hours ?? []) {
-            hourCounts[h] = (hourCounts[h] ?? 0) + 1;
-          }
-        }
-        const entries = Object.entries(hourCounts);
-        if (entries.length > 0) {
-          const topHour = entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
-          time = `${topHour}:00`;
-        } else {
-          time = poll.time_start;
-        }
-      }
-
-      return {
+      if (avail.length === 0) continue;
+      items.push({
         date: dateInfo.date,
         dayName: dateInfo.dayName,
-        isWeekend: dateInfo.isWeekend,
+        isWeekend: false,
         count: avail.length,
-        time,
-      };
-    })
-    .filter((item): item is TallyItem => item !== null)
-    .sort((a, b) => b.count - a.count);
+        time: poll.time_weekday ?? "22:00",
+      });
+    }
+  }
+
+  return items.sort((a, b) => b.count - a.count);
 }
 
 interface PollFormData {
@@ -277,7 +280,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [pollType, setPollType] = useState<PollType>("online");
 
   const [closePhase, setClosePhase] = useState<ClosePhase | null>(null);
-  const [confirmedDate, setConfirmedDate] = useState<number | null>(null);
+  const [confirmedDate, setConfirmedDate] = useState<{
+    date: number;
+    time: string;
+  } | null>(null);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -542,9 +548,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const handleConfirm = async () => {
     if (!confirmedDate) return;
     setConfirming(true);
-    const dateStr = `${poll.year}-${String(poll.month).padStart(2, "0")}-${String(confirmedDate).padStart(2, "0")}`;
-    const tallyTime =
-      voteTally.find((t) => t.date === confirmedDate)?.time ?? null;
+    const dateStr = `${poll.year}-${String(poll.month).padStart(2, "0")}-${String(confirmedDate.date).padStart(2, "0")}`;
+    const tallyTime = confirmedDate.time;
     const { error } = await confirmPoll(poll.id, dateStr, tallyTime);
     if (!error) {
       onPollChange({
@@ -571,7 +576,11 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     ? dates.find((d) => d.date === confirmedDay)
     : null;
   const confirmedTallyItem = confirmedDay
-    ? voteTally.find((t) => t.date === confirmedDay)
+    ? voteTally.find(
+        (t) =>
+          t.date === confirmedDay &&
+          (!poll.confirmed_time || t.time === poll.confirmed_time),
+      )
     : null;
 
   return (
@@ -1369,7 +1378,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     const isTop = item.count === voteTally[0]?.count;
                     return (
                       <div
-                        key={item.date}
+                        key={`${item.date}-${item.time}`}
                         className={`flex items-center gap-3 p-3 rounded-xl border ${
                           isTop
                             ? "border-emerald-200 bg-emerald-50"
@@ -1467,11 +1476,15 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                 {voteTally.length > 0 ? (
                   voteTally.map((item) => {
                     const isTop = item.count === voteTally[0]?.count;
-                    const isSelected = confirmedDate === item.date;
+                    const isSelected =
+                      confirmedDate?.date === item.date &&
+                      confirmedDate?.time === item.time;
                     return (
                       <button
-                        key={item.date}
-                        onClick={() => setConfirmedDate(item.date)}
+                        key={`${item.date}-${item.time}`}
+                        onClick={() =>
+                          setConfirmedDate({ date: item.date, time: item.time })
+                        }
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
                           isSelected
                             ? "border-stone-900 bg-stone-900 text-white"

@@ -98,6 +98,47 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 - 하나의 사용자 액션이 여러 `setState`를 동시에 호출해야 한다면 `useReducer` 고려
 - 공유 타입/상수는 `src/types/index.ts` 또는 해당 lib 파일에 단일 정의 — 컴포넌트 파일 내 중복 선언 금지
 
+## 일정 투표 시스템 (VotePage)
+
+**관련 파일**: `src/components/VotePage.tsx`, `src/lib/vote.ts`, `src/types/index.ts`
+
+### Poll 상태 전이
+
+```
+(없음) → open        관리자가 투표 생성 (기존 open/confirmed poll은 자동 closed 처리)
+open   → confirmed   관리자가 마감하기 → 날짜 확정
+confirmed → closed   다음 투표 생성 시 자동 전환
+```
+
+`getActivePoll()`: open poll 우선 반환, 없으면 가장 최근 confirmed poll.
+
+### Poll 타입
+
+- **offline**: 주말 날짜만 선택 가능. 시간대(`hours`) 직접 선택 (`time_start`~`time_end` 범위).
+- **online**: 모든 날짜 선택 가능. 평일은 `time_weekday`로 고정(시간 선택 없음), 주말은 시간대 선택.
+
+### selected_dates 구조
+
+`VoteResponse.selected_dates: { date: number, hours: number[] }[]`
+
+- `date`: 일(day) 숫자 (월 정보 없음, poll의 year/month로 맥락 파악)
+- `hours`: 선택한 시(hour) 배열. 평일은 고정 1개, 주말은 복수 가능.
+
+### 집계 로직 — 두 종류가 존재, 혼동 주의
+
+|            | `buildCalendarVotes`     | `computeVoteTally`                   |
+| ---------- | ------------------------ | ------------------------------------ |
+| 용도       | 캘린더 셀 색상/인원 표시 | 득표 현황 팝업                       |
+| 단위       | **날짜별**               | **주말: 날짜×시간별** / 평일: 날짜별 |
+| count 의미 | 그 날짜를 선택한 인원 수 | 그 날짜+시간대를 선택한 인원 수      |
+
+→ 캘린더의 "4일 5명"과 현황 팝업의 "4일 20:00 4명"이 다른 것은 정상.
+
+### 데이터 흐름
+
+- `App.tsx`가 `activePoll` fetch → props로 VotePage에 전달
+- `responses`, `totalMembers`는 VotePage 내부에서 직접 fetch
+
 ## Key Constraints
 
 - **Member-only app** — do not remove or weaken auth guards
