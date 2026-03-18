@@ -4,6 +4,7 @@ import { DAY_NAMES } from "../types";
 import {
   getVoteResponses,
   getTotalMemberCount,
+  getMemberNicknames,
   upsertVoteResponse,
   createPoll,
   confirmPoll,
@@ -13,6 +14,25 @@ import {
   type UpdatePollMetaData,
   type UpdatePollScheduleData,
 } from "../lib/vote";
+
+const AVATAR_COLORS = [
+  "bg-sky-400",
+  "bg-violet-400",
+  "bg-rose-400",
+  "bg-amber-400",
+  "bg-emerald-400",
+  "bg-pink-400",
+  "bg-indigo-400",
+  "bg-teal-400",
+];
+
+function memberColorClass(memberId: string): string {
+  let hash = 0;
+  for (let i = 0; i < memberId.length; i++) {
+    hash = (hash * 31 + memberId.charCodeAt(i)) & 0xffff;
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
 
 function buildDates(dateFrom: string, dateTo: string): DateInfo[] {
   const from = new Date(dateFrom + "T00:00:00");
@@ -90,18 +110,25 @@ function computeWeekendHourVotes(
   return result;
 }
 
+interface TallyVoter {
+  memberId: string;
+  name: string;
+}
+
 interface TallyItem {
   date: number;
   dayName: string;
   isWeekend: boolean;
   count: number;
   time: string;
+  voters: TallyVoter[];
 }
 
 function computeVoteTally(
   allResponses: VoteResponse[],
   dates: DateInfo[],
   poll: VotePoll,
+  memberNicknames: Record<string, string>,
 ): TallyItem[] {
   const items: TallyItem[] = [];
 
@@ -109,10 +136,16 @@ function computeVoteTally(
     if (dateInfo.isWeekend) {
       // 주말: (날짜 × 시간) 단위로 각각 집계
       const hourCounts: Record<number, number> = {};
+      const hourVoters: Record<number, TallyVoter[]> = {};
       for (const r of allResponses) {
         const sel = r.selected_dates.find((s) => s.date === dateInfo.date);
         for (const h of sel?.hours ?? []) {
           hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+          if (!hourVoters[h]) hourVoters[h] = [];
+          hourVoters[h].push({
+            memberId: r.member_id,
+            name: memberNicknames[r.member_id] ?? r.member_id,
+          });
         }
       }
       for (const [hourStr, count] of Object.entries(hourCounts)) {
@@ -122,6 +155,7 @@ function computeVoteTally(
           isWeekend: true,
           count,
           time: `${hourStr}:00`,
+          voters: hourVoters[Number(hourStr)] ?? [],
         });
       }
     } else {
@@ -136,6 +170,10 @@ function computeVoteTally(
         isWeekend: false,
         count: avail.length,
         time: poll.time_weekday ?? "22:00",
+        voters: avail.map((r) => ({
+          memberId: r.member_id,
+          name: memberNicknames[r.member_id] ?? r.member_id,
+        })),
       });
     }
   }
@@ -270,6 +308,9 @@ interface Props {
 export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [responses, setResponses] = useState<VoteResponse[]>([]);
   const [totalMembers, setTotalMembers] = useState(0);
+  const [memberNicknames, setMemberNicknames] = useState<
+    Record<string, string>
+  >({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -312,13 +353,15 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       }
 
       try {
-        const [allResponses, memberCount] = await Promise.all([
+        const [allResponses, memberCount, nicknames] = await Promise.all([
           getVoteResponses(poll.id),
           getTotalMemberCount(),
+          getMemberNicknames(),
         ]);
 
         setResponses(allResponses);
         setTotalMembers(memberCount);
+        setMemberNicknames(nicknames);
 
         if (!initializedRef.current) {
           initializedRef.current = true;
@@ -479,7 +522,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     dates,
     weekendHourRange,
   );
-  const voteTally = computeVoteTally(responses, dates, poll);
+  const voteTally = computeVoteTally(responses, dates, poll, memberNicknames);
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
   const cannotAttendCount = responses.filter((r) => r.cannot_attend).length;
@@ -1404,26 +1447,36 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                             </p>
                           )}
                         </div>
-                        <div className="flex-shrink-0 text-right">
+                        <div className="flex-shrink-0 flex flex-col items-end gap-1">
                           <p className="text-sm font-black text-stone-900">
-                            {item.count}
+                            {item.voters.length}
                             <span className="text-xs font-normal text-stone-400">
                               /{totalMembers}명
                             </span>
                           </p>
-                          <div className="flex gap-0.5 justify-end mt-1">
-                            {Array.from({ length: totalMembers }, (_, i) => (
+                          {/* 스택 아바타 (최대 5개 + +N 오버플로우) */}
+                          <div className="flex">
+                            {item.voters.slice(0, 5).map((v, i) => (
                               <div
-                                key={i}
-                                className={`w-2 h-2 rounded-sm ${
-                                  i < item.count
-                                    ? isTop
-                                      ? "bg-emerald-500"
-                                      : "bg-stone-500"
-                                    : "bg-stone-200"
-                                }`}
-                              />
+                                key={v.memberId}
+                                style={{ marginLeft: i === 0 ? 0 : -8 }}
+                              >
+                                <div
+                                  className={`w-6 h-6 ${memberColorClass(v.memberId)} rounded-full flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-white`}
+                                  title={v.name}
+                                >
+                                  {v.name[0]}
+                                </div>
+                              </div>
                             ))}
+                            {item.voters.length > 5 && (
+                              <div
+                                style={{ marginLeft: -8 }}
+                                className="w-6 h-6 bg-stone-200 rounded-full flex items-center justify-center text-stone-500 text-[9px] font-bold ring-2 ring-white"
+                              >
+                                +{item.voters.length - 5}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

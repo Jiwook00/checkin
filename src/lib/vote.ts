@@ -44,6 +44,17 @@ export async function getTotalMemberCount(): Promise<number> {
   return count ?? 0;
 }
 
+export async function getMemberNicknames(): Promise<Record<string, string>> {
+  const { data } = await supabase
+    .from("checkin_members")
+    .select("id, nickname");
+  const map: Record<string, string> = {};
+  for (const m of data ?? []) {
+    map[m.id as string] = m.nickname as string;
+  }
+  return map;
+}
+
 export interface CreatePollData {
   type: "online" | "offline";
   location: string | null;
