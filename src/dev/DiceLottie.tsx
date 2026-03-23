@@ -1,6 +1,6 @@
 import Lottie from "lottie-react";
 import { DOT_POSITIONS, useDiceGame } from "./shared";
-import diceShakeData from "./animations/dice-shake.json";
+import diceShakeData from "../components/animations/dice-shake.json";
 
 // Lottie 애니메이션 settled 프레임을 SVG로 변환한 아이소메트릭 3D 주사위
 // (좌=5, 우=3, 위=6 고정 — idle 화면용)
