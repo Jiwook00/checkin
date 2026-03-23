@@ -149,6 +149,7 @@ export default function App() {
   // 글 추가
   const handleAddArticle = async (
     form: AddArticleForm,
+    setStatus: (s: string) => void,
   ): Promise<{ parseFailed: boolean }> => {
     const { data: sessionData, error: refreshError } =
       await supabase.auth.refreshSession();
@@ -157,6 +158,7 @@ export default function App() {
     }
     const memberId = sessionData.session.user.id;
 
+    setStatus("파싱 중...");
     const { data, error } = await supabase.functions.invoke("parse-content", {
       body: form,
     });
@@ -190,6 +192,55 @@ export default function App() {
 
       await fetchArticles();
       return { parseFailed: true };
+    }
+
+    // 이미지 처리
+    const imageUrls: string[] = data.image_urls ?? [];
+    if (imageUrls.length > 0) {
+      let processed = 0;
+      setStatus(`이미지 처리 중... (0/${imageUrls.length})`);
+
+      const results = await Promise.allSettled(
+        imageUrls.map(async (url: string) => {
+          const result = await supabase.functions.invoke("upload-image", {
+            body: { image_url: url },
+          });
+          processed++;
+          setStatus(`이미지 처리 중... (${processed}/${imageUrls.length})`);
+          return result;
+        }),
+      );
+
+      const urlMap = new Map<string, string>();
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value.data?.storage_url) {
+          urlMap.set(
+            result.value.data.original_url,
+            result.value.data.storage_url,
+          );
+        }
+      }
+
+      if (urlMap.size > 0) {
+        let content_html: string = data.data.content_html ?? "";
+        let content_markdown: string = data.data.content_markdown ?? "";
+
+        for (const [original, uploaded] of urlMap) {
+          content_html = content_html.replaceAll(
+            `src="${original}"`,
+            `src="${uploaded}"`,
+          );
+          content_markdown = content_markdown.replaceAll(
+            `](${original})`,
+            `](${uploaded})`,
+          );
+        }
+
+        await supabase
+          .from("checkin_retrospectives")
+          .update({ content_html, content_markdown })
+          .eq("id", data.data.id);
+      }
     }
 
     // 목록 갱신

@@ -10,7 +10,7 @@ const CONTENT_TYPE_TO_EXT: Record<string, string> = {
   "image/avif": ".avif",
 };
 
-function extractUrls(html: string, markdown: string): string[] {
+export function extractUrls(html: string, markdown: string): string[] {
   const urls = new Set<string>();
 
   // HTML: <img src="...">

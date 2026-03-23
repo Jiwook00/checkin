@@ -4,7 +4,10 @@ import type { AddArticleForm } from "../types";
 interface AddArticleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (form: AddArticleForm) => Promise<{ parseFailed: boolean }>;
+  onSubmit: (
+    form: AddArticleForm,
+    setStatus: (s: string) => void,
+  ) => Promise<{ parseFailed: boolean }>;
   defaultSession?: string;
 }
 
@@ -26,6 +29,7 @@ export default function AddArticleModal({
     session: sessionInit,
   });
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("등록 중...");
   const [error, setError] = useState("");
   const [parseFailed, setParseFailed] = useState(false);
 
@@ -48,7 +52,7 @@ export default function AddArticleModal({
     setLoading(true);
 
     try {
-      const result = await onSubmit(form);
+      const result = await onSubmit(form, setStatus);
       if (result.parseFailed) {
         setParseFailed(true);
       } else {
@@ -163,7 +167,7 @@ export default function AddArticleModal({
               disabled={loading}
               className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              {loading ? "파싱 중..." : "등록"}
+              {loading ? status : "등록"}
             </button>
           </form>
         )}

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { detectSourceType, extractNotionPageId } from "./url-utils.ts";
 import { parseBlog } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
-import { processImages } from "./image-processor.ts";
+import { extractUrls } from "./image-processor.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -124,15 +124,13 @@ Deno.serve(async (req) => {
     // 제목: 사용자 입력 우선, 없으면 파싱된 제목 사용
     const finalTitle = title?.trim() || parsed.title;
 
-    // 이미지 Supabase Storage로 이관
-    const { content_html, content_markdown } = await processImages(
+    // 이미지 URL 목록 추출 (프론트에서 개별 처리)
+    const image_urls = extractUrls(
       parsed.content_html,
       parsed.content_markdown,
-      supabaseAdmin,
-      user.id,
     );
 
-    // Supabase에 저장
+    // Supabase에 저장 (원본 이미지 URL 그대로)
     const { data, error } = await supabaseAdmin
       .from("checkin_retrospectives")
       .insert({
@@ -140,8 +138,8 @@ Deno.serve(async (req) => {
         member_id: user.id,
         source_url,
         source_type: sourceType,
-        content_html,
-        content_markdown,
+        content_html: parsed.content_html,
+        content_markdown: parsed.content_markdown,
         session,
       })
       .select()
@@ -151,7 +149,7 @@ Deno.serve(async (req) => {
       throw new Error(`DB 저장 실패: ${error.message}`);
     }
 
-    return new Response(JSON.stringify({ success: true, data }), {
+    return new Response(JSON.stringify({ success: true, data, image_urls }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
