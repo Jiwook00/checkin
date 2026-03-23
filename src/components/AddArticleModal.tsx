@@ -119,7 +119,10 @@ export default function AddArticleModal({
   const [diceFinalValues, setDiceFinalValues] = useState<
     [number | null, number | null]
   >([null, null]);
-  const [diceScore, setDiceScore] = useState<number | null>(null);
+  const diceScore =
+    diceFinalValues[0] !== null && diceFinalValues[1] !== null
+      ? diceFinalValues[0] + diceFinalValues[1]
+      : null;
   const [apiResult, setApiResult] = useState<{
     parseFailed: boolean;
     articleId: string;
@@ -130,13 +133,6 @@ export default function AddArticleModal({
   // 모달 재열기 시 이전 API 콜백 무효화용
   const generationRef = useRef(0);
   const saveInitiated = useRef(false);
-
-  // 두 주사위 모두 굴린 경우 점수 확정
-  useEffect(() => {
-    if (diceFinalValues[0] !== null && diceFinalValues[1] !== null) {
-      setDiceScore(diceFinalValues[0] + diceFinalValues[1]);
-    }
-  }, [diceFinalValues]);
 
   // 주사위 결과 + API 완료 → 저장 (hooks는 early return 전에 선언)
   useEffect(() => {
@@ -170,20 +166,23 @@ export default function AddArticleModal({
 
   if (!isOpen) return null;
 
-  const handleClose = () => {
-    generationRef.current++;
-    setParseFailed(false);
-    setError("");
-    setPhase("form");
+  const resetGameState = () => {
     setDiceValues([1, 1]);
     setDiceRolling([false, false]);
     setDiceFinalValues([null, null]);
-    setDiceScore(null);
     setApiResult(null);
     setSaving(false);
     setCompleted(false);
     setStatus("등록 중...");
     saveInitiated.current = false;
+  };
+
+  const handleClose = () => {
+    generationRef.current++;
+    setParseFailed(false);
+    setError("");
+    setPhase("form");
+    resetGameState();
     setForm({
       title: "",
       source_url: "",
@@ -196,14 +195,7 @@ export default function AddArticleModal({
     e.preventDefault();
     setError("");
     setPhase("game");
-    setDiceValues([1, 1]);
-    setDiceRolling([false, false]);
-    setDiceFinalValues([null, null]);
-    setDiceScore(null);
-    setApiResult(null);
-    setSaving(false);
-    setCompleted(false);
-    saveInitiated.current = false;
+    resetGameState();
 
     const myGeneration = ++generationRef.current;
     onSubmit(form, setStatus)
