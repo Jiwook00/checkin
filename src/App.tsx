@@ -132,25 +132,40 @@ export default function App() {
     });
   }, []);
 
+  // 회차 내 정렬: presentation_order 높은 순, 없으면 등록 순
+  const sortWithinSession = (arr: Retrospective[]): Retrospective[] =>
+    [...arr].sort((a, b) => {
+      if (a.session !== b.session) return b.session.localeCompare(a.session);
+      if (a.presentation_order !== null && b.presentation_order !== null)
+        return b.presentation_order - a.presentation_order;
+      if (a.presentation_order !== null) return -1;
+      if (b.presentation_order !== null) return 1;
+      return (
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    });
+
   // 필터링된 글 목록
   const filteredArticles = useMemo(() => {
-    return articles.filter((a) => {
+    const filtered = articles.filter((a) => {
       if (!recentSessions.includes(a.session)) return false;
       if (selectedSession && a.session !== selectedSession) return false;
       return true;
     });
+    return sortWithinSession(filtered);
   }, [articles, recentSessions, selectedSession]);
 
   // 모바일용 — 세션 필터 없이 최근 전체
   const mobileArticles = useMemo(() => {
-    return articles.filter((a) => recentSessions.includes(a.session));
+    const filtered = articles.filter((a) => recentSessions.includes(a.session));
+    return sortWithinSession(filtered);
   }, [articles, recentSessions]);
 
   // 글 추가
   const handleAddArticle = async (
     form: AddArticleForm,
     setStatus: (s: string) => void,
-  ): Promise<{ parseFailed: boolean }> => {
+  ): Promise<{ parseFailed: boolean; articleId: string }> => {
     const { data: sessionData, error: refreshError } =
       await supabase.auth.refreshSession();
     if (refreshError || !sessionData.session) {
@@ -176,7 +191,7 @@ export default function App() {
         return "other";
       };
 
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from("checkin_retrospectives")
         .insert({
           member_id: memberId,
@@ -186,12 +201,14 @@ export default function App() {
           content_markdown: "",
           content_html: null,
           session: form.session,
-        });
+        })
+        .select("id")
+        .single();
 
       if (insertError) throw new Error(insertError.message);
 
       await fetchArticles();
-      return { parseFailed: true };
+      return { parseFailed: true, articleId: insertData.id };
     }
 
     // 이미지 처리
@@ -245,7 +262,24 @@ export default function App() {
 
     // 목록 갱신
     await fetchArticles();
-    return { parseFailed: false };
+    return { parseFailed: false, articleId: data.data.id };
+  };
+
+  // 발표 순서 저장
+  const handleUpdatePresentationOrder = async (
+    articleId: string,
+    score: number,
+  ) => {
+    const { error } = await supabase
+      .from("checkin_retrospectives")
+      .update({ presentation_order: score })
+      .eq("id", articleId);
+    if (error) throw new Error(error.message);
+    setArticles((prev) =>
+      prev.map((a) =>
+        a.id === articleId ? { ...a, presentation_order: score } : a,
+      ),
+    );
   };
 
   // 글 수정
@@ -384,6 +418,7 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
+        onSaveDiceScore={handleUpdatePresentationOrder}
         defaultSession={defaultSession}
       />
 
