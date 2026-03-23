@@ -227,6 +227,50 @@ export default function DevIndex() {
             </a>
           ))}
         </div>
+
+        <h2 className="text-lg font-black text-stone-900 mt-12 mb-1">
+          주사위 스타일 — lottie-react
+        </h2>
+        <p className="text-sm text-stone-500 mb-6">
+          굴리는 동안 Lottie 애니메이션이 재생되고, 결과는 점으로 표시
+        </p>
+        <a
+          href="/dev/9"
+          className="block bg-white rounded-2xl border border-stone-200 p-5 hover:border-stone-400 hover:shadow-sm transition-all group"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <span className="text-xs font-semibold text-stone-400 mb-1 block">
+                Option 9
+              </span>
+              <h3 className="text-lg font-bold text-stone-900 group-hover:text-stone-700">
+                Lottie 흔들기 애니메이션
+              </h3>
+              <p className="text-sm text-stone-500">
+                클릭 → Lottie 재생 → 결과 dot 표시
+              </p>
+            </div>
+            <span className="text-stone-300 group-hover:text-stone-600 text-xl transition-colors">
+              →
+            </span>
+          </div>
+          <ul className="space-y-1">
+            {[
+              "굴리는 동안 Lottie JSON 애니메이션 (흔들기 + 스쿼시)",
+              "결과 확정 시 실제 점(dot) 주사위 면으로 전환",
+              "로컬 번들 JSON — 네트워크 의존 없음",
+              "LottieFiles에서 더 좋은 애니메이션으로 교체 가능",
+            ].map((d) => (
+              <li
+                key={d}
+                className="flex items-start gap-2 text-xs text-stone-500"
+              >
+                <span className="text-stone-300 mt-0.5">•</span>
+                {d}
+              </li>
+            ))}
+          </ul>
+        </a>
       </div>
     </div>
   );

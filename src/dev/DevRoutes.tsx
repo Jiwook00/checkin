@@ -8,6 +8,7 @@ import TallyAvatar2 from "./TallyAvatar2";
 import TallyAvatar3 from "./TallyAvatar3";
 import VoteResult1 from "./VoteResult1";
 import VoteResult2 from "./VoteResult2";
+import DiceLottie from "./DiceLottie";
 
 export default function DevRoutes() {
   return (
@@ -21,6 +22,7 @@ export default function DevRoutes() {
       <Route path="/6" element={<TallyAvatar3 />} />
       <Route path="/7" element={<VoteResult1 />} />
       <Route path="/8" element={<VoteResult2 />} />
+      <Route path="/9" element={<DiceLottie />} />
     </Routes>
   );
 }

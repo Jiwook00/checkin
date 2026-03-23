@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import type { Retrospective } from "../types";
 
@@ -141,6 +142,128 @@ export function Switcher({ current }: { current: number }) {
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 bg-stone-900/90 backdrop-blur text-white rounded-full px-3 py-2 shadow-xl">
       <span className="text-xs text-stone-400 mr-2">스타일</span>
+      {options.map((o) => (
+        <a
+          key={o.n}
+          href={`/dev/${o.n}`}
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+            current === o.n
+              ? "bg-white text-stone-900"
+              : "text-stone-300 hover:text-white"
+          }`}
+        >
+          {o.label}
+        </a>
+      ))}
+      <span className="mx-2 text-stone-600">|</span>
+      <a href="/dev" className="text-xs text-stone-400 hover:text-white">
+        목록
+      </a>
+    </div>
+  );
+}
+
+export const DOT_POSITIONS: Record<number, [number, number][]> = {
+  1: [[1, 1]],
+  2: [
+    [0, 2],
+    [2, 0],
+  ],
+  3: [
+    [0, 2],
+    [1, 1],
+    [2, 0],
+  ],
+  4: [
+    [0, 0],
+    [0, 2],
+    [2, 0],
+    [2, 2],
+  ],
+  5: [
+    [0, 0],
+    [0, 2],
+    [1, 1],
+    [2, 0],
+    [2, 2],
+  ],
+  6: [
+    [0, 0],
+    [0, 2],
+    [1, 0],
+    [1, 2],
+    [2, 0],
+    [2, 2],
+  ],
+};
+
+export function useDiceGame() {
+  const [values, setValues] = useState<[number, number]>([1, 1]);
+  const [rolling, setRolling] = useState<[boolean, boolean]>([false, false]);
+  const [finals, setFinals] = useState<[number | null, number | null]>([
+    null,
+    null,
+  ]);
+
+  const roll = (i: 0 | 1) => {
+    if (rolling[i] || finals[i] !== null) return;
+    setRolling((prev) => {
+      const n = [...prev] as [boolean, boolean];
+      n[i] = true;
+      return n;
+    });
+    const id = setInterval(() => {
+      setValues((prev) => {
+        const n = [...prev] as [number, number];
+        n[i] = Math.ceil(Math.random() * 6);
+        return n;
+      });
+    }, 80);
+    setTimeout(() => {
+      clearInterval(id);
+      const val = Math.ceil(Math.random() * 6);
+      setValues((prev) => {
+        const n = [...prev] as [number, number];
+        n[i] = val;
+        return n;
+      });
+      setFinals((prev) => {
+        const n = [...prev] as [number | null, number | null];
+        n[i] = val;
+        return n;
+      });
+      setRolling((prev) => {
+        const n = [...prev] as [boolean, boolean];
+        n[i] = false;
+        return n;
+      });
+    }, 1500);
+  };
+
+  const reset = () => {
+    setValues([1, 1]);
+    setRolling([false, false]);
+    setFinals([null, null]);
+  };
+
+  const score =
+    finals[0] !== null && finals[1] !== null ? finals[0] + finals[1] : null;
+  const bothDone = finals[0] !== null && finals[1] !== null;
+  const neitherDone = finals[0] === null && finals[1] === null;
+
+  return { values, rolling, finals, roll, reset, score, bothDone, neitherDone };
+}
+
+export function DiceSwitcher({ current }: { current: number }) {
+  const options = [
+    { n: 9, label: "클래식" },
+    { n: 10, label: "다크" },
+    { n: 11, label: "3D 플립" },
+    { n: 12, label: "유니코드" },
+  ];
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-1 bg-stone-900/90 backdrop-blur text-white rounded-full px-3 py-2 shadow-xl">
+      <span className="text-xs text-stone-400 mr-2">주사위 스타일</span>
       {options.map((o) => (
         <a
           key={o.n}
