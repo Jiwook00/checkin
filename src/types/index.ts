@@ -7,6 +7,7 @@ export interface Retrospective {
   content_html: string | null;
   content_markdown: string;
   session: string;
+  presentation_order: number | null;
   created_at: string;
   updated_at: string;
   checkin_members: { nickname: string } | null;

@@ -14,6 +14,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 2월 회고",
     created_at: "2025-03-01T10:00:00Z",
     updated_at: "2025-03-01T10:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "danny" },
   },
   {
@@ -28,6 +29,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 2월 회고",
     created_at: "2025-03-01T11:00:00Z",
     updated_at: "2025-03-01T11:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "jiwook" },
   },
   {
@@ -42,6 +44,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 2월 회고",
     created_at: "2025-03-01T12:00:00Z",
     updated_at: "2025-03-01T12:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "alice" },
   },
   {
@@ -56,6 +59,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 2월 회고",
     created_at: "2025-03-01T13:00:00Z",
     updated_at: "2025-03-01T13:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "minjae" },
   },
   {
@@ -70,6 +74,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 1월 회고",
     created_at: "2025-02-01T10:00:00Z",
     updated_at: "2025-02-01T10:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "danny" },
   },
   {
@@ -84,6 +89,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 1월 회고",
     created_at: "2025-02-01T11:00:00Z",
     updated_at: "2025-02-01T11:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "jiwook" },
   },
   {
@@ -98,6 +104,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2025년 1월 회고",
     created_at: "2025-02-01T12:00:00Z",
     updated_at: "2025-02-01T12:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "alice" },
   },
   {
@@ -112,6 +119,7 @@ export const MOCK_ARTICLES: Retrospective[] = [
     session: "2024년 12월 회고",
     created_at: "2025-01-01T10:00:00Z",
     updated_at: "2025-01-01T10:00:00Z",
+    presentation_order: null,
     checkin_members: { nickname: "minjae" },
   },
 ];
