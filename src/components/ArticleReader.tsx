@@ -69,7 +69,19 @@ export default function ArticleReader({ articles }: ArticleReaderProps) {
         {/* 마크다운 렌더링 */}
         {article.content_markdown ? (
           <div className="prose prose-gray max-w-none prose-headings:font-semibold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:bg-gray-50">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                img: ({ src, alt }) => (
+                  <img
+                    src={src}
+                    alt={alt ?? ""}
+                    loading="lazy"
+                    className="rounded-lg min-h-[120px] bg-stone-100"
+                  />
+                ),
+              }}
+            >
               {article.content_markdown}
             </ReactMarkdown>
           </div>
