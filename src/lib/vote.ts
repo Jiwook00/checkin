@@ -6,6 +6,25 @@ import type {
   DateInfo,
 } from "../types";
 
+const AVATAR_COLORS = [
+  "bg-sky-400",
+  "bg-violet-400",
+  "bg-rose-400",
+  "bg-amber-400",
+  "bg-emerald-400",
+  "bg-pink-400",
+  "bg-indigo-400",
+  "bg-teal-400",
+];
+
+export function memberColorClass(memberId: string): string {
+  let hash = 0;
+  for (let i = 0; i < memberId.length; i++) {
+    hash = (hash * 31 + memberId.charCodeAt(i)) & 0xffff;
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
 export async function getActivePoll(): Promise<VotePoll | null> {
   // open poll 우선, 없으면 가장 최근 confirmed
   const { data: openPoll } = await supabase

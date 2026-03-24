@@ -71,3 +71,26 @@ export interface VoteResponse {
   created_at: string;
   updated_at: string;
 }
+
+export interface TallyVoter {
+  memberId: string;
+  name: string;
+}
+
+export interface TallyItem {
+  date: number;
+  dayName: string;
+  isWeekend: boolean;
+  count: number;
+  time: string;
+  voters: TallyVoter[];
+}
+
+export interface PollFormData {
+  dateFrom: string;
+  dateTo: string;
+  timeWeekday: string | null;
+  timeStart: string;
+  timeEnd: string;
+  location: string | null;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { VotePoll, VoteResponse, DateInfo } from "../types";
+import type { VotePoll, VoteResponse, DateInfo, TallyItem } from "../types";
 import { DAY_NAMES } from "../types";
 import {
   getVoteResponses,
@@ -14,25 +14,18 @@ import {
   type UpdatePollMetaData,
   type UpdatePollScheduleData,
 } from "../lib/vote";
+import VoteCalendar from "./vote/VoteCalendar";
+import TallyPopup, { type ClosePhase } from "./vote/TallyPopup";
+import VoteResult from "./vote/VoteResult";
+import {
+  EmptyState,
+  PresetSelect,
+  PollForm,
+  EditPollModal,
+  type PollType,
+} from "./vote/PollAdmin";
 
-const AVATAR_COLORS = [
-  "bg-sky-400",
-  "bg-violet-400",
-  "bg-rose-400",
-  "bg-amber-400",
-  "bg-emerald-400",
-  "bg-pink-400",
-  "bg-indigo-400",
-  "bg-teal-400",
-];
-
-function memberColorClass(memberId: string): string {
-  let hash = 0;
-  for (let i = 0; i < memberId.length; i++) {
-    hash = (hash * 31 + memberId.charCodeAt(i)) & 0xffff;
-  }
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
+// --- Utility functions ---
 
 function buildDates(dateFrom: string, dateTo: string): DateInfo[] {
   const from = new Date(dateFrom + "T00:00:00");
@@ -55,11 +48,6 @@ function getWeekendHourRange(poll: VotePoll): number[] {
   const start = parseInt(poll.time_start.split(":")[0]);
   const end = parseInt(poll.time_end.split(":")[0]);
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-}
-
-function isDateClickable(dateInfo: DateInfo, poll: VotePoll): boolean {
-  if (poll.type === "offline") return dateInfo.isWeekend;
-  return true;
 }
 
 function buildCalendarRows(year: number, month: number): (number | null)[][] {
@@ -110,20 +98,6 @@ function computeWeekendHourVotes(
   return result;
 }
 
-interface TallyVoter {
-  memberId: string;
-  name: string;
-}
-
-interface TallyItem {
-  date: number;
-  dayName: string;
-  isWeekend: boolean;
-  count: number;
-  time: string;
-  voters: TallyVoter[];
-}
-
 function computeVoteTally(
   allResponses: VoteResponse[],
   dates: DateInfo[],
@@ -136,7 +110,8 @@ function computeVoteTally(
     if (dateInfo.isWeekend) {
       // 주말: (날짜 × 시간) 단위로 각각 집계
       const hourCounts: Record<number, number> = {};
-      const hourVoters: Record<number, TallyVoter[]> = {};
+      const hourVoters: Record<number, { memberId: string; name: string }[]> =
+        {};
       for (const r of allResponses) {
         const sel = r.selected_dates.find((s) => s.date === dateInfo.date);
         for (const h of sel?.hours ?? []) {
@@ -179,15 +154,6 @@ function computeVoteTally(
   }
 
   return items.sort((a, b) => b.count - a.count);
-}
-
-interface PollFormData {
-  dateFrom: string;
-  dateTo: string;
-  timeWeekday: string | null;
-  timeStart: string;
-  timeEnd: string;
-  location: string | null;
 }
 
 // --- 투표 UI 상태 (useReducer) ---
@@ -296,8 +262,6 @@ const initialVoteState: VoteState = {
 // ---
 
 type CreateStep = "preset" | "form";
-type PollType = "online" | "offline";
-type ClosePhase = "tally" | "date-modal";
 
 interface Props {
   memberId: string;
@@ -341,6 +305,17 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   } = voteState;
 
   const initializedRef = useRef(false);
+
+  // useMemo는 early return 전에 반드시 호출되어야 함 (hooks 순서 고정)
+  const dates = useMemo(
+    () => (poll ? buildDates(poll.date_from, poll.date_to) : []),
+    [poll?.date_from, poll?.date_to],
+  );
+  const voteTally = useMemo(
+    () =>
+      poll ? computeVoteTally(responses, dates, poll, memberNicknames) : [],
+    [responses, dates, poll, memberNicknames],
+  );
 
   useEffect(() => {
     async function load() {
@@ -415,7 +390,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     );
   }
 
-  const handleCreatePoll = async (data: PollFormData) => {
+  const handleCreatePoll = async (data: {
+    dateFrom: string;
+    dateTo: string;
+    timeWeekday: string | null;
+    timeStart: string;
+    timeEnd: string;
+    location: string | null;
+  }) => {
     setCreating(true);
     const { poll: newPoll, error } = await createPoll({
       type: pollType,
@@ -433,7 +415,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     setCreating(false);
   };
 
-  // --- 새 일정 만들기 플로우 (poll 없음 또는 confirmed 상태에서 다음 회차 생성) ---
+  // --- 새 일정 만들기 플로우 ---
   if (createStep === "preset") {
     return (
       <div className="py-12 px-6">
@@ -504,10 +486,6 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   };
 
   // --- 활성 poll ---
-  const dates = useMemo(
-    () => buildDates(poll.date_from, poll.date_to),
-    [poll.date_from, poll.date_to],
-  );
   const calendarRows = buildCalendarRows(poll.year, poll.month);
   const weekendHourRange = getWeekendHourRange(poll);
   const otherResponses = responses.filter((r) => r.member_id !== memberId);
@@ -524,10 +502,6 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     responses,
     dates,
     weekendHourRange,
-  );
-  const voteTally = useMemo(
-    () => computeVoteTally(responses, dates, poll, memberNicknames),
-    [responses, dates, poll, memberNicknames],
   );
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
@@ -682,76 +656,16 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
       <div className="max-w-3xl mx-auto px-4 py-4 md:px-6 md:py-6">
         {poll.status === "confirmed" ? (
-          /* 확정 완료 화면 */
-          <div className="text-center">
-            <div className="bg-white rounded-2xl border border-emerald-200 p-8 max-w-sm md:max-w-md mx-auto">
-              <div className="text-4xl mb-4">📆</div>
-              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-widest mb-2">
-                일정 확정
-              </p>
-              <p className="text-2xl font-black text-stone-900 mb-1">
-                {poll.month}월 {confirmedDay}일 (
-                {confirmedDateInfo?.dayName ?? ""})
-              </p>
-              <p className="text-lg font-bold text-stone-600 mb-4">
-                {confirmedTallyItem?.time ??
-                  poll.time_weekday ??
-                  poll.time_start}{" "}
-                시작
-              </p>
-              {confirmedTallyItem && (
-                <>
-                  <p className="text-sm text-stone-400 mb-3">
-                    {confirmedTallyItem.count}명이 참여 가능한 날짜예요
-                  </p>
-                  <div className="flex justify-center gap-2 flex-wrap">
-                    {Object.entries(memberNicknames)
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([id, nickname]) => {
-                        const attending = confirmedTallyItem.voters.some(
-                          (v) => v.memberId === id,
-                        );
-                        return (
-                          <div
-                            key={id}
-                            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ring-1 ${
-                              attending
-                                ? `${memberColorClass(id)} text-white ring-transparent`
-                                : "bg-stone-100 text-stone-300 ring-stone-200"
-                            }`}
-                            title={nickname}
-                          >
-                            {nickname[0]}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </>
-              )}
-              <div className="flex flex-col gap-2 mt-6">
-                <button
-                  onClick={() => setCreateStep("preset")}
-                  className="w-full bg-stone-900 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-stone-700 transition-colors"
-                >
-                  + 다음 회차 일정 만들기
-                </button>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditModalOpen(true)}
-                    className="flex-1 border border-stone-200 text-stone-600 rounded-xl py-2 text-xs font-medium hover:border-stone-400 hover:text-stone-800 transition-colors"
-                  >
-                    일정 수정
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    className="flex-1 border border-stone-200 text-stone-400 rounded-xl py-2 text-xs font-medium hover:border-red-200 hover:text-red-500 transition-colors"
-                  >
-                    일정 삭제
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <VoteResult
+            poll={poll}
+            confirmedDay={confirmedDay}
+            confirmedDateInfo={confirmedDateInfo ?? undefined}
+            confirmedTallyItem={confirmedTallyItem ?? undefined}
+            memberNicknames={memberNicknames}
+            onCreateNext={() => setCreateStep("preset")}
+            onEdit={() => setEditModalOpen(true)}
+            onDelete={() => setDeleteConfirmOpen(true)}
+          />
         ) : (
           /* 투표 중 화면 */
           <>
@@ -764,128 +678,20 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             {/* 메인 레이아웃: 모바일 1열 / 데스크톱 2열 */}
             <div className="md:grid md:grid-cols-[1fr_1.15fr] md:gap-6 md:items-start">
               {/* 왼쪽: 달력 */}
-              <div className="bg-white rounded-2xl border border-stone-200 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-stone-800">
-                    {MONTH_KO}
-                  </span>
-                  <span className="text-xs text-stone-400 bg-stone-50 rounded-full px-2 py-0.5">
-                    {dateFromDay}일 ~ {dateToDay}일
-                  </span>
-                </div>
-
-                {/* 요일 헤더 */}
-                <div className="grid grid-cols-7 mb-1">
-                  {DAY_NAMES.map((d, i) => (
-                    <div
-                      key={d}
-                      className={`text-center text-xs font-medium py-1 ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-stone-400"}`}
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
-
-                {/* 날짜 그리드 */}
-                {calendarRows.map((row, ri) => (
-                  <div key={ri} className="grid grid-cols-7">
-                    {row.map((day, di) => {
-                      if (!day)
-                        return <div key={di} className="aspect-square" />;
-                      const dateInfo = dates.find((d) => d.date === day);
-                      const inRange = !!dateInfo;
-                      const clickable =
-                        inRange && isDateClickable(dateInfo!, poll);
-                      const isMarked = selectedDates.has(day);
-                      const isActive = activeDate === day;
-                      const isSun = di === 0;
-                      const isSat = di === 6;
-                      const isWeekend = dateInfo?.isWeekend ?? false;
-                      const weekdayCount =
-                        inRange && !isWeekend ? (allWeekdayVotes[day] ?? 0) : 0;
-                      const weekendMaxCount =
-                        inRange && isWeekend && allWeekendHourVotes[day]
-                          ? Math.max(...Object.values(allWeekendHourVotes[day]))
-                          : 0;
-                      const isTopVote =
-                        weekdayCount === maxVoteCount && weekdayCount > 0;
-
-                      if (!inRange || !clickable) {
-                        return (
-                          <div
-                            key={di}
-                            className={`aspect-square flex items-center justify-center text-xs ${!inRange ? (isSun ? "text-red-200" : isSat ? "text-blue-200" : "text-stone-200") : isSun ? "text-red-300" : isSat ? "text-blue-300" : "text-stone-300"}`}
-                          >
-                            {day}
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <button
-                          key={di}
-                          onClick={() =>
-                            dispatch({ type: "TOGGLE_DATE", date: day })
-                          }
-                          className={`aspect-square flex flex-col items-center justify-center text-xs rounded-lg transition-all relative
-                            ${isMarked ? "bg-stone-900 text-white" : isActive ? "ring-2 ring-stone-300 text-stone-800 font-semibold" : isTopVote ? "bg-emerald-50 ring-1 ring-emerald-200 text-stone-900" : "hover:bg-stone-50 text-stone-700 font-medium"}
-                            ${isWeekend && !isMarked && !isActive && isSun ? "text-red-500" : ""}
-                            ${isWeekend && !isMarked && !isActive && isSat ? "text-blue-500" : ""}
-                          `}
-                        >
-                          <span>{day}</span>
-                          {inRange && !isWeekend && weekdayCount > 0 && (
-                            <span
-                              className={`text-[9px] leading-none mt-0.5 font-bold ${isMarked ? "text-stone-400" : isTopVote ? "text-emerald-600" : "text-stone-400"}`}
-                            >
-                              {weekdayCount}명
-                            </span>
-                          )}
-                          {inRange && isWeekend && weekendMaxCount > 0 && (
-                            <span
-                              className={`text-[9px] leading-none mt-0.5 font-bold ${isMarked ? "text-stone-400" : "text-blue-400"}`}
-                            >
-                              {weekendMaxCount}명
-                            </span>
-                          )}
-                          {isWeekend && weekendMaxCount === 0 && (
-                            <span
-                              className={`text-[9px] leading-none ${isMarked ? "opacity-60" : "opacity-40"}`}
-                            >
-                              주말
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-
-                {/* 범례 */}
-                <div className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-1.5 text-xs text-stone-400">
-                    <div className="w-3 h-3 rounded bg-stone-900" />
-                    <span>내가 가능</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-stone-400">
-                    <div className="w-3 h-3 rounded ring-2 ring-stone-300" />
-                    <span>선택 중</span>
-                  </div>
-                  {maxVoteCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-xs text-stone-400">
-                      <div className="w-3 h-3 rounded bg-emerald-50 ring-1 ring-emerald-200" />
-                      <span>최다 득표</span>
-                    </div>
-                  )}
-                  {(Object.keys(allWeekdayVotes).length > 0 ||
-                    Object.keys(allWeekendHourVotes).length > 0) && (
-                    <div className="flex items-center gap-1 text-xs text-stone-400">
-                      <span className="text-[10px] font-bold">N명</span>
-                      <span>= 셀 안 응답 인원</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <VoteCalendar
+                poll={poll}
+                dates={dates}
+                calendarRows={calendarRows}
+                selectedDates={selectedDates}
+                activeDate={activeDate}
+                allWeekdayVotes={allWeekdayVotes}
+                allWeekendHourVotes={allWeekendHourVotes}
+                maxVoteCount={maxVoteCount}
+                dateFromDay={dateFromDay}
+                dateToDay={dateToDay}
+                monthKO={MONTH_KO}
+                onToggleDate={(date) => dispatch({ type: "TOGGLE_DATE", date })}
+              />
 
               {/* 오른쪽(데스크톱): 선택 날짜 상세 패널 + 저장 카드 */}
               <div className="hidden md:block space-y-4">
@@ -1407,255 +1213,22 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         )}
       </div>
 
-      {/* 득표 현황 팝업 */}
-      {closePhase === "tally" && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
-                  {MONTH_KO}
-                </p>
-                <h2 className="text-lg font-black text-stone-900">득표 현황</h2>
-                <p className="text-xs text-stone-400 mt-1">
-                  {respondedCount}/{totalMembers}명 응답 완료
-                  {cannotAttendCount > 0 && (
-                    <span className="ml-2 text-stone-400">
-                      (불참 {cannotAttendCount}명)
-                    </span>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={() => setClosePhase(null)}
-                className="text-stone-400 hover:text-stone-600 text-xl font-light transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-4 max-h-80 overflow-y-auto">
-              <div className="space-y-2">
-                {voteTally.length > 0 ? (
-                  voteTally.map((item, idx) => {
-                    const isTop = item.count === voteTally[0]?.count;
-                    return (
-                      <div
-                        key={`${item.date}-${item.time}`}
-                        className={`flex items-center gap-3 p-3 rounded-xl border ${
-                          isTop
-                            ? "border-emerald-200 bg-emerald-50"
-                            : "border-stone-100 bg-white"
-                        }`}
-                      >
-                        <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 bg-white border border-stone-100">
-                          <span className="text-sm font-black text-stone-900">
-                            {item.date}
-                          </span>
-                          <span className="text-[10px] text-stone-400">
-                            {item.dayName}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-stone-800">
-                            {poll.month}월 {item.date}일 ({item.dayName}){" "}
-                            {item.time}
-                          </p>
-                          {isTop && idx === 0 && (
-                            <p className="text-xs text-emerald-600 font-semibold mt-0.5">
-                              최다 득표
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                          <p className="text-sm font-black text-stone-900">
-                            {item.voters.length}
-                            <span className="text-xs font-normal text-stone-400">
-                              /{totalMembers}명
-                            </span>
-                          </p>
-                          {/* 스택 아바타 (최대 5개 + +N 오버플로우) */}
-                          <div className="flex">
-                            {item.voters.slice(0, 5).map((v, i) => (
-                              <div
-                                key={v.memberId}
-                                style={{ marginLeft: i === 0 ? 0 : -8 }}
-                              >
-                                <div
-                                  className={`w-6 h-6 ${memberColorClass(v.memberId)} rounded-full flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-white`}
-                                  title={v.name}
-                                >
-                                  {v.name[0]}
-                                </div>
-                              </div>
-                            ))}
-                            {item.voters.length > 5 && (
-                              <div
-                                style={{ marginLeft: -8 }}
-                                className="w-6 h-6 bg-stone-200 rounded-full flex items-center justify-center text-stone-500 text-[9px] font-bold ring-2 ring-white"
-                              >
-                                +{item.voters.length - 5}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-stone-400 text-center py-4">
-                    아직 투표 데이터가 없어요
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-stone-100 flex gap-2">
-              <button
-                onClick={() => setClosePhase(null)}
-                className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
-              >
-                닫기
-              </button>
-              <button
-                onClick={() => setClosePhase("date-modal")}
-                className="flex-1 py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors"
-              >
-                마감하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 날짜 확정 모달 */}
-      {closePhase === "date-modal" && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-5 border-b border-stone-100">
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
-                마감하기
-              </p>
-              <h2 className="text-lg font-black text-stone-900">
-                확정 날짜를 선택하세요
-              </h2>
-              <p className="text-xs text-stone-400 mt-1">
-                득표 수를 참고해 최종 날짜를 골라주세요
-              </p>
-            </div>
-
-            <div className="p-4 max-h-80 overflow-y-auto">
-              <div className="space-y-2">
-                {voteTally.length > 0 ? (
-                  voteTally.map((item) => {
-                    const isTop = item.count === voteTally[0]?.count;
-                    const isSelected =
-                      confirmedDate?.date === item.date &&
-                      confirmedDate?.time === item.time;
-                    return (
-                      <button
-                        key={`${item.date}-${item.time}`}
-                        onClick={() =>
-                          setConfirmedDate({ date: item.date, time: item.time })
-                        }
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
-                          isSelected
-                            ? "border-stone-900 bg-stone-900 text-white"
-                            : isTop
-                              ? "border-emerald-200 bg-emerald-50 hover:border-emerald-400"
-                              : "border-stone-100 bg-white hover:border-stone-200"
-                        }`}
-                      >
-                        <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 bg-white/20">
-                          <span
-                            className={`text-sm font-black ${isSelected ? "text-white" : "text-stone-900"}`}
-                          >
-                            {item.date}
-                          </span>
-                          <span
-                            className={`text-[10px] ${isSelected ? "text-stone-300" : "text-stone-400"}`}
-                          >
-                            {item.dayName}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <p
-                            className={`text-sm font-semibold ${isSelected ? "text-white" : "text-stone-800"}`}
-                          >
-                            {poll.month}월 {item.date}일 ({item.dayName}){" "}
-                            {item.time}
-                          </p>
-                          {isTop && !isSelected && (
-                            <p className="text-xs text-emerald-600 font-semibold mt-0.5">
-                              최다 득표
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex-shrink-0 text-right">
-                          <p
-                            className={`text-sm font-black ${isSelected ? "text-white" : "text-stone-900"}`}
-                          >
-                            {item.count}
-                            <span
-                              className={`text-xs font-normal ${isSelected ? "text-stone-400" : "text-stone-400"}`}
-                            >
-                              /{totalMembers}명
-                            </span>
-                          </p>
-                          <div className="flex gap-0.5 justify-end mt-1">
-                            {Array.from({ length: totalMembers }, (_, i) => (
-                              <div
-                                key={i}
-                                className={`w-2 h-2 rounded-sm ${
-                                  i < item.count
-                                    ? isSelected
-                                      ? "bg-white"
-                                      : isTop
-                                        ? "bg-emerald-500"
-                                        : "bg-stone-500"
-                                    : isSelected
-                                      ? "bg-white/20"
-                                      : "bg-stone-200"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-stone-400 text-center py-4">
-                    아직 투표 데이터가 없어요
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-stone-100 flex gap-2">
-              <button
-                onClick={() => {
-                  setClosePhase("tally");
-                  setConfirmedDate(null);
-                }}
-                className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
-              >
-                ← 돌아가기
-              </button>
-              <button
-                disabled={!confirmedDate || confirming}
-                onClick={handleConfirm}
-                className="flex-1 py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {confirming
-                  ? "확정 중..."
-                  : confirmedDate
-                    ? "이 날짜로 확정"
-                    : "날짜를 선택하세요"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* 득표 현황 팝업 + 날짜 확정 모달 */}
+      {closePhase && (
+        <TallyPopup
+          closePhase={closePhase}
+          onSetClosePhase={setClosePhase}
+          voteTally={voteTally}
+          totalMembers={totalMembers}
+          respondedCount={respondedCount}
+          cannotAttendCount={cannotAttendCount}
+          monthKO={MONTH_KO}
+          poll={poll}
+          confirmedDate={confirmedDate}
+          onSelectConfirmedDate={setConfirmedDate}
+          confirming={confirming}
+          onConfirm={handleConfirm}
+        />
       )}
 
       {/* 수정 모달 */}
@@ -1697,438 +1270,6 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// --- 새 일정 만들기 플로우 ---
-
-function EmptyState({ onStart }: { onStart: () => void }) {
-  return (
-    <div className="text-center">
-      <div className="bg-white rounded-2xl border border-dashed border-stone-200 p-12 max-w-sm mx-auto">
-        <div className="text-4xl mb-4">📅</div>
-        <p className="text-sm font-bold text-stone-700 mb-2">
-          현재 진행 중인 일정 조율이 없어요
-        </p>
-        <p className="text-xs text-stone-400 mb-6 leading-relaxed">
-          새 일정을 만들어 멤버들의
-          <br />
-          가능한 날짜를 모아보세요
-        </p>
-        <button
-          onClick={onStart}
-          className="bg-stone-900 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors"
-        >
-          + 새 일정 만들기
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PresetSelect({
-  onSelect,
-  onBack,
-}: {
-  onSelect: (type: PollType) => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="max-w-lg mx-auto">
-      <button
-        onClick={onBack}
-        className="text-xs text-stone-400 hover:text-stone-600 mb-6 block transition-colors"
-      >
-        ← 돌아가기
-      </button>
-      <div className="mb-8">
-        <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
-          Step 1
-        </p>
-        <h2 className="text-xl font-black text-stone-900">
-          미팅 유형을 선택하세요
-        </h2>
-        <p className="text-sm text-stone-400 mt-1.5">
-          날짜·시간 기본값이 자동으로 설정돼요. 다음 단계에서 수정 가능해요.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <button
-          onClick={() => onSelect("online")}
-          className="text-left bg-white rounded-2xl border-2 border-stone-200 p-6 hover:border-stone-900 hover:shadow-md transition-all"
-        >
-          <div className="text-2xl mb-4">💻</div>
-          <p className="font-black text-stone-900 mb-3">온라인 미팅</p>
-          <div className="space-y-1.5">
-            <p className="text-xs text-stone-400">📆 매월 1~10일</p>
-            <p className="text-xs text-stone-400">🌙 평일 22:00 고정</p>
-            <p className="text-xs text-stone-400">☀️ 주말 10:00~22:00</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onSelect("offline")}
-          className="text-left bg-white rounded-2xl border-2 border-stone-200 p-6 hover:border-stone-900 hover:shadow-md transition-all"
-        >
-          <div className="text-2xl mb-4">🏢</div>
-          <p className="font-black text-stone-900 mb-3">오프라인 미팅</p>
-          <div className="space-y-1.5">
-            <p className="text-xs text-stone-400">📆 첫째·둘째 주말</p>
-            <p className="text-xs text-stone-400">🕙 10:00~18:00</p>
-            <p className="text-xs text-stone-400">📍 장소 직접 입력</p>
-          </div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PollForm({
-  pollType,
-  onBack,
-  onSubmit,
-  disabled,
-}: {
-  pollType: PollType;
-  onBack: () => void;
-  onSubmit: (data: PollFormData) => void;
-  disabled?: boolean;
-}) {
-  const isOnline = pollType === "online";
-  const [dateFrom, setDateFrom] = useState(
-    isOnline ? "2026-03-01" : "2026-03-07",
-  );
-  const [dateTo, setDateTo] = useState(isOnline ? "2026-03-10" : "2026-03-15");
-  const [weekdayTime, setWeekdayTime] = useState("22:00");
-  const [weekendStart, setWeekendStart] = useState("10:00");
-  const [weekendEnd, setWeekendEnd] = useState(isOnline ? "22:00" : "18:00");
-  const [location, setLocation] = useState("");
-
-  const handleSubmit = () => {
-    onSubmit({
-      dateFrom,
-      dateTo,
-      timeWeekday: isOnline ? weekdayTime : null,
-      timeStart: weekendStart,
-      timeEnd: weekendEnd,
-      location: location.trim() || null,
-    });
-  };
-
-  return (
-    <div className="max-w-lg mx-auto">
-      <button
-        onClick={onBack}
-        className="text-xs text-stone-400 hover:text-stone-600 mb-6 block transition-colors"
-      >
-        ← 유형 다시 선택
-      </button>
-      <div className="mb-8">
-        <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
-          Step 2
-        </p>
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-black text-stone-900">일정 상세 설정</h2>
-          <span className="text-xs bg-stone-100 text-stone-500 rounded-full px-2.5 py-1 font-medium">
-            {isOnline ? "💻 온라인" : "🏢 오프라인"}
-          </span>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
-        <div className="p-5">
-          <label className="text-xs font-semibold text-stone-500 block mb-3">
-            날짜 범위
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-            />
-            <span className="text-stone-400 flex-shrink-0">~</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-            />
-          </div>
-        </div>
-
-        <div className="p-5">
-          <label className="text-xs font-semibold text-stone-500 block mb-3">
-            시간
-          </label>
-          <div className="space-y-2">
-            {isOnline && (
-              <div className="flex items-center justify-between bg-stone-50 rounded-xl px-4 py-2.5">
-                <span className="text-sm text-stone-500">평일</span>
-                <input
-                  type="time"
-                  value={weekdayTime}
-                  onChange={(e) => setWeekdayTime(e.target.value)}
-                  className="text-sm font-semibold text-stone-800 bg-transparent border-none outline-none cursor-pointer"
-                />
-              </div>
-            )}
-            <div className="flex items-center justify-between bg-stone-50 rounded-xl px-4 py-2.5">
-              <span className="text-sm text-stone-500">주말</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="time"
-                  value={weekendStart}
-                  onChange={(e) => setWeekendStart(e.target.value)}
-                  className="text-sm font-semibold text-stone-800 bg-transparent border-none outline-none cursor-pointer"
-                />
-                <span className="text-stone-400 text-xs">~</span>
-                <input
-                  type="time"
-                  value={weekendEnd}
-                  onChange={(e) => setWeekendEnd(e.target.value)}
-                  className="text-sm font-semibold text-stone-800 bg-transparent border-none outline-none cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {!isOnline && (
-          <div className="p-5">
-            <label className="text-xs font-semibold text-stone-500 block mb-3">
-              장소
-            </label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="예: 강남역 카페, 잠실 공유 오피스"
-              className="w-full border border-stone-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-stone-400 placeholder:text-stone-300"
-            />
-          </div>
-        )}
-
-        <div className="p-5">
-          <button
-            onClick={handleSubmit}
-            disabled={disabled}
-            className="w-full py-3 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
-          >
-            {disabled ? "생성 중..." : "일정 만들기"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- 수정 모달 ---
-
-function EditPollModal({
-  poll,
-  hasVotes,
-  onClose,
-  onSaveMeta,
-  onSaveSchedule,
-}: {
-  poll: VotePoll;
-  hasVotes: boolean;
-  onClose: () => void;
-  onSaveMeta: (data: UpdatePollMetaData) => Promise<void>;
-  onSaveSchedule: (data: UpdatePollScheduleData) => Promise<void>;
-}) {
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  // 메타 정보
-  const [location, setLocation] = useState(poll.location ?? "");
-  const [meetingUrl, setMeetingUrl] = useState(poll.meeting_url ?? "");
-  const [meetingPassword, setMeetingPassword] = useState(
-    poll.meeting_password ?? "",
-  );
-
-  // 일정 범위 (투표 없을 때만 수정 가능)
-  const [dateFrom, setDateFrom] = useState(poll.date_from);
-  const [dateTo, setDateTo] = useState(poll.date_to);
-  const [timeWeekday, setTimeWeekday] = useState(poll.time_weekday ?? "22:00");
-  const [timeStart, setTimeStart] = useState(poll.time_start);
-  const [timeEnd, setTimeEnd] = useState(poll.time_end);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveError(null);
-
-    const metaChanged =
-      location !== (poll.location ?? "") ||
-      meetingUrl !== (poll.meeting_url ?? "") ||
-      meetingPassword !== (poll.meeting_password ?? "");
-
-    const scheduleChanged =
-      !hasVotes &&
-      (dateFrom !== poll.date_from ||
-        dateTo !== poll.date_to ||
-        timeWeekday !== (poll.time_weekday ?? "22:00") ||
-        timeStart !== poll.time_start ||
-        timeEnd !== poll.time_end);
-
-    if (metaChanged) {
-      await onSaveMeta({
-        location: location.trim() || null,
-        meeting_url: meetingUrl.trim() || null,
-        meeting_password: meetingPassword.trim() || null,
-      });
-    }
-    if (scheduleChanged) {
-      await onSaveSchedule({
-        date_from: dateFrom,
-        date_to: dateTo,
-        time_weekday: poll.type === "online" ? timeWeekday : null,
-        time_start: timeStart,
-        time_end: timeEnd,
-      });
-    }
-    if (!metaChanged && !scheduleChanged) {
-      onClose();
-    }
-
-    setSaving(false);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
-          <p className="text-sm font-bold text-stone-900">일정 수정</p>
-          <button
-            onClick={onClose}
-            className="text-stone-400 hover:text-stone-600 transition-colors text-lg leading-none"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          {/* 날짜 범위 — 투표 없을 때만 */}
-          {!hasVotes && (
-            <div>
-              <p className="text-xs font-semibold text-stone-500 mb-2">
-                날짜 범위
-              </p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                />
-                <span className="text-stone-400 flex-shrink-0">~</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* 시간 — 투표 없을 때만 */}
-          {!hasVotes && (
-            <div>
-              <p className="text-xs font-semibold text-stone-500 mb-2">
-                {poll.type === "online" ? "평일 시간" : "시간 범위"}
-              </p>
-              {poll.type === "online" ? (
-                <input
-                  type="time"
-                  value={timeWeekday}
-                  onChange={(e) => setTimeWeekday(e.target.value)}
-                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={timeStart}
-                    onChange={(e) => setTimeStart(e.target.value)}
-                    className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                  />
-                  <span className="text-stone-400">~</span>
-                  <input
-                    type="time"
-                    value={timeEnd}
-                    onChange={(e) => setTimeEnd(e.target.value)}
-                    className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {hasVotes && (
-            <p className="text-xs text-stone-400 bg-stone-50 rounded-xl px-3 py-2.5">
-              이미 투표한 멤버가 있어 날짜·시간은 수정할 수 없어요.
-            </p>
-          )}
-
-          {/* 메타 정보 */}
-          {poll.type === "offline" && (
-            <div>
-              <p className="text-xs font-semibold text-stone-500 mb-2">장소</p>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="예: 강남역 스타벅스"
-                className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-              />
-            </div>
-          )}
-          {poll.type === "online" && (
-            <>
-              <div>
-                <p className="text-xs font-semibold text-stone-500 mb-2">
-                  회의 링크
-                </p>
-                <input
-                  type="url"
-                  value={meetingUrl}
-                  onChange={(e) => setMeetingUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-stone-500 mb-2">
-                  비밀번호
-                </p>
-                <input
-                  type="text"
-                  value={meetingPassword}
-                  onChange={(e) => setMeetingPassword(e.target.value)}
-                  placeholder="없으면 비워두세요"
-                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-stone-400"
-                />
-              </div>
-            </>
-          )}
-
-          {saveError && <p className="text-xs text-red-500">{saveError}</p>}
-        </div>
-
-        <div className="p-5 border-t border-stone-100">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors disabled:opacity-40"
-          >
-            {saving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
