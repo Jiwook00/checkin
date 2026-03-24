@@ -10,10 +10,16 @@ export default function SessionFilter({
   onSessionChange,
 }: SessionFilterProps) {
   return (
-    <div className="flex items-center gap-1.5 mb-7 border-b border-stone-100 pb-5">
+    <div
+      role="radiogroup"
+      aria-label="회차 필터"
+      className="flex items-center gap-1.5 mb-7 border-b border-stone-100 pb-5"
+    >
       {sessions.map((s) => (
         <button
           key={s}
+          role="radio"
+          aria-checked={selectedSession === s}
           onClick={() => onSessionChange(selectedSession === s ? "" : s)}
           className={`text-xs font-medium rounded-full px-3 py-1.5 transition-colors ${
             selectedSession === s
