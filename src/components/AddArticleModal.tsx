@@ -1,7 +1,6 @@
 import Lottie from "lottie-react";
 import { useEffect, useRef, useState } from "react";
 import type { AddArticleForm } from "../types";
-import diceShakeData from "./animations/dice-shake.json";
 
 interface AddArticleModalProps {
   isOpen: boolean;
@@ -257,11 +256,13 @@ function LottieDie({
   rolling,
   rolled,
   onClick,
+  animationData,
 }: {
   value: number;
   rolling: boolean;
   rolled: boolean;
   onClick?: () => void;
+  animationData: object | null;
 }) {
   const isClickable = !rolling && !rolled;
   return (
@@ -277,13 +278,17 @@ function LottieDie({
     >
       {rolled ? (
         <DiceFaceResult value={value} />
-      ) : rolling ? (
+      ) : rolling && animationData ? (
         <Lottie
-          animationData={diceShakeData}
+          animationData={animationData}
           loop={true}
           autoplay={true}
           style={{ width: 96, height: 96 }}
         />
+      ) : rolling ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+        </div>
       ) : (
         <IsometricDice />
       )}
@@ -307,6 +312,19 @@ export default function AddArticleModal({
   const [status, setStatus] = useState("등록 중...");
   const [error, setError] = useState("");
   const [parseFailed, setParseFailed] = useState(false);
+
+  // Lottie JSON lazy-load
+  const [lottieData, setLottieData] = useState<object | null>(null);
+  useEffect(() => {
+    if (!isOpen || lottieData) return;
+    let cancelled = false;
+    import("./animations/dice-shake.json").then((m) => {
+      if (!cancelled) setLottieData(m.default as object);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, lottieData]);
 
   // 게임 상태
   const [phase, setPhase] = useState<"form" | "game">("form");
@@ -333,6 +351,11 @@ export default function AddArticleModal({
   const generationRef = useRef(0);
   const saveInitiated = useRef(false);
 
+  // 모달이 닫힐 때 저장 상태 초기화
+  useEffect(() => {
+    if (!isOpen) setSaving(false);
+  }, [isOpen]);
+
   // 주사위 결과 + API 완료 → 저장 (hooks는 early return 전에 선언)
   useEffect(() => {
     if (
@@ -350,6 +373,7 @@ export default function AddArticleModal({
         if (apiResult.parseFailed) {
           setParseFailed(true);
           setPhase("form");
+          setSaving(false);
         } else {
           setSaving(false);
           setCompleted(true);
@@ -504,12 +528,14 @@ export default function AddArticleModal({
                 rolling={diceRolling[0]}
                 rolled={diceFinalValues[0] !== null}
                 onClick={() => rollDie(0)}
+                animationData={lottieData}
               />
               <LottieDie
                 value={diceValues[1]}
                 rolling={diceRolling[1]}
                 rolled={diceFinalValues[1] !== null}
                 onClick={() => rollDie(1)}
+                animationData={lottieData}
               />
             </div>
 
