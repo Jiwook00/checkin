@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { VotePoll, VoteResponse, DateInfo } from "../types";
 import { DAY_NAMES } from "../types";
 import {
@@ -504,7 +504,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   };
 
   // --- 활성 poll ---
-  const dates = buildDates(poll.date_from, poll.date_to);
+  const dates = useMemo(
+    () => buildDates(poll.date_from, poll.date_to),
+    [poll.date_from, poll.date_to],
+  );
   const calendarRows = buildCalendarRows(poll.year, poll.month);
   const weekendHourRange = getWeekendHourRange(poll);
   const otherResponses = responses.filter((r) => r.member_id !== memberId);
@@ -522,7 +525,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     dates,
     weekendHourRange,
   );
-  const voteTally = computeVoteTally(responses, dates, poll, memberNicknames);
+  const voteTally = useMemo(
+    () => computeVoteTally(responses, dates, poll, memberNicknames),
+    [responses, dates, poll, memberNicknames],
+  );
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
   const cannotAttendCount = responses.filter((r) => r.cannot_attend).length;
