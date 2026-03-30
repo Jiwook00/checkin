@@ -20,6 +20,7 @@ import VotePage from "./components/VotePage";
 import AnnouncementBanner from "./components/AnnouncementBanner";
 import UpdatesPage from "./components/UpdatesPage";
 import { useAuth } from "./hooks/useAuth";
+import ProfilePage from "./components/ProfilePage";
 
 const BUCKET_PREFIX = "/checkin-images/";
 
@@ -48,7 +49,7 @@ function extractStorageImagePaths(
 }
 
 export default function App() {
-  const { authState, signInWithGoogle, signOut } = useAuth();
+  const { authState, signInWithGoogle, signOut, updateMember } = useAuth();
   const navigate = useNavigate();
   const [articles, setArticles] = useState<Retrospective[]>([]);
   const [loading, setLoading] = useState(true);
@@ -407,9 +408,10 @@ export default function App() {
         <Route
           path="/profile"
           element={
-            <div className="py-20 text-center text-stone-400">
-              프로필 (준비 중)
-            </div>
+            <ProfilePage
+              member={authState.member}
+              onAvatarUpdate={(url) => updateMember({ avatar_url: url })}
+            />
           }
         />
       </Routes>

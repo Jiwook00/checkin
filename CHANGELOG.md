@@ -2,27 +2,25 @@
 
 ## [0.4.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.3.0...checkin-v0.4.0) (2026-03-23)
 
-
 ### Features
 
-* AddArticleModal 주사위를 lottie-react 애니메이션으로 교체 ([0fd2b4e](https://github.com/Jiwook00/checkin/commit/0fd2b4e53116e914628b3a3d42925777018f1619))
-* 글 추가 시 이미지 업로드를 별도 Edge Function으로 분리 ([c959c89](https://github.com/Jiwook00/checkin/commit/c959c89c9d5d92c88e1cc46fd0460b23f73d6805))
-* 득표 현황 팝업에 투표자 스택 아바타 표시 ([03c0415](https://github.com/Jiwook00/checkin/commit/03c04152da8e79b890aba99e3bf1396ffa4e72ba))
-* 득표 현황 팝업에 투표자 스택 아바타 표시 ([52fc051](https://github.com/Jiwook00/checkin/commit/52fc05161f5b71f95086f7671ca969f1e9cd7ef9))
-* 로고 클릭 시 메인 페이지로 이동 ([fc15926](https://github.com/Jiwook00/checkin/commit/fc15926e4d3d8f385e40d4f43dbf030bd8a8b781))
-* 주사위 게임으로 발표 순서 랜덤 배정 ([d0c8327](https://github.com/Jiwook00/checkin/commit/d0c8327792d4716353a66b345a4a7b336f9e5f37))
-* 주사위 게임으로 발표 순서 랜덤 배정 ([fb0f224](https://github.com/Jiwook00/checkin/commit/fb0f2248beb2e063060ee7f073d43feca453477e)), closes [#10](https://github.com/Jiwook00/checkin/issues/10)
-* 투표 확정 화면에 참여자 아바타 그리드 표시 ([d029f14](https://github.com/Jiwook00/checkin/commit/d029f147f401618c85a1e47693c18cec1a96be7e))
-* 투표 확정 화면에 참여자 아바타 그리드 표시 ([a19d06d](https://github.com/Jiwook00/checkin/commit/a19d06de8b1c50d2cc2b76300ec6b84819c4d83a))
-
+- AddArticleModal 주사위를 lottie-react 애니메이션으로 교체 ([0fd2b4e](https://github.com/Jiwook00/checkin/commit/0fd2b4e53116e914628b3a3d42925777018f1619))
+- 글 추가 시 이미지 업로드를 별도 Edge Function으로 분리 ([c959c89](https://github.com/Jiwook00/checkin/commit/c959c89c9d5d92c88e1cc46fd0460b23f73d6805))
+- 득표 현황 팝업에 투표자 스택 아바타 표시 ([03c0415](https://github.com/Jiwook00/checkin/commit/03c04152da8e79b890aba99e3bf1396ffa4e72ba))
+- 득표 현황 팝업에 투표자 스택 아바타 표시 ([52fc051](https://github.com/Jiwook00/checkin/commit/52fc05161f5b71f95086f7671ca969f1e9cd7ef9))
+- 로고 클릭 시 메인 페이지로 이동 ([fc15926](https://github.com/Jiwook00/checkin/commit/fc15926e4d3d8f385e40d4f43dbf030bd8a8b781))
+- 주사위 게임으로 발표 순서 랜덤 배정 ([d0c8327](https://github.com/Jiwook00/checkin/commit/d0c8327792d4716353a66b345a4a7b336f9e5f37))
+- 주사위 게임으로 발표 순서 랜덤 배정 ([fb0f224](https://github.com/Jiwook00/checkin/commit/fb0f2248beb2e063060ee7f073d43feca453477e)), closes [#10](https://github.com/Jiwook00/checkin/issues/10)
+- 투표 확정 화면에 참여자 아바타 그리드 표시 ([d029f14](https://github.com/Jiwook00/checkin/commit/d029f147f401618c85a1e47693c18cec1a96be7e))
+- 투표 확정 화면에 참여자 아바타 그리드 표시 ([a19d06d](https://github.com/Jiwook00/checkin/commit/a19d06de8b1c50d2cc2b76300ec6b84819c4d83a))
 
 ### Bug Fixes
 
-* DiceLottie dev 프리뷰 JSON import 경로 수정 ([6878f3d](https://github.com/Jiwook00/checkin/commit/6878f3d9a7375885c8ace560cf0abe47f95f9e31))
-* 득표 현황 집계를 날짜×시간 단위로 수정 ([62c3057](https://github.com/Jiwook00/checkin/commit/62c3057058ab523ba29a717fe52bab59ffb6be58))
-* 득표 현황 집계를 날짜×시간 단위로 수정 ([76a83f1](https://github.com/Jiwook00/checkin/commit/76a83f17a4f945b407e6cf3f757f836f2743b040))
-* 메인 화면 세션 필터를 오늘 포함 최근 4개월로 수정 ([977214d](https://github.com/Jiwook00/checkin/commit/977214d3a566186fa04c70443f6676a6c409e3b1))
-* 일정 탭 진입 시 바텀시트가 즉시 표시되는 버그 수정 ([bcba42f](https://github.com/Jiwook00/checkin/commit/bcba42f2b68f65411dc181883779c46d6d2b5a96))
+- DiceLottie dev 프리뷰 JSON import 경로 수정 ([6878f3d](https://github.com/Jiwook00/checkin/commit/6878f3d9a7375885c8ace560cf0abe47f95f9e31))
+- 득표 현황 집계를 날짜×시간 단위로 수정 ([62c3057](https://github.com/Jiwook00/checkin/commit/62c3057058ab523ba29a717fe52bab59ffb6be58))
+- 득표 현황 집계를 날짜×시간 단위로 수정 ([76a83f1](https://github.com/Jiwook00/checkin/commit/76a83f17a4f945b407e6cf3f757f836f2743b040))
+- 메인 화면 세션 필터를 오늘 포함 최근 4개월로 수정 ([977214d](https://github.com/Jiwook00/checkin/commit/977214d3a566186fa04c70443f6676a6c409e3b1))
+- 일정 탭 진입 시 바텀시트가 즉시 표시되는 버그 수정 ([bcba42f](https://github.com/Jiwook00/checkin/commit/bcba42f2b68f65411dc181883779c46d6d2b5a96))
 
 ## [0.3.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.2.0...checkin-v0.3.0) (2026-03-17)
 

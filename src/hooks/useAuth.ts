@@ -5,6 +5,7 @@ interface Member {
   id: string;
   email: string;
   nickname: string;
+  avatar_url: string | null;
 }
 
 type AuthState =
@@ -61,9 +62,20 @@ export function useAuth() {
       return;
     }
 
+    const { data: memberData } = await supabase
+      .from("checkin_members")
+      .select("avatar_url")
+      .eq("id", userId)
+      .single();
+
     setAuthState({
       status: "authenticated",
-      member: { id: userId, email, nickname: allowed.nickname },
+      member: {
+        id: userId,
+        email,
+        nickname: allowed.nickname,
+        avatar_url: memberData?.avatar_url ?? null,
+      },
     });
   };
 
@@ -91,5 +103,13 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { authState, signInWithGoogle, signOut };
+  const updateMember = (updates: Partial<Member>) => {
+    setAuthState((prev) =>
+      prev.status === "authenticated"
+        ? { ...prev, member: { ...prev.member, ...updates } }
+        : prev,
+    );
+  };
+
+  return { authState, signInWithGoogle, signOut, updateMember };
 }
