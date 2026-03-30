@@ -14,6 +14,7 @@ interface LayoutProps {
   nickname: string;
   onLogout: () => void;
   onAddClick: () => void;
+  fullBleed?: boolean;
 }
 
 export default function Layout({
@@ -21,6 +22,7 @@ export default function Layout({
   nickname,
   onLogout,
   onAddClick,
+  fullBleed = false,
 }: LayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -116,12 +118,16 @@ export default function Layout({
 
       {/* Content panel */}
       <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-white md:border-l border-stone-200"
+        ref={fullBleed ? undefined : scrollRef}
+        className={`flex-1 bg-white md:border-l border-stone-200 ${fullBleed ? "overflow-hidden" : "overflow-y-auto"}`}
       >
-        <div className="max-w-4xl mx-auto px-4 pt-[4.5rem] pb-20 md:px-10 md:pt-10">
-          {children}
-        </div>
+        {fullBleed ? (
+          children
+        ) : (
+          <div className="max-w-4xl mx-auto px-4 pt-[4.5rem] pb-20 md:px-10 md:pt-10">
+            {children}
+          </div>
+        )}
       </div>
 
       {/* Mobile drawer */}

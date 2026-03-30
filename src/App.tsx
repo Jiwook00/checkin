@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type {
   AddArticleForm,
@@ -21,6 +21,7 @@ import AnnouncementBanner from "./components/AnnouncementBanner";
 import UpdatesPage from "./components/UpdatesPage";
 import { useAuth } from "./hooks/useAuth";
 import ProfilePage from "./components/ProfilePage";
+import ArchivePage from "./components/ArchivePage";
 
 const BUCKET_PREFIX = "/checkin-images/";
 
@@ -51,6 +52,7 @@ function extractStorageImagePaths(
 export default function App() {
   const { authState, signInWithGoogle, signOut, updateMember } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [articles, setArticles] = useState<Retrospective[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -334,6 +336,7 @@ export default function App() {
       nickname={authState.member.nickname}
       onLogout={signOut}
       onAddClick={() => setShowAddModal(true)}
+      fullBleed={location.pathname === "/archive"}
     >
       <Routes>
         <Route
@@ -379,14 +382,7 @@ export default function App() {
           path="/articles/:id"
           element={<ArticleReader articles={articles} />}
         />
-        <Route
-          path="/archive"
-          element={
-            <div className="py-20 text-center text-stone-400">
-              아카이브 (준비 중)
-            </div>
-          }
-        />
+        <Route path="/archive" element={<ArchivePage articles={articles} />} />
         <Route
           path="/vote"
           element={
