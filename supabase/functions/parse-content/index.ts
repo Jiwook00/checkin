@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import { detectSourceType, extractNotionPageId } from "./url-utils.ts";
+import {
+  detectSourceType,
+  extractNotionPageId,
+  validateSourceUrl,
+} from "./url-utils.ts";
 import { parseBlog } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
 import { extractUrls } from "./image-processor.ts";
@@ -85,6 +89,18 @@ Deno.serve(async (req) => {
           success: false,
           error: "필수 필드가 누락되었습니다 (source_url, session)",
         }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // SSRF 방지: URL 검증
+    const urlValidation = validateSourceUrl(source_url);
+    if (!urlValidation.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: urlValidation.reason }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

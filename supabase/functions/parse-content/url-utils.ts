@@ -1,5 +1,49 @@
 export type SourceType = "notion" | "tistory" | "other";
 
+/**
+ * SSRF 방지: http/https 스킴만 허용하고, 사설 IP 대역 차단
+ */
+export function validateSourceUrl(
+  raw: string,
+): { ok: true; url: URL } | { ok: false; reason: string } {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { ok: false, reason: "유효하지 않은 URL입니다" };
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { ok: false, reason: "http 또는 https URL만 허용됩니다" };
+  }
+
+  const hostname = url.hostname.toLowerCase();
+
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1"
+  ) {
+    return { ok: false, reason: "허용되지 않는 URL입니다" };
+  }
+
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [, a, b] = ipv4.map(Number);
+    if (
+      a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      a === 0
+    ) {
+      return { ok: false, reason: "허용되지 않는 URL입니다" };
+    }
+  }
+
+  return { ok: true, url };
+}
+
 export function detectSourceType(url: string): SourceType {
   try {
     const parsed = new URL(url);
