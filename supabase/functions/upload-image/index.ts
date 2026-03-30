@@ -7,6 +7,52 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+/**
+ * SSRF 방지: http/https 스킴만 허용하고, 사설 IP 대역 차단
+ */
+function validateImageUrl(
+  raw: string,
+): { ok: true; url: URL } | { ok: false; reason: string } {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { ok: false, reason: "유효하지 않은 URL입니다" };
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { ok: false, reason: "http 또는 https URL만 허용됩니다" };
+  }
+
+  const hostname = url.hostname.toLowerCase();
+
+  // localhost / loopback
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1"
+  ) {
+    return { ok: false, reason: "허용되지 않는 URL입니다" };
+  }
+
+  // IPv4 사설 대역 (10.x, 172.16-31.x, 192.168.x, 169.254.x)
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [, a, b] = ipv4.map(Number);
+    if (
+      a === 10 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      a === 0
+    ) {
+      return { ok: false, reason: "허용되지 않는 URL입니다" };
+    }
+  }
+
+  return { ok: true, url };
+}
+
 const CONTENT_TYPE_TO_EXT: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/jpg": ".jpg",
@@ -80,8 +126,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    const urlValidation = validateImageUrl(image_url);
+    if (!urlValidation.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: urlValidation.reason }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // 이미지 다운로드
-    const response = await fetch(image_url);
+    const response = await fetch(urlValidation.url.toString());
     if (!response.ok) {
       throw new Error(`이미지 fetch 실패: ${response.status}`);
     }
