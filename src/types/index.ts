@@ -10,7 +10,7 @@ export interface Retrospective {
   presentation_order: number | null;
   created_at: string;
   updated_at: string;
-  checkin_members: { nickname: string } | null;
+  checkin_members: { nickname: string; avatar_url: string | null } | null;
 }
 
 export interface AddArticleForm {
@@ -75,6 +75,7 @@ export interface VoteResponse {
 export interface TallyVoter {
   memberId: string;
   name: string;
+  avatarUrl: string | null;
 }
 
 export interface TallyItem {

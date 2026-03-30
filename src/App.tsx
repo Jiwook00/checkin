@@ -70,7 +70,7 @@ export default function App() {
     setLoading(true);
     const { data, error } = await supabase
       .from("checkin_retrospectives")
-      .select("*, checkin_members!member_id(nickname)")
+      .select("*, checkin_members!member_id(nickname, avatar_url)")
       .order("created_at", { ascending: false });
 
     if (!error && data) {

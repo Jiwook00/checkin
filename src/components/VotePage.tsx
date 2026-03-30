@@ -4,13 +4,14 @@ import { DAY_NAMES } from "../types";
 import {
   getVoteResponses,
   getTotalMemberCount,
-  getMemberNicknames,
+  getMemberInfo,
   upsertVoteResponse,
   createPoll,
   confirmPoll,
   updatePollMeta,
   updatePollSchedule,
   deletePoll,
+  type MemberInfo,
   type UpdatePollMetaData,
   type UpdatePollScheduleData,
 } from "../lib/vote";
@@ -102,7 +103,7 @@ function computeVoteTally(
   allResponses: VoteResponse[],
   dates: DateInfo[],
   poll: VotePoll,
-  memberNicknames: Record<string, string>,
+  memberNicknames: Record<string, MemberInfo>,
 ): TallyItem[] {
   const items: TallyItem[] = [];
 
@@ -110,8 +111,10 @@ function computeVoteTally(
     if (dateInfo.isWeekend) {
       // 주말: (날짜 × 시간) 단위로 각각 집계
       const hourCounts: Record<number, number> = {};
-      const hourVoters: Record<number, { memberId: string; name: string }[]> =
-        {};
+      const hourVoters: Record<
+        number,
+        { memberId: string; name: string; avatarUrl: string | null }[]
+      > = {};
       for (const r of allResponses) {
         const sel = r.selected_dates.find((s) => s.date === dateInfo.date);
         for (const h of sel?.hours ?? []) {
@@ -119,7 +122,8 @@ function computeVoteTally(
           if (!hourVoters[h]) hourVoters[h] = [];
           hourVoters[h].push({
             memberId: r.member_id,
-            name: memberNicknames[r.member_id] ?? r.member_id,
+            name: memberNicknames[r.member_id]?.nickname ?? r.member_id,
+            avatarUrl: memberNicknames[r.member_id]?.avatarUrl ?? null,
           });
         }
       }
@@ -147,7 +151,8 @@ function computeVoteTally(
         time: poll.time_weekday ?? "22:00",
         voters: avail.map((r) => ({
           memberId: r.member_id,
-          name: memberNicknames[r.member_id] ?? r.member_id,
+          name: memberNicknames[r.member_id]?.nickname ?? r.member_id,
+          avatarUrl: memberNicknames[r.member_id]?.avatarUrl ?? null,
         })),
       });
     }
@@ -273,7 +278,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const [responses, setResponses] = useState<VoteResponse[]>([]);
   const [totalMembers, setTotalMembers] = useState(0);
   const [memberNicknames, setMemberNicknames] = useState<
-    Record<string, string>
+    Record<string, MemberInfo>
   >({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -331,7 +336,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         const [allResponses, memberCount, nicknames] = await Promise.all([
           getVoteResponses(poll.id),
           getTotalMemberCount(),
-          getMemberNicknames(),
+          getMemberInfo(),
         ]);
 
         setResponses(allResponses);

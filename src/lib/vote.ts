@@ -63,13 +63,21 @@ export async function getTotalMemberCount(): Promise<number> {
   return count ?? 0;
 }
 
-export async function getMemberNicknames(): Promise<Record<string, string>> {
+export interface MemberInfo {
+  nickname: string;
+  avatarUrl: string | null;
+}
+
+export async function getMemberInfo(): Promise<Record<string, MemberInfo>> {
   const { data } = await supabase
     .from("checkin_members")
-    .select("id, nickname");
-  const map: Record<string, string> = {};
+    .select("id, nickname, avatar_url");
+  const map: Record<string, MemberInfo> = {};
   for (const m of data ?? []) {
-    map[m.id as string] = m.nickname as string;
+    map[m.id as string] = {
+      nickname: m.nickname as string,
+      avatarUrl: (m.avatar_url as string | null) ?? null,
+    };
   }
   return map;
 }

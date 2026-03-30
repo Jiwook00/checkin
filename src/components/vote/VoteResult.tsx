@@ -1,12 +1,13 @@
 import type { DateInfo, TallyItem, VotePoll } from "../../types";
-import { memberColorClass } from "../../lib/vote";
+import type { MemberInfo } from "../../lib/vote";
+import MemberAvatar from "../MemberAvatar";
 
 interface VoteResultProps {
   poll: VotePoll;
   confirmedDay: number | null;
   confirmedDateInfo: DateInfo | undefined;
   confirmedTallyItem: TallyItem | undefined;
-  memberNicknames: Record<string, string>;
+  memberNicknames: Record<string, MemberInfo>;
   onCreateNext: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -44,22 +45,24 @@ export default function VoteResult({
             <div className="flex justify-center gap-2 flex-wrap">
               {Object.entries(memberNicknames)
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(([id, nickname]) => {
+                .map(([id, info]) => {
                   const attending = confirmedTallyItem.voters.some(
                     (v) => v.memberId === id,
                   );
                   return (
-                    <div
+                    <MemberAvatar
                       key={id}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ring-1 ${
+                      memberId={id}
+                      name={info.nickname}
+                      avatarUrl={info.avatarUrl}
+                      size={36}
+                      ringClass="ring-1"
+                      colorOverride={
                         attending
-                          ? `${memberColorClass(id)} text-white ring-transparent`
+                          ? undefined
                           : "bg-stone-100 text-stone-300 ring-stone-200"
-                      }`}
-                      title={nickname}
-                    >
-                      {nickname[0]}
-                    </div>
+                      }
+                    />
                   );
                 })}
             </div>

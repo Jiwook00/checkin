@@ -1,5 +1,5 @@
 import type { TallyItem, VotePoll } from "../../types";
-import { memberColorClass } from "../../lib/vote";
+import MemberAvatar from "../MemberAvatar";
 
 export type ClosePhase = "tally" | "date-modal";
 
@@ -106,12 +106,13 @@ export default function TallyPopup({
                               key={v.memberId}
                               style={{ marginLeft: i === 0 ? 0 : -8 }}
                             >
-                              <div
-                                className={`w-6 h-6 ${memberColorClass(v.memberId)} rounded-full flex items-center justify-center text-white text-[10px] font-bold ring-2 ring-white`}
-                                title={v.name}
-                              >
-                                {v.name[0]}
-                              </div>
+                              <MemberAvatar
+                                memberId={v.memberId}
+                                name={v.name}
+                                avatarUrl={v.avatarUrl}
+                                size={24}
+                                ringClass="ring-2 ring-white"
+                              />
                             </div>
                           ))}
                           {item.voters.length > 5 && (

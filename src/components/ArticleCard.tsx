@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Retrospective } from "../types";
+import MemberAvatar from "./MemberAvatar";
 
 interface ArticleCardProps {
   article: Retrospective;
@@ -71,7 +72,15 @@ export default function ArticleCard({
         {preview}
       </p>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-stone-400 font-medium">{nickname}</span>
+        <div className="flex items-center gap-1.5">
+          <MemberAvatar
+            memberId={article.member_id}
+            name={nickname}
+            avatarUrl={article.checkin_members?.avatar_url ?? null}
+            size={20}
+          />
+          <span className="text-xs text-stone-400 font-medium">{nickname}</span>
+        </div>
         {isOwner && (
           <>
             {/* Desktop: hover buttons */}
