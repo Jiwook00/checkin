@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import AvatarCropModal from "./AvatarCropModal";
 
 interface Member {
   id: string;
@@ -19,6 +20,7 @@ export default function ProfilePage({
 }: ProfilePageProps) {
   const [retroCount, setRetroCount] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -29,16 +31,26 @@ export default function ProfilePage({
       .then(({ count }) => setRetroCount(count ?? 0));
   }, [member.id]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
 
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) setCropSrc(ev.target.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropConfirm = async (blob: Blob) => {
+    setCropSrc(null);
     setUploading(true);
     try {
       const path = `avatars/${member.id}/avatar`;
       const { error: uploadError } = await supabase.storage
         .from("checkin-images")
-        .upload(path, file, { upsert: true });
+        .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
 
       if (uploadError) throw uploadError;
 
@@ -46,7 +58,7 @@ export default function ProfilePage({
         .from("checkin-images")
         .getPublicUrl(path);
 
-      const url = data.publicUrl;
+      const url = `${data.publicUrl}?t=${Date.now()}`;
 
       const { error: updateError } = await supabase
         .from("checkin_members")
@@ -58,8 +70,6 @@ export default function ProfilePage({
       onAvatarUpdate(url);
     } finally {
       setUploading(false);
-      // 같은 파일 재선택 가능하도록 초기화
-      e.target.value = "";
     }
   };
 
@@ -126,6 +136,14 @@ export default function ProfilePage({
           onChange={handleFileChange}
         />
       </div>
+
+      {cropSrc && (
+        <AvatarCropModal
+          imageSrc={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
     </div>
   );
 }
