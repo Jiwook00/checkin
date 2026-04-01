@@ -22,6 +22,7 @@ import UpdatesPage from "./components/UpdatesPage";
 import { useAuth } from "./hooks/useAuth";
 import ProfilePage from "./components/ProfilePage";
 import ArchivePage from "./components/ArchivePage";
+import PhotoAlbumPage from "./components/PhotoAlbumPage";
 
 const BUCKET_PREFIX = "/checkin-images/";
 
@@ -337,6 +338,7 @@ export default function App() {
       onLogout={signOut}
       onAddClick={() => setShowAddModal(true)}
       fullBleed={location.pathname === "/archive"}
+      noPadding={location.pathname === "/photos"}
     >
       <Routes>
         <Route
@@ -401,6 +403,7 @@ export default function App() {
           }
         />
         <Route path="/updates" element={<UpdatesPage />} />
+        <Route path="/photos" element={<PhotoAlbumPage />} />
         <Route
           path="/profile"
           element={

@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { label: "아카이브", to: "/archive" },
   { label: "일정", to: "/vote" },
   { label: "업데이트", to: "/updates" },
+  { label: "사진첩", to: "/photos" },
   { label: "프로필", to: "/profile" },
 ];
 
@@ -15,6 +16,7 @@ interface LayoutProps {
   onLogout: () => void;
   onAddClick: () => void;
   fullBleed?: boolean;
+  noPadding?: boolean;
 }
 
 export default function Layout({
@@ -23,6 +25,7 @@ export default function Layout({
   onLogout,
   onAddClick,
   fullBleed = false,
+  noPadding = false,
 }: LayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -123,6 +126,8 @@ export default function Layout({
       >
         {fullBleed ? (
           children
+        ) : noPadding ? (
+          <div className="pt-[4.5rem] pb-20 md:pt-0">{children}</div>
         ) : (
           <div className="max-w-4xl mx-auto px-4 pt-[4.5rem] pb-20 md:px-10 md:pt-10">
             {children}
