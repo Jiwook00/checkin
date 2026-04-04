@@ -4,18 +4,33 @@ interface ParsedContent {
   content_markdown: string;
 }
 
+interface NotionBlockValue {
+  id: string;
+  type: string;
+  properties?: Record<string, unknown[][]>;
+  format?: Record<string, unknown>;
+  content?: string[];
+}
+
 interface NotionBlock {
-  value: {
-    id: string;
-    type: string;
-    properties?: Record<string, unknown[][]>;
-    format?: Record<string, unknown>;
-    content?: string[];
-  };
+  spaceId?: string;
+  value: NotionBlockValue | { value: NotionBlockValue };
 }
 
 interface RecordMap {
   block: Record<string, NotionBlock>;
+}
+
+// 구 API: block.value = NotionBlockValue
+// 신 API: block.value = { value: NotionBlockValue }
+function unwrapBlock(
+  block: NotionBlock | undefined,
+): NotionBlockValue | undefined {
+  if (!block?.value) return undefined;
+  if ("type" in block.value) return block.value as NotionBlockValue;
+  if ("value" in block.value)
+    return (block.value as { value: NotionBlockValue }).value;
+  return undefined;
 }
 
 const NOTION_HEADERS = {
@@ -85,7 +100,9 @@ export async function parseNotion(pageId: string): Promise<ParsedContent> {
   });
 
   if (!response.ok) {
-    throw new Error(`노션 페이지를 가져올 수 없습니다: ${response.status}`);
+    throw new Error(
+      `노션 페이지를 가져올 수 없습니다: ${response.status} ${await response.text()}`,
+    );
   }
 
   const data = (await response.json()) as { recordMap: RecordMap };
@@ -98,8 +115,14 @@ export async function parseNotion(pageId: string): Promise<ParsedContent> {
   const blocks = recordMap.block;
   const blockIds = Object.keys(blocks);
 
+  if (blockIds.length === 0) {
+    throw new Error(
+      "노션 페이지에서 블록을 가져오지 못했습니다. 페이지가 공개 상태인지 확인해주세요.",
+    );
+  }
+
   // 페이지 타이틀 추출
-  const pageBlock = blocks[blockIds[0]]?.value;
+  const pageBlock = unwrapBlock(blocks[blockIds[0]]);
   let title = "제목 없음";
   if (pageBlock?.properties?.title) {
     title = extractText(pageBlock.properties.title);
@@ -108,7 +131,7 @@ export async function parseNotion(pageId: string): Promise<ParsedContent> {
   // image 블록의 attachment: URL → blockId 매핑 수집
   const attachmentItems: Array<{ attachmentUrl: string; blockId: string }> = [];
   for (const blockId of blockIds) {
-    const block = blocks[blockId]?.value;
+    const block = unwrapBlock(blocks[blockId]);
     if (!block || block.type !== "image") continue;
 
     const source =
@@ -128,7 +151,7 @@ export async function parseNotion(pageId: string): Promise<ParsedContent> {
   const markdownLines: string[] = [];
 
   for (const blockId of blockIds) {
-    const block = blocks[blockId]?.value;
+    const block = unwrapBlock(blocks[blockId]);
     if (!block) continue;
 
     const line = blockToMarkdown(block, signedUrlMap);
@@ -183,13 +206,11 @@ function extractText(richTextArray: unknown[][]): string {
  * signedUrlMap: attachment: URL → 실제 다운로드 URL 매핑
  */
 function blockToMarkdown(
-  block: NotionBlock["value"],
+  block: NotionBlockValue,
   signedUrlMap: Map<string, string>,
 ): string | null {
-  const type = block.type as string;
-  const properties = block.properties as
-    | Record<string, unknown[][]>
-    | undefined;
+  const type = block.type;
+  const properties = block.properties;
   const text = properties?.title ? extractText(properties.title) : "";
 
   switch (type) {

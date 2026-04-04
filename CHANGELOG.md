@@ -2,32 +2,28 @@
 
 ## [1.0.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.4.0...checkin-v1.0.0) (2026-04-01)
 
-
 ### Features
 
-* 아카이브 페이지 구현 ([f072099](https://github.com/Jiwook00/checkin/commit/f0720992e2e37b0c8d9b217cf62b195458280b64))
-* 프로필 사진 업로드 시 크롭 편집 기능 추가 ([13262f0](https://github.com/Jiwook00/checkin/commit/13262f0d1a869629b4dbb8f7bf01097d6143679c))
-* 프로필 이미지를 글 목록·일정 투표 화면에 적용 ([b1c5804](https://github.com/Jiwook00/checkin/commit/b1c5804dad43790affb8ae0466d28180b4ef1270))
-* 프로필 페이지 구현 (아바타 업로드, 활동 통계) ([e7b800f](https://github.com/Jiwook00/checkin/commit/e7b800f6e796177df35594f2a787687378494697))
-
+- 아카이브 페이지 구현 ([f072099](https://github.com/Jiwook00/checkin/commit/f0720992e2e37b0c8d9b217cf62b195458280b64))
+- 프로필 사진 업로드 시 크롭 편집 기능 추가 ([13262f0](https://github.com/Jiwook00/checkin/commit/13262f0d1a869629b4dbb8f7bf01097d6143679c))
+- 프로필 이미지를 글 목록·일정 투표 화면에 적용 ([b1c5804](https://github.com/Jiwook00/checkin/commit/b1c5804dad43790affb8ae0466d28180b4ef1270))
+- 프로필 페이지 구현 (아바타 업로드, 활동 통계) ([e7b800f](https://github.com/Jiwook00/checkin/commit/e7b800f6e796177df35594f2a787687378494697))
 
 ### Bug Fixes
 
-* Edge Function SSRF 방지 및 Storage 삭제 RLS 소유권 검증 강화 ([ce4d84a](https://github.com/Jiwook00/checkin/commit/ce4d84a0b70a241b757175a8550a22a29c2274bd)), closes [#13](https://github.com/Jiwook00/checkin/issues/13)
-* ErrorBoundary 추가 및 AddArticleModal 저장 상태 누락 경로 수정 ([6c40a5c](https://github.com/Jiwook00/checkin/commit/6c40a5c78f23232d699057d135a4451853ac12d6))
-* SSRF 방지 및 Storage 삭제 RLS 소유권 검증 강화 ([#13](https://github.com/Jiwook00/checkin/issues/13)) ([dfd9836](https://github.com/Jiwook00/checkin/commit/dfd9836fbf47bf71de3fc3f1f54424b26933ac8b))
-* 모바일 삭제 2단계 확인 추가 및 이미지 lazy loading 적용 ([fb914b6](https://github.com/Jiwook00/checkin/commit/fb914b62ee0ad2a8ba3aeadf26a682dcfc8c25d2))
-* 접근성 개선 (SessionFilter radio role, ⋮ 버튼 aria-label) ([7a4ff0c](https://github.com/Jiwook00/checkin/commit/7a4ff0c34084754407cfbe7b3530835dd0fae84b))
-
+- Edge Function SSRF 방지 및 Storage 삭제 RLS 소유권 검증 강화 ([ce4d84a](https://github.com/Jiwook00/checkin/commit/ce4d84a0b70a241b757175a8550a22a29c2274bd)), closes [#13](https://github.com/Jiwook00/checkin/issues/13)
+- ErrorBoundary 추가 및 AddArticleModal 저장 상태 누락 경로 수정 ([6c40a5c](https://github.com/Jiwook00/checkin/commit/6c40a5c78f23232d699057d135a4451853ac12d6))
+- SSRF 방지 및 Storage 삭제 RLS 소유권 검증 강화 ([#13](https://github.com/Jiwook00/checkin/issues/13)) ([dfd9836](https://github.com/Jiwook00/checkin/commit/dfd9836fbf47bf71de3fc3f1f54424b26933ac8b))
+- 모바일 삭제 2단계 확인 추가 및 이미지 lazy loading 적용 ([fb914b6](https://github.com/Jiwook00/checkin/commit/fb914b62ee0ad2a8ba3aeadf26a682dcfc8c25d2))
+- 접근성 개선 (SessionFilter radio role, ⋮ 버튼 aria-label) ([7a4ff0c](https://github.com/Jiwook00/checkin/commit/7a4ff0c34084754407cfbe7b3530835dd0fae84b))
 
 ### Performance Improvements
 
-* computeVoteTally useMemo 적용 및 Lottie JSON lazy-load ([9821583](https://github.com/Jiwook00/checkin/commit/9821583d750cfaa748c83f8f39f47064b2dfe818))
-
+- computeVoteTally useMemo 적용 및 Lottie JSON lazy-load ([9821583](https://github.com/Jiwook00/checkin/commit/9821583d750cfaa748c83f8f39f47064b2dfe818))
 
 ### Miscellaneous Chores
 
-* release 1.0.0 ([33c9677](https://github.com/Jiwook00/checkin/commit/33c9677dcb58ea2d5aa5b69208e6e70bcbcfa44b))
+- release 1.0.0 ([33c9677](https://github.com/Jiwook00/checkin/commit/33c9677dcb58ea2d5aa5b69208e6e70bcbcfa44b))
 
 ## [0.4.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.3.0...checkin-v0.4.0) (2026-03-23)
 
