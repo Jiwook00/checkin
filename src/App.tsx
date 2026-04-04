@@ -130,8 +130,8 @@ export default function App() {
   // 최근 3개월 세션 목록 (동적 계산)
   const recentSessions = useMemo(() => {
     const today = new Date();
-    return Array.from({ length: 4 }, (_, i) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    return Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() - 1 - i, 1);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     });
   }, []);
