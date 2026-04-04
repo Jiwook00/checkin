@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-04-04)
+
+
+### Features
+
+* 사진첩 Pinterest 스타일 상세 뷰 구현 ([2664e23](https://github.com/Jiwook00/checkin/commit/2664e233a3319a7bfdd328c1d715706f9890b2b9))
+
+
+### Bug Fixes
+
+* notion api 응답 구조 변경에 따른 블록 파싱 수정 ([a34a98e](https://github.com/Jiwook00/checkin/commit/a34a98e4c96297e7f01c9a29dd0f0cc4763d6655))
+* 메인 세션 필터를 지난 3개월치만 표시하도록 수정 ([cb16385](https://github.com/Jiwook00/checkin/commit/cb16385df0526caa7554e058397c4f3d23e4b2df))
+
 ## [1.0.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.4.0...checkin-v1.0.0) (2026-04-01)
 
 ### Features
