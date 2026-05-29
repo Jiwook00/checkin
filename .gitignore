@@ -29,3 +29,4 @@ dist-ssr
 
 # Local-only files
 local/
+.mcp.json

@@ -95,6 +95,12 @@ feat(인증): 회원 초대 방식 전면 개편
 BREAKING CHANGE: 기존 초대 링크가 만료되며 멤버를 재초대해야 합니다.
 ```
 
+## MCP 서버
+
+Claude 데스크탑 앱 또는 Claude Code에서 회고 데이터를 자연어로 조회할 수 있는 MCP 서버가 포함되어 있습니다.
+
+자세한 설정 방법은 [docs/mcp-server.md](docs/mcp-server.md)를 참고하세요.
+
 ## 접근 제한
 
 Checkin은 멤버 전용 앱이다. 초대된 멤버만 가입 및 이용할 수 있다.
