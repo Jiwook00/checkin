@@ -132,23 +132,7 @@ Deno.serve(async (req) => {
           },
         );
       }
-
-      try {
-        parsed = await parseNotion(pageId);
-      } catch {
-        // 노션 파싱 실패 → Jina로 폴백 (서식 불완전 가능)
-        try {
-          const fallback = await parseBlog(source_url);
-          parsed = {
-            ...fallback,
-            content_markdown: `<!-- jina-fallback -->\n\n${fallback.content_markdown}`,
-          };
-        } catch {
-          throw new Error(
-            "노션 페이지를 가져올 수 없습니다. 페이지가 공개 상태인지 확인해주세요.",
-          );
-        }
-      }
+      parsed = await parseNotion(pageId);
     } else {
       parsed = await parseBlog(source_url);
     }

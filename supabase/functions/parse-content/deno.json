@@ -1,5 +1,6 @@
 {
   "imports": {
+    "turndown": "https://esm.sh/turndown@7.2.0",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
   }
 }
