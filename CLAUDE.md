@@ -32,6 +32,8 @@ supabase functions deploy parse-content # Deploy
 **Backend** (`supabase/`)
 
 - `supabase/functions/parse-content/` — Edge Function (Deno) for parsing Notion/blog URLs into markdown
+  - 노션: 비공식 `loadPageChunk` API → 실패 시 Jina Reader로 폴백
+  - 블로그/기타: Jina Reader API (`https://r.jina.ai/{url}`)
 - `supabase/migrations/` — SQL migration files
 
 **Database** (Supabase)
