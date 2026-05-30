@@ -49,7 +49,11 @@ export function detectSourceType(url: string): SourceType {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
 
-    if (hostname.includes("notion.so") || hostname.includes("notion.site")) {
+    if (
+      hostname.includes("notion.so") ||
+      hostname.includes("notion.site") ||
+      hostname.includes("notion.com")
+    ) {
       return "notion";
     }
     if (hostname.includes("tistory.com")) {
@@ -68,6 +72,7 @@ export function detectSourceType(url: string): SourceType {
  * - https://www.notion.so/31120177599a809bae33da3079158fbe
  * - https://www.notion.so/workspace/Page-Title-31120177599a809bae33da3079158fbe
  * - https://notion.site/Page-Title-31120177599a809bae33da3079158fbe
+ * - https://app.notion.com/p/Page-Title-31120177599a809bae33da3079158fbe
  * - 쿼리 파라미터가 포함된 URL (e.g., ?source=copy_link)
  */
 export function extractNotionPageId(url: string): string | null {
