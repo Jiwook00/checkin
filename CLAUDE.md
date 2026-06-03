@@ -48,6 +48,13 @@ supabase functions deploy parse-content # Deploy
 
 **Deployment**: Frontend → Vercel, Backend → Supabase
 
+## Design System
+
+UI 작업 시 [`DESIGN.md`](DESIGN.md)를 참고한다. 컬러 토큰, 타이포그래피 스케일, 스페이싱, 반경, 컴포넌트 상태가 정의되어 있다.
+
+- 컬러는 반드시 토큰 이름(`--primary`, `--ink`, `--surface-card` 등)으로 사용 — 하드코딩 금지
+- 실물 프리뷰는 [`design-preview.html`](design-preview.html)에서 확인
+
 ## Code Style
 
 - **Prettier**: double quotes, semicolons required (see [.prettierrc](.prettierrc))
