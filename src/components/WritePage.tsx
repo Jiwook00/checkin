@@ -41,11 +41,7 @@ function ToolbarButton({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded px-2 py-1 text-sm transition-colors ${
-        active
-          ? "bg-ink text-canvas"
-          : "text-body hover:bg-surface-card hover:text-ink"
-      } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+      className={`tiptap-toolbar-btn${active ? " is-active" : ""}`}
     >
       {children}
     </button>
@@ -76,7 +72,7 @@ export default function WritePage({
     ],
     editorProps: {
       attributes: {
-        class: "tiptap prose focus:outline-none min-h-[400px]",
+        class: "tiptap focus:outline-none min-h-[400px]",
       },
     },
   });
@@ -263,7 +259,7 @@ export default function WritePage({
         </div>
 
         {/* 에디터 */}
-        <div className="mt-4">
+        <div className="tiptap-editor-wrapper mt-4">
           <EditorContent editor={editor} />
         </div>
       </div>
