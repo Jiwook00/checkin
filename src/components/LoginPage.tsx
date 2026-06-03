@@ -5,24 +5,24 @@ interface LoginPageProps {
 
 export default function LoginPage({ onLogin, error }: LoginPageProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-10 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-surface-card">
+      <div className="w-full max-w-sm rounded-[12px] bg-canvas p-10 shadow-sm">
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">
+          <h1 className="mb-2 text-2xl font-bold tracking-tight text-ink">
             Checkin
           </h1>
-          <p className="text-sm text-gray-500">회고 멤버 전용 서비스입니다</p>
+          <p className="text-sm text-muted">회고 멤버 전용 서비스입니다</p>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="mb-6 rounded-[8px] bg-error/10 px-4 py-3 text-sm text-error">
             {error}
           </div>
         )}
 
         <button
           onClick={onLogin}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          className="flex w-full items-center justify-center gap-3 rounded-[8px] border border-hairline bg-canvas px-4 py-3 text-sm font-medium text-body transition-colors hover:bg-surface-soft"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

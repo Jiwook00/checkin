@@ -7,14 +7,11 @@ import type {
 } from "../types";
 
 const AVATAR_COLORS = [
-  "bg-sky-400",
-  "bg-violet-400",
-  "bg-rose-400",
-  "bg-amber-400",
-  "bg-emerald-400",
-  "bg-pink-400",
-  "bg-indigo-400",
-  "bg-teal-400",
+  "bg-badge-orange",
+  "bg-badge-violet",
+  "bg-badge-pink",
+  "bg-badge-emerald",
+  "bg-brand-accent",
 ];
 
 export function memberColorClass(memberId: string): string {
