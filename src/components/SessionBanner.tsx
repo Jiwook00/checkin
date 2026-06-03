@@ -44,16 +44,16 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
     activePoll?.confirmed_time ?? activePoll?.time_weekday ?? null;
 
   return (
-    <div className="mb-6 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+    <div className="mb-6 rounded-[12px] border border-hairline bg-canvas p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-black text-stone-900 leading-tight">
+          <h1 className="text-[22px] font-semibold text-ink leading-[1.3] tracking-[-0.3px]">
             {retroTitle}
           </h1>
 
           {isConfirmed && activePoll!.type === "online" && (
             <>
-              <p className="text-sm text-stone-500 mt-1.5">
+              <p className="text-sm text-muted mt-1.5">
                 {formatConfirmedDate(
                   activePoll!.confirmed_date!,
                   confirmedTime,
@@ -65,7 +65,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
                   {activePoll!.meeting_url && (
                     <a
                       href={activePoll!.meeting_url}
-                      className="text-sm font-medium text-stone-700 underline underline-offset-2 hover:text-stone-900"
+                      className="text-sm font-medium text-muted underline underline-offset-2 hover:text-ink transition-colors"
                     >
                       회의 참여하기 →
                     </a>
@@ -76,7 +76,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
                         copyPassword(activePoll!.meeting_password!)
                       }
                       title="클릭하면 복사돼요"
-                      className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600 cursor-pointer transition-colors self-start"
+                      className="flex items-center gap-1 text-xs text-muted-soft hover:text-muted cursor-pointer transition-colors self-start"
                     >
                       {copied ? (
                         <>
@@ -98,7 +98,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
 
           {isConfirmed && activePoll!.type === "offline" && (
             <>
-              <p className="text-sm text-stone-500 mt-1.5">
+              <p className="text-sm text-muted mt-1.5">
                 {formatConfirmedDate(
                   activePoll!.confirmed_date!,
                   confirmedTime,
@@ -106,7 +106,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
                 · 오프라인
               </p>
               {activePoll!.location && (
-                <p className="text-xs text-stone-400 mt-1">
+                <p className="text-xs text-muted-soft mt-1">
                   📍 {activePoll!.location}
                 </p>
               )}
@@ -114,11 +114,11 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
           )}
 
           {!isConfirmed && activePoll && (
-            <p className="text-sm text-stone-400 mt-1.5">
+            <p className="text-sm text-muted mt-1.5">
               날짜 조율 중 ·{" "}
               <Link
                 to="/vote"
-                className="underline underline-offset-2 hover:text-stone-700"
+                className="underline underline-offset-2 hover:text-ink transition-colors"
               >
                 일정 투표하러 가기 →
               </Link>
@@ -126,7 +126,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
           )}
 
           {!activePoll && (
-            <p className="text-sm text-stone-400 mt-1.5">
+            <p className="text-sm text-muted-soft mt-1.5">
               아직 일정이 만들어지지 않았어요
             </p>
           )}
@@ -134,7 +134,7 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
 
         <button
           onClick={onAddClick}
-          className="hidden md:block shrink-0 rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 transition-colors"
+          className="hidden md:block shrink-0 rounded-[8px] bg-primary h-10 px-5 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
         >
           + 글 추가
         </button>
