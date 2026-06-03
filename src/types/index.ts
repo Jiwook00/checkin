@@ -2,8 +2,9 @@ export interface Retrospective {
   id: string;
   member_id: string;
   title: string;
-  source_url: string;
+  source_url: string | null;
   source_type: "notion" | "tistory" | "other";
+  content_type: "url" | "written";
   content_html: string | null;
   content_markdown: string;
   session: string;
@@ -11,6 +12,12 @@ export interface Retrospective {
   created_at: string;
   updated_at: string;
   checkin_members: { nickname: string; avatar_url: string | null } | null;
+}
+
+export interface WriteArticleForm {
+  title: string;
+  session: string;
+  content: object;
 }
 
 export interface AddArticleForm {

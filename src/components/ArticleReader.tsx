@@ -30,14 +30,16 @@ export default function ArticleReader({ articles }: ArticleReaderProps) {
           >
             <span>&larr;</span> 목록으로
           </button>
-          <a
-            href={article.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-muted-soft transition-colors hover:text-muted"
-          >
-            원본 링크
-          </a>
+          {article.source_url && (
+            <a
+              href={article.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-soft transition-colors hover:text-muted"
+            >
+              원본 링크
+            </a>
+          )}
         </div>
         {/* 메타 정보 */}
         <header className="mb-10">
@@ -91,14 +93,16 @@ export default function ArticleReader({ articles }: ArticleReaderProps) {
             <p className="mb-6 text-sm text-muted">
               원본 링크에서 직접 읽어주세요.
             </p>
-            <a
-              href={article.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-[8px] border border-hairline px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-surface-soft"
-            >
-              원본 링크 열기 ↗
-            </a>
+            {article.source_url && (
+              <a
+                href={article.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-[8px] border border-hairline px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-surface-soft"
+              >
+                원본 링크 열기 ↗
+              </a>
+            )}
           </div>
         )}
       </article>

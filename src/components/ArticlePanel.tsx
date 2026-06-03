@@ -15,14 +15,16 @@ export default function ArticlePanel({ article, onClose }: ArticlePanelProps) {
       {/* 상단 바 */}
       <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center justify-between px-6 py-4">
-          <a
-            href={article.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-400 transition-colors hover:text-gray-600"
-          >
-            원본 링크 ↗
-          </a>
+          {article.source_url && (
+            <a
+              href={article.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gray-400 transition-colors hover:text-gray-600"
+            >
+              원본 링크 ↗
+            </a>
+          )}
           <button
             onClick={onClose}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-sm text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
@@ -86,14 +88,16 @@ export default function ArticlePanel({ article, onClose }: ArticlePanelProps) {
             <p className="mb-6 text-sm text-stone-400">
               원본 링크에서 직접 읽어주세요.
             </p>
-            <a
-              href={article.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
-            >
-              원본 링크 열기 ↗
-            </a>
+            {article.source_url && (
+              <a
+                href={article.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+              >
+                원본 링크 열기 ↗
+              </a>
+            )}
           </div>
         )}
       </article>
