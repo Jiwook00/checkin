@@ -23,6 +23,7 @@ import { useAuth } from "./hooks/useAuth";
 import ProfilePage from "./components/ProfilePage";
 import ArchivePage from "./components/ArchivePage";
 import PhotoAlbumPage from "./components/PhotoAlbumPage";
+import WritePage from "./components/WritePage";
 
 const BUCKET_PREFIX = "/checkin-images/";
 
@@ -337,7 +338,9 @@ export default function App() {
       nickname={authState.member.nickname}
       onLogout={signOut}
       onAddClick={() => setShowAddModal(true)}
-      fullBleed={location.pathname === "/archive"}
+      fullBleed={
+        location.pathname === "/archive" || location.pathname === "/write"
+      }
       noPadding={location.pathname === "/photos"}
     >
       <Routes>
@@ -400,6 +403,16 @@ export default function App() {
                 onPollChange={setActivePoll}
               />
             </>
+          }
+        />
+        <Route
+          path="/write"
+          element={
+            <WritePage
+              memberId={authState.member.id}
+              defaultSession={defaultSession}
+              onSave={fetchArticles}
+            />
           }
         />
         <Route path="/updates" element={<UpdatesPage />} />

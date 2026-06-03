@@ -1,5 +1,6 @@
 import Lottie from "lottie-react";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AddArticleForm } from "../types";
 
 interface AddArticleModalProps {
@@ -303,6 +304,7 @@ export default function AddArticleModal({
   onSaveDiceScore,
   defaultSession,
 }: AddArticleModalProps) {
+  const navigate = useNavigate();
   const sessionInit = defaultSession ?? getCurrentSession();
   const [form, setForm] = useState<AddArticleForm>({
     title: "",
@@ -327,7 +329,7 @@ export default function AddArticleModal({
   }, [isOpen, lottieData]);
 
   // 게임 상태
-  const [phase, setPhase] = useState<"form" | "game">("form");
+  const [phase, setPhase] = useState<"choose" | "form" | "game">("choose");
   const [diceValues, setDiceValues] = useState<[number, number]>([1, 1]);
   const [diceRolling, setDiceRolling] = useState<[boolean, boolean]>([
     false,
@@ -404,7 +406,7 @@ export default function AddArticleModal({
     generationRef.current++;
     setParseFailed(false);
     setError("");
-    setPhase("form");
+    setPhase("choose");
     resetGameState();
     setForm({
       title: "",
@@ -481,8 +483,33 @@ export default function AddArticleModal({
           </button>
         </div>
 
-        {/* 파싱 실패 UI */}
-        {parseFailed ? (
+        {/* 방식 선택 UI */}
+        {phase === "choose" ? (
+          <div className="space-y-3">
+            <button
+              onClick={() => setPhase("form")}
+              className="w-full rounded-[8px] border border-hairline bg-surface-card px-4 py-4 text-left transition-colors hover:border-ink hover:bg-surface-hover"
+            >
+              <p className="text-sm font-medium text-ink">링크로 등록</p>
+              <p className="mt-0.5 text-xs text-muted">
+                노션, 블로그 등 외부 URL을 붙여넣어 등록합니다
+              </p>
+            </button>
+            <button
+              onClick={() => {
+                handleClose();
+                navigate("/write");
+              }}
+              className="w-full rounded-[8px] border border-hairline bg-surface-card px-4 py-4 text-left transition-colors hover:border-ink hover:bg-surface-hover"
+            >
+              <p className="text-sm font-medium text-ink">직접 작성</p>
+              <p className="mt-0.5 text-xs text-muted">
+                에디터에서 바로 회고 글을 작성합니다
+              </p>
+            </button>
+          </div>
+        ) : /* 파싱 실패 UI */
+        parseFailed ? (
           <>
             <div className="mb-4 opacity-50 space-y-4">
               <div>
