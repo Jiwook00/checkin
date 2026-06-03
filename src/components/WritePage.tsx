@@ -6,8 +6,8 @@ import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function getCurrentSession(): string {
@@ -54,10 +54,13 @@ export default function WritePage({
   onSave,
 }: WritePageProps) {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id?: string }>();
   const [title, setTitle] = useState("");
   const [session, setSession] = useState(defaultSession ?? getCurrentSession());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadingArticle, setLoadingArticle] = useState(!!editId);
+  const [pendingContent, setPendingContent] = useState<object | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -76,6 +79,34 @@ export default function WritePage({
       },
     },
   });
+
+  // 편집 모드: 기존 글 로드
+  useEffect(() => {
+    if (!editId) return;
+    supabase
+      .from("checkin_retrospectives")
+      .select("title, session, content_markdown")
+      .eq("id", editId)
+      .single()
+      .then(({ data }) => {
+        if (!data) return;
+        setTitle(data.title);
+        setSession(data.session);
+        try {
+          setPendingContent(JSON.parse(data.content_markdown));
+        } catch {
+          /* no-op */
+        }
+        setLoadingArticle(false);
+      });
+  }, [editId]);
+
+  // 에디터가 준비된 후 내용 주입
+  useEffect(() => {
+    if (!editor || !pendingContent) return;
+    editor.commands.setContent(pendingContent);
+    setPendingContent(null);
+  }, [editor, pendingContent]);
 
   const handleImageFile = async (file: File) => {
     const ext = file.name.split(".").pop() ?? "png";
@@ -114,19 +145,34 @@ export default function WritePage({
     try {
       const content_html = editor.getHTML();
       const content_markdown = JSON.stringify(editor.getJSON());
-      const { error: insertError } = await supabase
-        .from("checkin_retrospectives")
-        .insert({
-          member_id: memberId,
-          title: title.trim(),
-          session,
-          content_type: "written",
-          content_html,
-          content_markdown,
-          source_url: null,
-          source_type: "other",
-        });
-      if (insertError) throw new Error(insertError.message);
+
+      if (editId) {
+        const { error: updateError } = await supabase
+          .from("checkin_retrospectives")
+          .update({
+            title: title.trim(),
+            session,
+            content_html,
+            content_markdown,
+          })
+          .eq("id", editId);
+        if (updateError) throw new Error(updateError.message);
+      } else {
+        const { error: insertError } = await supabase
+          .from("checkin_retrospectives")
+          .insert({
+            member_id: memberId,
+            title: title.trim(),
+            session,
+            content_type: "written",
+            content_html,
+            content_markdown,
+            source_url: null,
+            source_type: "other",
+          });
+        if (insertError) throw new Error(insertError.message);
+      }
+
       onSave();
       navigate("/");
     } catch (err) {
@@ -136,7 +182,7 @@ export default function WritePage({
   };
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="h-full overflow-y-auto bg-canvas">
       {/* 상단 바 */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-hairline bg-canvas px-4 py-3">
         <button
@@ -154,11 +200,16 @@ export default function WritePage({
           disabled={saving}
           className="rounded-[8px] bg-primary px-4 py-1.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-active disabled:opacity-50"
         >
-          {saving ? "저장 중..." : "저장"}
+          {saving ? "저장 중..." : editId ? "수정 완료" : "저장"}
         </button>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 pb-20">
+        {loadingArticle ? (
+          <div className="py-20 text-center text-sm text-muted">
+            불러오는 중...
+          </div>
+        ) : null}
         {/* 제목 */}
         <input
           type="text"

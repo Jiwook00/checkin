@@ -300,6 +300,15 @@ export default function App() {
     await fetchArticles();
   };
 
+  // 수정 진입점 분기: written → /write/:id, url → 모달
+  const handleEditArticleAction = (article: Retrospective) => {
+    if (article.content_type === "written") {
+      navigate(`/write/${article.id}`);
+    } else {
+      setEditingArticle(article);
+    }
+  };
+
   // 글 삭제
   const handleDeleteArticle = async (id: string) => {
     const article = articles.find((a) => a.id === id);
@@ -339,7 +348,8 @@ export default function App() {
       onLogout={signOut}
       onAddClick={() => setShowAddModal(true)}
       fullBleed={
-        location.pathname === "/archive" || location.pathname === "/write"
+        location.pathname === "/archive" ||
+        location.pathname.startsWith("/write")
       }
       noPadding={location.pathname === "/photos"}
     >
@@ -376,7 +386,7 @@ export default function App() {
                     navigate(`/articles/${article.id}`)
                   }
                   currentMemberId={authState.member.id}
-                  onEdit={setEditingArticle}
+                  onEdit={handleEditArticleAction}
                   onDelete={handleDeleteArticle}
                 />
               )}
@@ -407,6 +417,16 @@ export default function App() {
         />
         <Route
           path="/write"
+          element={
+            <WritePage
+              memberId={authState.member.id}
+              defaultSession={defaultSession}
+              onSave={fetchArticles}
+            />
+          }
+        />
+        <Route
+          path="/write/:id"
           element={
             <WritePage
               memberId={authState.member.id}

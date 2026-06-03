@@ -16,6 +16,23 @@ const sourceTypeLabel: Record<string, string> = {
   other: "Blog",
 };
 
+function extractTextFromTiptapJson(jsonStr: string): string {
+  try {
+    const doc = JSON.parse(jsonStr) as { content?: unknown[] };
+    const parts: string[] = [];
+    const walk = (node: unknown) => {
+      if (!node || typeof node !== "object") return;
+      const n = node as { text?: string; content?: unknown[] };
+      if (n.text) parts.push(n.text);
+      if (n.content) n.content.forEach(walk);
+    };
+    walk(doc);
+    return parts.join(" ").slice(0, 120).trim();
+  } catch {
+    return "";
+  }
+}
+
 export default function ArticleCard({
   article,
   onClick,
@@ -30,10 +47,13 @@ export default function ArticleCard({
   const isOwner = article.member_id === currentMemberId;
   const nickname = article.checkin_members?.nickname ?? "알 수 없음";
 
-  const preview = article.content_markdown
-    .slice(0, 120)
-    .replace(/[#*`>\-\[\]]/g, "")
-    .trim();
+  const preview =
+    article.content_type === "written"
+      ? extractTextFromTiptapJson(article.content_markdown)
+      : article.content_markdown
+          .slice(0, 120)
+          .replace(/[#*`>\-\[\]]/g, "")
+          .trim();
 
   useEffect(() => {
     if (!menuOpen) return;
