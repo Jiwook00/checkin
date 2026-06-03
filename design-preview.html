@@ -160,35 +160,37 @@
 
       .app-shell {
         display: flex;
+        flex-direction: column;
         height: 520px;
       }
 
-      /* Sidebar */
-      .sidebar {
-        width: 176px;
-        flex-shrink: 0;
+      /* Top Nav */
+      .top-nav {
         background: var(--canvas);
-        padding: 28px 16px 20px;
+        border-bottom: 1px solid var(--hairline);
+        padding: 0 28px;
         display: flex;
-        flex-direction: column;
-        border-right: 1px solid var(--hairline);
+        align-items: center;
+        gap: 32px;
+        height: 52px;
+        flex-shrink: 0;
       }
-      .sidebar-logo {
+      .top-nav-logo {
         font-size: 15px;
         font-weight: 800;
         letter-spacing: -0.3px;
         color: var(--ink);
-        margin-bottom: 28px;
+        margin-right: 8px;
       }
       .nav-items {
-        flex: 1;
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         gap: 2px;
+        flex: 1;
       }
       .nav-item {
         display: block;
-        padding: 6px 8px;
+        padding: 6px 10px;
         border-radius: var(--r-md);
         font-size: 14px;
         font-weight: 500;
@@ -196,6 +198,7 @@
         text-decoration: none;
         cursor: pointer;
         transition: all 120ms;
+        white-space: nowrap;
       }
       .nav-item:hover {
         color: var(--ink);
@@ -206,25 +209,21 @@
         color: var(--ink);
         background: var(--surface-card);
       }
-      .sidebar-user {
-        padding-top: 16px;
-        border-top: 1px solid var(--hairline);
+      .top-nav-user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: auto;
       }
-      .sidebar-user .nickname {
-        font-size: 12px;
+      .top-nav-user .nickname {
+        font-size: 13px;
         font-weight: 500;
         color: var(--muted);
-        margin-bottom: 3px;
       }
-      .sidebar-user .logout {
+      .top-nav-user .logout {
         font-size: 12px;
         color: var(--muted-soft);
         cursor: pointer;
-      }
-      .sidebar-user .version {
-        font-size: 11px;
-        color: var(--hairline);
-        margin-top: 6px;
       }
 
       /* Content panel */
@@ -240,10 +239,7 @@
 
       /* Session Banner in frame */
       .session-banner {
-        background: var(--canvas);
-        border: 1px solid var(--hairline);
-        border-radius: var(--r-lg);
-        padding: var(--sp-card);
+        padding: var(--sp-card) 0;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
@@ -271,7 +267,7 @@
       /* Article cards grid */
       .article-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 10px;
       }
       .article-card {
@@ -281,38 +277,46 @@
         padding: var(--sp-card);
         cursor: pointer;
         transition: all 150ms;
+        display: flex;
+        align-items: center;
+        gap: 16px;
       }
       .article-card:hover {
         background: var(--canvas);
         box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
       }
+      .article-card-body {
+        flex: 1;
+        min-width: 0;
+      }
       .card-meta {
         font-size: 12px;
         font-weight: 500;
         color: var(--muted-soft);
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
       .card-title {
         font-size: 14px;
         font-weight: 600;
         color: var(--ink);
         line-height: 1.4;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
       .card-preview {
         font-size: 12px;
         color: var(--muted-soft);
         line-height: 1.6;
-        margin-bottom: 12px;
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
       .card-footer {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
+        flex-shrink: 0;
       }
       .avatar {
         width: 20px;
@@ -788,9 +792,9 @@
             <div class="dot dot-green"></div>
           </div>
           <div class="app-shell">
-            <!-- Sidebar -->
-            <div class="sidebar">
-              <div class="sidebar-logo">Checkin</div>
+            <!-- Top Nav -->
+            <div class="top-nav">
+              <div class="top-nav-logo">Checkin</div>
               <nav class="nav-items">
                 <a class="nav-item active">메인</a>
                 <a class="nav-item">아카이브</a>
@@ -799,10 +803,9 @@
                 <a class="nav-item">사진첩</a>
                 <a class="nav-item">프로필</a>
               </nav>
-              <div class="sidebar-user">
-                <div class="nickname">지욱</div>
-                <div class="logout">로그아웃</div>
-                <div class="version">v0.12.0</div>
+              <div class="top-nav-user">
+                <span class="nickname">지욱</span>
+                <span class="logout">로그아웃</span>
               </div>
             </div>
 
@@ -823,16 +826,17 @@
               <!-- Article Grid -->
               <div class="article-grid">
                 <div class="article-card">
-                  <div class="card-meta">May 2025 &middot; Notion</div>
-                  <div class="card-title">5월은 집중력의 달이었다</div>
-                  <div class="card-preview">
-                    사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
-                    멀티태스킹의 한계와 딥워크의 중요성, 그리고 다음 달을 어떻게
-                    설계할지.
-                  </div>
                   <div class="card-footer">
                     <div class="avatar">J</div>
                     <span class="avatar-name">지욱</span>
+                  </div>
+                  <div class="article-card-body">
+                    <div class="card-title">5월은 집중력의 달이었다</div>
+                    <div class="card-preview">
+                      사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
+                      멀티태스킹의 한계와 딥워크의 중요성, 그리고 다음 달을
+                      어떻게 설계할지.
+                    </div>
                   </div>
                 </div>
                 <div
@@ -842,39 +846,42 @@
                     box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
                   "
                 >
-                  <div class="card-meta">May 2025 &middot; Blog</div>
-                  <div class="card-title">Claude Code로 혼자 앱 만들기</div>
-                  <div class="card-preview">
-                    AI 페어 프로그래밍 한 달 경험기. 잘 됐던 것, 안 됐던 것,
-                    그리고 프롬프트 작성법에 대해 배운 것들.
-                  </div>
                   <div class="card-footer">
                     <div class="avatar" style="background: #5db8a6">S</div>
                     <span class="avatar-name">수현</span>
                   </div>
+                  <div class="article-card-body">
+                    <div class="card-title">Claude Code로 혼자 앱 만들기</div>
+                    <div class="card-preview">
+                      AI 페어 프로그래밍 한 달 경험기. 잘 됐던 것, 안 됐던 것,
+                      그리고 프롬프트 작성법에 대해 배운 것들.
+                    </div>
+                  </div>
                 </div>
                 <div class="article-card">
-                  <div class="card-meta">May 2025 &middot; Tistory</div>
-                  <div class="card-title">번아웃 전조 증상과 회복 루틴</div>
-                  <div class="card-preview">
-                    퇴사 이후 첫 달. 쉬고 싶었지만 쉬지 못했던 이유, 그리고
-                    스스로를 충전하는 방법을 찾아가는 과정.
-                  </div>
                   <div class="card-footer">
                     <div class="avatar" style="background: #e8a55a">M</div>
                     <span class="avatar-name">민준</span>
                   </div>
+                  <div class="article-card-body">
+                    <div class="card-title">번아웃 전조 증상과 회복 루틴</div>
+                    <div class="card-preview">
+                      퇴사 이후 첫 달. 쉬고 싶었지만 쉬지 못했던 이유, 그리고
+                      스스로를 충전하는 방법을 찾아가는 과정.
+                    </div>
+                  </div>
                 </div>
                 <div class="article-card">
-                  <div class="card-meta">May 2025 &middot; Notion</div>
-                  <div class="card-title">읽기의 밀도를 높이는 방법</div>
-                  <div class="card-preview">
-                    Readwise와 하이라이팅 습관, 책과 아티클을 어떻게
-                    소화하는지에 대한 나만의 시스템 정리.
-                  </div>
                   <div class="card-footer">
                     <div class="avatar" style="background: #8e8b82">Y</div>
                     <span class="avatar-name">유나</span>
+                  </div>
+                  <div class="article-card-body">
+                    <div class="card-title">읽기의 밀도를 높이는 방법</div>
+                    <div class="card-preview">
+                      Readwise와 하이라이팅 습관, 책과 아티클을 어떻게
+                      소화하는지에 대한 나만의 시스템 정리.
+                    </div>
                   </div>
                 </div>
               </div>
