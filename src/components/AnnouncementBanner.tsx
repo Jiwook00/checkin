@@ -35,12 +35,12 @@ export default function AnnouncementBanner({
 
   if (showForm) {
     return (
-      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+      <div className="mb-4 rounded-[12px] border border-amber-200 bg-amber-50 px-4 py-3">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="공지 내용을 입력하세요..."
-          className="w-full resize-none rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          className="w-full resize-none rounded-[8px] border border-amber-200 bg-canvas px-3 py-2 text-sm text-ink placeholder-muted focus:outline-none focus:ring-2 focus:ring-amber-300"
           rows={2}
           autoFocus
         />
@@ -50,14 +50,14 @@ export default function AnnouncementBanner({
               setShowForm(false);
               setText("");
             }}
-            className="rounded-lg px-3 py-1.5 text-xs text-stone-500 hover:bg-amber-100 transition-colors"
+            className="rounded-[8px] px-3 py-1.5 text-xs text-muted hover:bg-amber-100 transition-colors"
           >
             취소
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting || !text.trim()}
-            className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50 transition-colors"
+            className="rounded-[8px] bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50 transition-colors"
           >
             공지 등록
           </button>
@@ -95,7 +95,7 @@ export default function AnnouncementBanner({
     <div className="mb-4">
       <button
         onClick={() => setShowForm(true)}
-        className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 transition-colors"
+        className="flex items-center gap-1.5 text-xs text-muted hover:text-body transition-colors"
       >
         <span>📣</span>
         <span>공지 등록</span>

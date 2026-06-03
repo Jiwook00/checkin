@@ -470,12 +470,12 @@ export default function AddArticleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-[12px] bg-canvas p-6 shadow-xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">회고 글 추가</h2>
+          <h2 className="text-lg font-bold text-ink">회고 글 추가</h2>
           <button
             onClick={handleClose}
-            className="text-gray-400 transition-colors hover:text-gray-600"
+            className="text-muted transition-colors hover:text-body"
           >
             &times;
           </button>
@@ -486,17 +486,17 @@ export default function AddArticleModal({
           <>
             <div className="mb-4 opacity-50 space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-body">
                   링크
                 </label>
                 <input
                   readOnly
                   value={form.source_url}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50"
+                  className="w-full rounded-[8px] border border-hairline px-3 py-2 text-sm bg-surface-card"
                 />
               </div>
             </div>
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-3">
               <p className="text-sm font-medium text-amber-800">
                 파싱 실패 · 링크만 저장됨
               </p>
@@ -507,7 +507,7 @@ export default function AddArticleModal({
             </div>
             <button
               onClick={handleClose}
-              className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              className="w-full rounded-[8px] bg-primary py-2.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-active"
             >
               확인
             </button>
@@ -515,10 +515,10 @@ export default function AddArticleModal({
         ) : phase === "game" ? (
           /* 주사위 게임 UI */
           <>
-            <p className="text-center text-sm font-medium text-gray-600">
+            <p className="text-center text-sm font-medium text-body">
               기다리는 동안 발표 순서를 정해요
             </p>
-            <p className="mb-5 text-center text-xs text-gray-400">
+            <p className="mb-5 text-center text-xs text-muted">
               주사위 합이 높을수록 먼저 발표해요
             </p>
 
@@ -541,7 +541,7 @@ export default function AddArticleModal({
 
             {/* 힌트 텍스트 */}
             {!bothRolled && (
-              <p className="mb-3 text-center text-xs text-gray-400">
+              <p className="mb-3 text-center text-xs text-muted">
                 {neitherRolled
                   ? "주사위를 클릭해서 굴리세요"
                   : "나머지 주사위도 굴려주세요"}
@@ -551,15 +551,15 @@ export default function AddArticleModal({
             {/* 합산 결과 */}
             {diceScore !== null && (
               <div className="mb-4 text-center">
-                <p className="text-4xl font-bold text-gray-900">{diceScore}</p>
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="text-4xl font-bold text-ink">{diceScore}</p>
+                <p className="mt-1 text-xs text-muted">
                   {diceFinalValues[0]} + {diceFinalValues[1]}
                 </p>
               </div>
             )}
 
             {error && (
-              <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              <p className="mb-4 rounded-[8px] bg-error/10 px-3 py-2 text-sm text-error">
                 {error}
               </p>
             )}
@@ -568,14 +568,14 @@ export default function AddArticleModal({
             {completed ? (
               <button
                 onClick={handleClose}
-                className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                className="w-full rounded-[8px] bg-primary py-2.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-active"
               >
                 확인
               </button>
             ) : (
-              <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
-                <span className="inline-block h-3 w-3 flex-shrink-0 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-                <span className="text-xs text-gray-400">
+              <div className="flex items-center gap-2 border-t border-hairline-soft pt-3">
+                <span className="inline-block h-3 w-3 flex-shrink-0 animate-spin rounded-full border-2 border-hairline border-t-ink" />
+                <span className="text-xs text-muted">
                   {saving ? "저장 중..." : status}
                 </span>
               </div>
@@ -585,8 +585,8 @@ export default function AddArticleModal({
           /* 글 등록 폼 */
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                링크 <span className="text-red-500">*</span>
+              <label className="mb-1 block text-sm font-medium text-body">
+                링크 <span className="text-error">*</span>
               </label>
               <input
                 type="url"
@@ -596,29 +596,27 @@ export default function AddArticleModal({
                 onChange={(e) =>
                   setForm({ ...form, source_url: e.target.value })
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="w-full rounded-[8px] border border-hairline px-3 py-2 text-sm focus:border-ink focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label className="mb-1 block text-sm font-medium text-body">
                 제목{" "}
-                <span className="text-xs text-gray-400">
-                  (비워두면 자동 추출)
-                </span>
+                <span className="text-xs text-muted">(비워두면 자동 추출)</span>
               </label>
               <input
                 type="text"
                 placeholder="회고 글 제목"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="w-full rounded-[8px] border border-hairline px-3 py-2 text-sm focus:border-ink focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                회차 <span className="text-red-500">*</span>
+              <label className="mb-1 block text-sm font-medium text-body">
+                회차 <span className="text-error">*</span>
               </label>
               <input
                 type="text"
@@ -626,19 +624,19 @@ export default function AddArticleModal({
                 placeholder="2026-02"
                 value={form.session}
                 onChange={(e) => setForm({ ...form, session: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-500 focus:outline-none"
+                className="w-full rounded-[8px] border border-hairline px-3 py-2 text-sm focus:border-ink focus:outline-none"
               />
             </div>
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              <p className="rounded-[8px] bg-error/10 px-3 py-2 text-sm text-error">
                 {error}
               </p>
             )}
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              className="w-full rounded-[8px] bg-primary py-2.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-active"
             >
               등록
             </button>
