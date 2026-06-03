@@ -380,7 +380,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   if (loading) {
     return (
       <div className="py-20 text-center">
-        <p className="text-stone-400">불러오는 중...</p>
+        <p className="text-muted">불러오는 중...</p>
       </div>
     );
   }
@@ -612,39 +612,37 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     : null;
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-surface-card">
       {/* 헤더 */}
-      <div className="bg-white border-b border-stone-100 px-4 py-3 md:px-6 md:py-4">
+      <div className="bg-canvas border-b border-hairline-soft px-4 py-3 md:px-6 md:py-4">
         <div className="max-w-3xl mx-auto flex items-start justify-between gap-3">
           <div>
-            <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">
+            <span className="text-xs font-semibold text-muted uppercase tracking-widest">
               {sessionLabel}
             </span>
-            <h1 className="text-lg font-black text-stone-900 mt-0.5">
-              일정 조율
-            </h1>
+            <h1 className="text-lg font-black text-ink mt-0.5">일정 조율</h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end flex-shrink-0">
-            <span className="text-xs text-stone-400 bg-stone-100 rounded-full px-3 py-1.5">
+            <span className="text-xs text-muted bg-surface-soft rounded-full px-3 py-1.5">
               {respondedCount}/{totalMembers}명
             </span>
             {poll.status === "open" && closePhase === null && (
               <>
                 <button
                   onClick={() => setEditModalOpen(true)}
-                  className="hidden md:inline-flex text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
+                  className="hidden md:inline-flex text-xs text-muted border border-hairline rounded-full px-3 py-1.5 hover:border-hairline hover:text-ink transition-all"
                 >
                   수정
                 </button>
                 <button
                   onClick={() => setDeleteConfirmOpen(true)}
-                  className="hidden md:inline-flex text-xs text-stone-400 border border-stone-200 rounded-full px-3 py-1.5 hover:border-red-200 hover:text-red-500 transition-all"
+                  className="hidden md:inline-flex text-xs text-muted-soft border border-hairline rounded-full px-3 py-1.5 hover:border-red-200 hover:text-red-500 transition-all"
                 >
                   삭제
                 </button>
                 <button
                   onClick={() => setClosePhase("tally")}
-                  className="text-xs text-stone-500 border border-stone-200 rounded-full px-3 py-1.5 hover:border-stone-400 hover:text-stone-700 transition-all"
+                  className="text-xs text-muted border border-hairline rounded-full px-3 py-1.5 hover:border-hairline hover:text-ink transition-all"
                 >
                   현황 보기
                 </button>
@@ -674,7 +672,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
         ) : (
           /* 투표 중 화면 */
           <>
-            <p className="text-xs text-stone-400 mb-5">
+            <p className="text-xs text-muted mb-5">
               {poll.type === "offline"
                 ? "가능한 주말을 선택하고 시작 시간을 골라주세요."
                 : `가능한 날짜를 선택하세요. 평일은 ${poll.time_weekday ?? "22:00"}, 주말은 시간도 선택해주세요.`}
@@ -701,34 +699,32 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               {/* 오른쪽(데스크톱): 선택 날짜 상세 패널 + 저장 카드 */}
               <div className="hidden md:block space-y-4">
                 {activeDateInfo && !cannotAttend ? (
-                  <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+                  <div className="bg-canvas rounded-[12px] border border-hairline overflow-hidden">
                     {/* 날짜 헤더 */}
-                    <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+                    <div className="px-5 py-4 border-b border-hairline-soft flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-stone-400 mb-0.5">
-                          선택한 날짜
-                        </p>
-                        <p className="text-lg font-black text-stone-900">
+                        <p className="text-xs text-muted mb-0.5">선택한 날짜</p>
+                        <p className="text-lg font-black text-ink">
                           {poll.month}월 {activeDate}일 (
                           {activeDateInfo.dayName})
                         </p>
-                        <p className="text-xs text-stone-400 mt-0.5">
+                        <p className="text-xs text-muted mt-0.5">
                           {activeDateInfo.isWeekend ? "주말" : "평일"}
                         </p>
                       </div>
                       {!activeDateInfo.isWeekend &&
                         weekdayVotes[activeDate!] !== undefined && (
                           <div className="text-right">
-                            <p className="text-xs text-stone-400 mb-1">
+                            <p className="text-xs text-muted mb-1">
                               다른 멤버 응답
                             </p>
-                            <p className="text-xl font-black text-stone-900">
+                            <p className="text-xl font-black text-ink">
                               {weekdayVotes[activeDate!]}
-                              <span className="text-sm font-normal text-stone-400">
+                              <span className="text-sm font-normal text-muted">
                                 /{totalMembers - 1}명
                               </span>
                             </p>
-                            <p className="text-xs text-stone-400">
+                            <p className="text-xs text-muted">
                               {poll.time_weekday ?? "22:00"} 가능
                             </p>
                           </div>
@@ -740,10 +736,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                         /* 주말: 시간 복수 선택 */
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-semibold text-stone-600">
+                            <p className="text-xs font-semibold text-muted">
                               참여 가능한 시작 시간
                             </p>
-                            <p className="text-xs text-stone-400">
+                            <p className="text-xs text-muted">
                               {poll.time_start} ~ {poll.time_end}
                             </p>
                           </div>
@@ -767,14 +763,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                                   }
                                   className={`py-2 rounded-lg text-xs font-medium transition-all ${
                                     mySelected
-                                      ? "bg-stone-900 text-white"
-                                      : "bg-stone-50 text-stone-600 hover:bg-stone-100 border border-stone-200"
+                                      ? "bg-primary text-white"
+                                      : "bg-surface-card text-muted hover:bg-surface-soft border border-hairline"
                                   }`}
                                 >
                                   <span>{hour}시</span>
                                   {othersCount > 0 && (
                                     <span
-                                      className={`block text-[9px] ${mySelected ? "text-stone-300" : "text-stone-400"}`}
+                                      className={`block text-[9px] ${mySelected ? "text-white/60" : "text-muted"}`}
                                     >
                                       {othersCount}명
                                     </span>
@@ -791,7 +787,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                                   date: activeDateInfo.date,
                                 })
                               }
-                              className="text-xs text-stone-400 underline underline-offset-2 hover:text-stone-600"
+                              className="text-xs text-muted underline underline-offset-2 hover:text-ink"
                             >
                               이 날짜 선택 해제
                             </button>
@@ -802,17 +798,17 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                         <div>
                           <div className="flex items-center justify-between mb-4">
                             <div>
-                              <p className="text-sm font-semibold text-stone-800">
+                              <p className="text-sm font-semibold text-ink">
                                 {poll.time_weekday ?? "22:00"} 시작
                               </p>
-                              <p className="text-xs text-stone-400 mt-0.5">
+                              <p className="text-xs text-muted mt-0.5">
                                 평일은 {poll.time_weekday ?? "22:00"} 시작으로
                                 고정
                               </p>
                             </div>
                             {weekdayVotes[activeDateInfo.date] !==
                               undefined && (
-                              <span className="text-xs text-stone-500">
+                              <span className="text-xs text-muted">
                                 다른 멤버 {weekdayVotes[activeDateInfo.date]}명
                                 가능
                               </span>
@@ -825,10 +821,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                                 date: activeDateInfo.date,
                               })
                             }
-                            className={`w-full py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
+                            className={`w-full py-3 rounded-[8px] text-sm font-semibold transition-all border-2 ${
                               selectedDates.has(activeDateInfo.date)
-                                ? "border-stone-900 bg-stone-900 text-white"
-                                : "border-stone-200 bg-white text-stone-700 hover:border-stone-400"
+                                ? "border-primary bg-primary text-white"
+                                : "border-hairline bg-canvas text-ink hover:border-hairline"
                             }`}
                           >
                             {selectedDates.has(activeDateInfo.date)
@@ -840,8 +836,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     </div>
                   </div>
                 ) : !cannotAttend ? (
-                  <div className="bg-white rounded-2xl border border-dashed border-stone-200 p-8 text-center">
-                    <p className="text-sm text-stone-400">
+                  <div className="bg-canvas rounded-[12px] border border-dashed border-hairline p-8 text-center">
+                    <p className="text-sm text-muted">
                       달력에서 날짜를 선택하세요
                     </p>
                   </div>
@@ -849,29 +845,29 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
                 {/* 선택 요약 + 저장 카드 */}
                 {canSave && (
-                  <div className="bg-white rounded-2xl border border-stone-200 p-5">
+                  <div className="bg-canvas rounded-[12px] border border-hairline p-5">
                     {cannotAttend ? (
                       saved ? (
                         <div className="text-center py-2">
-                          <p className="text-sm font-bold text-stone-900 mb-1">
+                          <p className="text-sm font-bold text-ink mb-1">
                             ✓ 참여 불가로 저장됐어요
                           </p>
-                          <p className="text-xs text-stone-400 mt-1">
+                          <p className="text-xs text-muted mt-1">
                             응답 완료로 카운트됩니다
                           </p>
                           <button
                             onClick={() => dispatch({ type: "MARK_UNSAVED" })}
-                            className="mt-3 text-xs text-stone-400 underline"
+                            className="mt-3 text-xs text-muted underline"
                           >
                             수정하기
                           </button>
                         </div>
                       ) : (
                         <div>
-                          <p className="text-xs font-semibold text-stone-500 mb-1">
+                          <p className="text-xs font-semibold text-muted mb-1">
                             이번 일정에 참여하기 어려워요
                           </p>
-                          <p className="text-xs text-stone-400 mb-4">
+                          <p className="text-xs text-muted mb-4">
                             불참으로 저장해도 응답 완료로 카운트됩니다.
                           </p>
                           {saveError && (
@@ -882,7 +878,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                           <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
+                            className="w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-[8px] hover:bg-primary/90 transition-colors disabled:opacity-50"
                           >
                             {saving ? "저장 중..." : "참여 불가로 저장하기"}
                           </button>
@@ -893,7 +889,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                                 value: false,
                               })
                             }
-                            className="mt-2 w-full text-xs text-stone-400 underline"
+                            className="mt-2 w-full text-xs text-muted underline"
                           >
                             날짜 선택으로 돌아가기
                           </button>
@@ -901,24 +897,24 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       )
                     ) : (
                       <>
-                        <p className="text-xs font-semibold text-stone-500 mb-3">
+                        <p className="text-xs font-semibold text-muted mb-3">
                           내 가능 일정 요약
                         </p>
                         {saved ? (
                           <div className="text-center py-2">
-                            <p className="text-sm font-bold text-stone-900 mb-1">
+                            <p className="text-sm font-bold text-ink mb-1">
                               ✓ 저장됐어요
                             </p>
                             <div className="space-y-1">
                               {getSummaryLines().map((line, i) => (
-                                <p key={i} className="text-xs text-stone-500">
+                                <p key={i} className="text-xs text-muted">
                                   {line}
                                 </p>
                               ))}
                             </div>
                             <button
                               onClick={() => dispatch({ type: "MARK_UNSAVED" })}
-                              className="mt-3 text-xs text-stone-400 underline"
+                              className="mt-3 text-xs text-muted underline"
                             >
                               수정하기
                             </button>
@@ -927,7 +923,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                           <>
                             <div className="space-y-1 mb-4">
                               {getSummaryLines().map((line, i) => (
-                                <p key={i} className="text-xs text-stone-600">
+                                <p key={i} className="text-xs text-muted">
                                   {line}
                                 </p>
                               ))}
@@ -940,7 +936,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                             <button
                               onClick={handleSave}
                               disabled={saving}
-                              className="w-full py-2.5 bg-stone-900 text-white text-sm font-semibold rounded-xl hover:bg-stone-700 transition-colors disabled:opacity-50"
+                              className="w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-[8px] hover:bg-primary/90 transition-colors disabled:opacity-50"
                             >
                               {saving ? "저장 중..." : "저장하기"}
                             </button>
@@ -957,7 +953,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     onClick={() =>
                       dispatch({ type: "SET_CANNOT_ATTEND", value: true })
                     }
-                    className="w-full py-3 border border-dashed border-stone-200 rounded-2xl text-xs text-stone-400 hover:border-stone-400 hover:text-stone-600 transition-all"
+                    className="w-full py-3 border border-dashed border-hairline rounded-[12px] text-xs text-muted hover:border-hairline hover:text-ink transition-all"
                   >
                     이번에 참여 불가
                   </button>
@@ -983,19 +979,19 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     return (
                       <div
                         key={d.date}
-                        className="flex items-center gap-1.5 bg-stone-900 text-white rounded-full px-3 py-1.5 text-xs"
+                        className="flex items-center gap-1.5 bg-primary text-white rounded-full px-3 py-1.5 text-xs"
                       >
                         <span>
                           {d.date}일 ({d.dayName})
                         </span>
-                        <span className="text-stone-400 text-[10px]">
+                        <span className="text-white/60 text-[10px]">
                           {hourLabel}
                         </span>
                         <button
                           onClick={() =>
                             dispatch({ type: "TOGGLE_DATE", date: d.date })
                           }
-                          className="text-stone-400 ml-0.5"
+                          className="text-white/60 ml-0.5"
                         >
                           ✕
                         </button>
@@ -1007,11 +1003,11 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
             {/* 모바일 전용: 참석 불가 상태 카드 */}
             {cannotAttend && (
-              <div className="md:hidden mt-4 bg-white rounded-2xl border border-stone-200 p-4">
-                <p className="text-sm font-semibold text-stone-700 mb-1">
+              <div className="md:hidden mt-4 bg-canvas rounded-[12px] border border-hairline p-4">
+                <p className="text-sm font-semibold text-ink mb-1">
                   이번 일정에 참여하기 어려워요
                 </p>
-                <p className="text-xs text-stone-400">
+                <p className="text-xs text-muted">
                   아래 버튼으로 저장하거나 날짜 선택으로 돌아갈 수 있어요.
                 </p>
               </div>
@@ -1020,7 +1016,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             {/* 모바일 전용: 바텀시트 딤 오버레이 */}
             {activeDateInfo && !cannotAttend && (
               <div
-                className="md:hidden fixed inset-0 bg-stone-900/30 z-30"
+                className="md:hidden fixed inset-0 bg-ink/30 z-30"
                 onClick={() =>
                   dispatch({ type: "SET_ACTIVE_DATE", date: null })
                 }
@@ -1030,21 +1026,21 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             {/* 모바일 전용: 바텀시트 */}
             {activeDateInfo && !cannotAttend && (
               <div
-                className="md:hidden fixed left-0 right-0 bg-white rounded-t-3xl shadow-2xl ring-1 ring-stone-200/60 z-40"
+                className="md:hidden fixed left-0 right-0 bg-canvas rounded-t-3xl shadow-2xl ring-1 ring-hairline/60 z-40"
                 style={{ bottom: 68 }}
               >
                 {/* 드래그 핸들 */}
                 <div className="flex justify-center pt-3 pb-1">
-                  <div className="w-10 h-1 rounded-full bg-stone-300" />
+                  <div className="w-10 h-1 rounded-full bg-hairline" />
                 </div>
 
                 <div className="px-4 pt-2 pb-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="text-base font-black text-stone-900">
+                      <p className="text-base font-black text-ink">
                         {poll.month}월 {activeDate}일 ({activeDateInfo.dayName})
                       </p>
-                      <p className="text-[10px] text-stone-400 mt-0.5">
+                      <p className="text-[10px] text-muted mt-0.5">
                         {activeDateInfo.isWeekend ? "주말" : "평일"}
                         {activeDateInfo.isWeekend &&
                           weekendHourVotes[activeDateInfo.date] &&
@@ -1076,7 +1072,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       onClick={() =>
                         dispatch({ type: "SET_ACTIVE_DATE", date: null })
                       }
-                      className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-xs"
+                      className="w-7 h-7 rounded-full bg-surface-soft flex items-center justify-center text-muted text-xs"
                     >
                       ✕
                     </button>
@@ -1084,7 +1080,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
                   {activeDateInfo.isWeekend ? (
                     <>
-                      <p className="text-[11px] font-semibold text-stone-600 mb-2.5">
+                      <p className="text-[11px] font-semibold text-muted mb-2.5">
                         참여 가능한 시작 시간을 선택하세요
                       </p>
                       <div className="grid grid-cols-4 gap-1.5 mb-4">
@@ -1104,16 +1100,16 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                                   hour,
                                 })
                               }
-                              className={`rounded-xl py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 border ${
+                              className={`rounded-[8px] py-2.5 text-[11px] font-semibold flex flex-col items-center gap-0.5 border ${
                                 mySelected
-                                  ? "bg-stone-900 text-white border-transparent"
-                                  : "border-stone-200 text-stone-500"
+                                  ? "bg-primary text-white border-transparent"
+                                  : "border-hairline text-muted"
                               }`}
                             >
                               <span>{hour}시</span>
                               {othersCount > 0 && (
                                 <span
-                                  className={`text-[9px] ${mySelected ? "text-stone-400" : "text-blue-400"}`}
+                                  className={`text-[9px] ${mySelected ? "text-white/60" : "text-blue-400"}`}
                                 >
                                   {othersCount}명
                                 </span>
@@ -1132,10 +1128,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                             date: activeDateInfo.date,
                           })
                         }
-                        className={`w-full py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
+                        className={`w-full py-3 rounded-[8px] text-sm font-semibold transition-all border-2 ${
                           selectedDates.has(activeDateInfo.date)
-                            ? "border-stone-900 bg-stone-900 text-white"
-                            : "border-stone-200 bg-white text-stone-700"
+                            ? "border-primary bg-primary text-white"
+                            : "border-hairline bg-canvas text-ink"
                         }`}
                       >
                         {selectedDates.has(activeDateInfo.date)
@@ -1149,7 +1145,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     onClick={() =>
                       dispatch({ type: "SET_ACTIVE_DATE", date: null })
                     }
-                    className="w-full bg-stone-900 text-white rounded-2xl py-3 text-sm font-bold"
+                    className="w-full bg-primary text-white rounded-[12px] py-3 text-sm font-bold"
                   >
                     완료
                   </button>
@@ -1158,7 +1154,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             )}
 
             {/* 모바일 전용: 하단 고정 액션바 */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 px-4 py-3 z-30 flex gap-2">
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-canvas border-t border-hairline px-4 py-3 z-30 flex gap-2">
               {saveError && (
                 <p className="absolute -top-6 left-4 text-xs text-red-500">
                   {saveError}
@@ -1166,12 +1162,10 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               )}
               {saved ? (
                 <div className="flex-1 flex items-center justify-between px-1">
-                  <p className="text-sm font-semibold text-stone-700">
-                    ✓ 저장됐어요
-                  </p>
+                  <p className="text-sm font-semibold text-ink">✓ 저장됐어요</p>
                   <button
                     onClick={() => dispatch({ type: "MARK_UNSAVED" })}
-                    className="text-xs text-stone-400 underline"
+                    className="text-xs text-muted underline"
                   >
                     수정하기
                   </button>
@@ -1182,14 +1176,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     onClick={() =>
                       dispatch({ type: "SET_CANNOT_ATTEND", value: false })
                     }
-                    className="flex-1 border border-stone-200 text-stone-500 rounded-2xl py-2.5 text-sm font-medium"
+                    className="flex-1 border border-hairline text-muted rounded-[12px] py-2.5 text-sm font-medium"
                   >
                     날짜 선택으로
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex-[2] bg-stone-900 text-white rounded-2xl py-2.5 text-sm font-bold disabled:opacity-50"
+                    className="flex-[2] bg-primary text-white rounded-[12px] py-2.5 text-sm font-bold disabled:opacity-50"
                   >
                     {saving ? "저장 중..." : "참여 불가로 저장"}
                   </button>
@@ -1200,14 +1194,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     onClick={() =>
                       dispatch({ type: "SET_CANNOT_ATTEND", value: true })
                     }
-                    className="flex-1 border border-stone-200 text-stone-500 rounded-2xl py-2.5 text-sm font-medium"
+                    className="flex-1 border border-hairline text-muted rounded-[12px] py-2.5 text-sm font-medium"
                   >
                     참석 불가
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={!canSave || saving}
-                    className="flex-[2] bg-stone-900 text-white rounded-2xl py-2.5 text-sm font-bold disabled:opacity-40"
+                    className="flex-[2] bg-primary text-white rounded-[12px] py-2.5 text-sm font-bold disabled:opacity-40"
                   >
                     {saving ? "저장 중..." : "저장하기"}
                   </button>
@@ -1250,24 +1244,24 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       {/* 삭제 확인 다이얼로그 */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-xl">
-            <p className="text-sm font-bold text-stone-900 mb-1">
+          <div className="bg-canvas rounded-[12px] p-6 max-w-xs w-full shadow-xl">
+            <p className="text-sm font-bold text-ink mb-1">
               일정을 삭제할까요?
             </p>
-            <p className="text-xs text-stone-400 mb-5">
+            <p className="text-xs text-muted mb-5">
               투표 응답도 함께 삭제되며 되돌릴 수 없어요.
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteConfirmOpen(false)}
-                className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
+                className="flex-1 py-2.5 border border-hairline rounded-[8px] text-sm text-muted hover:border-hairline transition-colors"
               >
                 취소
               </button>
               <button
                 onClick={handleDeletePoll}
                 disabled={deleting}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 bg-red-500 text-white rounded-[8px] text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-40"
               >
                 {deleting ? "삭제 중..." : "삭제"}
               </button>
