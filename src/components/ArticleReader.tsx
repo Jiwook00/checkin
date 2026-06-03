@@ -20,9 +20,10 @@ export default function ArticleReader({ articles }: ArticleReaderProps) {
 
   return (
     <div className="overflow-y-auto">
-      {/* 상단 바 */}
-      <div className="sticky top-0 z-10 border-b border-hairline bg-canvas/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+      {/* 글 내용 */}
+      <article className="mx-auto max-w-3xl px-6 py-10">
+        {/* 상단 네비게이션 */}
+        <div className="mb-8 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-1 text-sm text-muted transition-colors hover:text-ink"
@@ -38,10 +39,6 @@ export default function ArticleReader({ articles }: ArticleReaderProps) {
             원본 링크
           </a>
         </div>
-      </div>
-
-      {/* 글 내용 */}
-      <article className="mx-auto max-w-3xl px-6 py-10">
         {/* 메타 정보 */}
         <header className="mb-10">
           <h1 className="mb-4 text-3xl font-bold leading-tight text-ink">
