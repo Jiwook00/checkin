@@ -1,58 +1,73 @@
 <!--
-  design-preview.html
-  Source: DESIGN.md (v0.2), src/components/ArticleCard.tsx, Layout.tsx, SessionBanner.tsx, LoginPage.tsx
+  design-preview-cal.html
+  Source: DESIGN-cal.md + 실제 컴포넌트 (Layout, SessionBanner, SessionFilter, ArticleCard, ArticleList)
   Generated: 2026-06-03
+  이 파일은 Cal.com 디자인 토큰을 Checkin 앱의 실제 컴포넌트에 적용했을 때의 모습을 보여줍니다.
 -->
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Checkin — Design Preview</title>
+    <title>Checkin — Cal.com 디자인 시스템 프리뷰</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
     <style>
-      /* ─── Design Tokens ─────────────────────────────────────────── */
+      /* ─── Cal.com Design Tokens ──────────────────────────────────── */
       :root {
-        /* Colors */
-        --primary: #cc785c;
-        --primary-active: #a9583e;
-        --primary-disabled: #e6dfd8;
-        --ink: #141413;
-        --body: #3d3d3a;
-        --body-strong: #252523;
-        --muted: #6c6a64;
-        --muted-soft: #8e8b82;
-        --hairline: #e6dfd8;
-        --hairline-soft: #ebe6df;
-        --canvas: #faf9f5;
-        --surface-soft: #f5f0e8;
-        --surface-card: #efe9de;
-        --surface-dark: #181715;
-        --surface-dark-el: #252320;
+        /* Brand & Action */
+        --primary: #111111;
+        --primary-active: #242424;
+        --primary-disabled: #e5e7eb;
+        --ink: #111111;
+        --body: #374151;
+        --muted: #6b7280;
+        --muted-soft: #898989;
+        --brand-accent: #3b82f6;
+
+        /* Surface */
+        --hairline: #e5e7eb;
+        --hairline-soft: #f3f4f6;
+        --canvas: #ffffff;
+        --surface-soft: #f8f9fa;
+        --surface-card: #f5f5f5;
+        --surface-strong: #e5e7eb;
+        --surface-dark: #101010;
+        --surface-dark-elevated: #1a1a1a;
+
+        /* On-surface */
         --on-primary: #ffffff;
-        --on-dark: #faf9f5;
-        --on-dark-soft: #a09d96;
-        --error: #c64545;
-        --error-surface: #fef2f2;
-        --success: #5db872;
+        --on-dark: #ffffff;
+        --on-dark-soft: #a1a1aa;
+
+        /* Semantic */
+        --success: #10b981;
+        --warning: #f59e0b;
+        --error: #ef4444;
+
+        /* Badge pastels */
+        --badge-orange: #fb923c;
+        --badge-pink: #ec4899;
+        --badge-violet: #8b5cf6;
+        --badge-emerald: #34d399;
 
         /* Typography */
-        --font-serif: "Cormorant Garamond", Georgia, serif;
         --font-sans:
           "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
         /* Radius */
+        --r-xs: 4px;
         --r-sm: 6px;
         --r-md: 8px;
         --r-lg: 12px;
         --r-xl: 16px;
         --r-pill: 9999px;
+        --r-full: 9999px;
 
         /* Spacing */
         --sp-xxs: 4px;
@@ -62,10 +77,9 @@
         --sp-lg: 24px;
         --sp-xl: 32px;
         --sp-xxl: 48px;
-        --sp-card: 20px;
+        --sp-section: 96px;
       }
 
-      /* ─── Reset ─────────────────────────────────────────────────── */
       *,
       *::before,
       *::after {
@@ -73,298 +87,332 @@
         margin: 0;
         padding: 0;
       }
+
       body {
         font-family: var(--font-sans);
-        background: #f0ede8;
+        background: #e8e8e8;
         color: var(--ink);
         min-height: 100vh;
+        padding: 32px 24px;
       }
 
-      /* ─── Page chrome ────────────────────────────────────────────── */
-      .page-header {
-        background: var(--surface-dark);
-        padding: 20px 40px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .page-header h1 {
-        font-family: var(--font-sans);
-        font-size: 15px;
-        font-weight: 800;
-        letter-spacing: -0.3px;
-        color: var(--on-dark);
-      }
-      .page-header span {
-        font-size: 12px;
-        color: var(--on-dark-soft);
-      }
-
-      .sections {
-        max-width: 1100px;
+      .preview-root {
+        max-width: 1140px;
         margin: 0 auto;
-        padding: 40px 24px 80px;
         display: flex;
         flex-direction: column;
         gap: 32px;
       }
 
-      .card {
-        background: var(--canvas);
-        border-radius: var(--r-xl);
-        padding: 32px;
-        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.07);
+      .preview-header {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .preview-header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+      }
+      .preview-header p {
+        font-size: 13px;
+        color: var(--muted);
       }
 
-      .section-label {
+      .section-card {
+        background: var(--canvas);
+        border-radius: var(--r-lg);
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.06),
+          0 4px 12px rgba(0, 0, 0, 0.07);
+        padding: var(--sp-xl);
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-lg);
+      }
+      .section-title {
         font-size: 11px;
         font-weight: 600;
-        letter-spacing: 1.2px;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--muted);
-        margin-bottom: 24px;
+        border-bottom: 1px solid var(--hairline-soft);
+        padding-bottom: var(--sp-sm);
       }
 
-      /* ─── 1. App Frame ───────────────────────────────────────────── */
-      .app-frame {
-        background: var(--canvas);
-        border-radius: var(--r-xl);
-        overflow: hidden;
-        box-shadow: 0 2px 20px rgba(20, 20, 19, 0.12);
-        /* macOS window chrome */
-        border: 1px solid var(--hairline);
-      }
-      .window-bar {
-        height: 38px;
-        background: var(--surface-card);
-        border-bottom: 1px solid var(--hairline);
-        display: flex;
-        align-items: center;
-        padding: 0 14px;
-        gap: 7px;
-      }
-      .dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-      }
-      .dot-red {
-        background: #ff5f57;
-      }
-      .dot-amber {
-        background: #febc2e;
-      }
-      .dot-green {
-        background: #28c840;
-      }
-
+      /* ─── 1. 앱 프레임 ──────────────────────────────────────────── */
       .app-shell {
         display: flex;
-        flex-direction: column;
-        height: 520px;
+        height: 640px;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-xl);
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       }
 
-      /* Top Nav */
-      .top-nav {
-        background: var(--canvas);
-        border-bottom: 1px solid var(--hairline);
-        padding: 0 28px;
-        display: flex;
-        align-items: center;
-        gap: 32px;
-        height: 52px;
+      /* Sidebar */
+      .sidebar {
+        width: 176px;
         flex-shrink: 0;
-      }
-      .top-nav-logo {
-        font-size: 15px;
-        font-weight: 800;
-        letter-spacing: -0.3px;
-        color: var(--ink);
-        margin-right: 8px;
-      }
-      .nav-items {
         display: flex;
-        flex-direction: row;
-        gap: 2px;
+        flex-direction: column;
+        background: var(--canvas);
+        padding: 28px 16px 20px;
+        border-right: 1px solid var(--hairline-soft);
+      }
+      .sidebar-logo {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.5px;
+        margin-bottom: 32px;
+      }
+      .sidebar-nav {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
       }
       .nav-item {
         display: block;
-        padding: 6px 10px;
+        padding: 7px 10px;
         border-radius: var(--r-md);
         font-size: 14px;
         font-weight: 500;
         color: var(--muted);
         text-decoration: none;
         cursor: pointer;
-        transition: all 120ms;
-        white-space: nowrap;
-      }
-      .nav-item:hover {
-        color: var(--ink);
-        background: var(--surface-card);
+        transition:
+          background 0.1s,
+          color 0.1s;
       }
       .nav-item.active {
         font-weight: 600;
         color: var(--ink);
         background: var(--surface-card);
       }
-      .top-nav-user {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-left: auto;
+      .sidebar-user {
+        padding-top: 16px;
+        border-top: 1px solid var(--hairline-soft);
       }
-      .top-nav-user .nickname {
-        font-size: 13px;
+      .sidebar-user-name {
+        font-size: 12px;
         font-weight: 500;
         color: var(--muted);
+        margin-bottom: 4px;
       }
-      .top-nav-user .logout {
+      .sidebar-logout {
         font-size: 12px;
         color: var(--muted-soft);
+        background: none;
+        border: none;
         cursor: pointer;
+        padding: 0;
       }
 
-      /* Content panel */
-      .content-panel {
+      /* Main content area */
+      .main-content {
         flex: 1;
         background: var(--surface-card);
         overflow-y: auto;
-        padding: 28px 32px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+      }
+      .main-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 40px;
       }
 
-      /* Session Banner in frame */
+      /* SessionBanner */
       .session-banner {
-        padding: var(--sp-card) 0;
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: 20px;
+        margin-bottom: 24px;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
       }
-      .session-title {
-        font-family: var(--font-sans);
+      .session-banner-title {
         font-size: 22px;
-        font-weight: 700;
-        line-height: 1.2;
-        letter-spacing: -0.3px;
+        font-weight: 600;
         color: var(--ink);
-        margin-bottom: 4px;
+        letter-spacing: -0.3px;
+        line-height: 1.3;
       }
-      .session-meta {
-        font-size: 13px;
+      .session-banner-meta {
+        font-size: 14px;
         color: var(--muted);
+        margin-top: 6px;
       }
-      .session-meta a {
+      .session-banner-link {
+        font-size: 14px;
         color: var(--muted);
         text-decoration: underline;
-        text-underline-offset: 2px;
+        cursor: pointer;
       }
 
-      /* Article cards grid */
+      /* SessionFilter */
+      .session-filter {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 28px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--hairline);
+        align-items: center;
+      }
+      .filter-pill {
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: var(--r-pill);
+        padding: 6px 12px;
+        border: none;
+        cursor: pointer;
+        transition:
+          background 0.1s,
+          color 0.1s;
+        color: var(--muted);
+        background: transparent;
+      }
+      .filter-pill.active {
+        background: var(--primary);
+        color: var(--on-primary);
+        font-weight: 600;
+      }
+
+      /* ArticleCard grid */
       .article-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
       }
+      @media (min-width: 900px) {
+        .article-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
       .article-card {
         background: var(--surface-card);
         border: 1px solid var(--hairline);
         border-radius: var(--r-lg);
-        padding: var(--sp-card);
+        padding: 20px;
         cursor: pointer;
-        transition: all 150ms;
+        transition:
+          background 0.15s,
+          box-shadow 0.15s;
         display: flex;
-        align-items: center;
-        gap: 16px;
+        flex-direction: column;
+        gap: 0;
       }
       .article-card:hover {
         background: var(--canvas);
-        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
       }
-      .article-card-body {
-        flex: 1;
-        min-width: 0;
-      }
-      .card-meta {
+      .article-card-meta {
         font-size: 12px;
         font-weight: 500;
         color: var(--muted-soft);
-        margin-bottom: 4px;
+        margin-bottom: 8px;
       }
-      .card-title {
+      .article-card-title {
         font-size: 14px;
         font-weight: 600;
         color: var(--ink);
         line-height: 1.4;
-        margin-bottom: 4px;
+        margin-bottom: 10px;
       }
-      .card-preview {
+      .article-card-preview {
         font-size: 12px;
         color: var(--muted-soft);
         line-height: 1.6;
         display: -webkit-box;
-        -webkit-line-clamp: 1;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        margin-bottom: 12px;
+        flex: 1;
       }
-      .card-footer {
+      .article-card-footer {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 4px;
-        flex-shrink: 0;
+        gap: 6px;
       }
-      .avatar {
+      .member-avatar {
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        background: var(--primary);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 9px;
-        font-weight: 700;
-        color: white;
+        font-weight: 600;
         flex-shrink: 0;
       }
-      .avatar-name {
+      .member-name {
         font-size: 12px;
-        font-weight: 500;
         color: var(--muted-soft);
+        font-weight: 500;
       }
 
-      /* ─── 2. Color Palette ───────────────────────────────────────── */
-      .color-groups {
+      /* Button */
+      .btn-primary {
+        background: var(--primary);
+        color: var(--on-primary);
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: var(--r-md);
+        padding: 10px 18px;
+        height: 40px;
+        cursor: pointer;
+        line-height: 1;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .btn-secondary {
+        background: var(--canvas);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-md);
+        padding: 10px 18px;
+        height: 40px;
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      /* ─── 2. Color Palette ──────────────────────────────────────── */
+      .color-group {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 10px;
       }
-      .color-group-title {
-        font-size: 12px;
+      .color-group-label {
+        font-size: 11px;
         font-weight: 600;
         color: var(--muted);
-        margin-bottom: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
       }
       .color-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 12px;
       }
-      .swatch {
+      .color-swatch {
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        min-width: 80px;
+        gap: 5px;
+        width: 80px;
       }
       .swatch-block {
         width: 80px;
-        height: 52px;
+        height: 48px;
         border-radius: var(--r-md);
-        border: 1px solid rgba(20, 20, 19, 0.07);
+        border: 1px solid rgba(0, 0, 0, 0.07);
       }
       .swatch-name {
         font-size: 11px;
@@ -373,515 +421,384 @@
       }
       .swatch-hex {
         font-size: 10px;
-        color: var(--muted-soft);
+        color: var(--muted);
         font-family: var(--font-mono);
       }
-      .swatch-use {
-        font-size: 10px;
-        color: var(--muted);
-        line-height: 1.4;
-      }
 
-      /* ─── 3. Typography ──────────────────────────────────────────── */
-      .type-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-      }
-      .type-row {
-        display: flex;
+      /* ─── 3. Typography ─────────────────────────────────────────── */
+      .typo-row {
+        display: grid;
+        grid-template-columns: 1fr 180px;
+        gap: var(--sp-lg);
         align-items: baseline;
-        gap: 24px;
-        padding-bottom: 20px;
+        padding-bottom: var(--sp-md);
         border-bottom: 1px solid var(--hairline-soft);
       }
-      .type-row:last-child {
+      .typo-row:last-child {
         border-bottom: none;
         padding-bottom: 0;
       }
-      .type-meta {
-        min-width: 200px;
-        flex-shrink: 0;
-      }
-      .type-token {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--primary);
-        font-family: var(--font-mono);
-        margin-bottom: 3px;
-      }
-      .type-spec {
+      .typo-meta {
         font-size: 11px;
         color: var(--muted);
-      }
-      .type-sample {
-        color: var(--ink);
+        font-family: var(--font-mono);
+        text-align: right;
+        line-height: 1.7;
       }
 
       /* ─── 4. Spacing & Radius ───────────────────────────────────── */
       .token-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 16px;
+        gap: var(--sp-md);
+        align-items: flex-end;
       }
-      .space-item {
+      .spacing-item {
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
+        gap: var(--sp-xs);
+        align-items: center;
       }
-      .space-block {
+      .spacing-bar-wrap {
+        display: flex;
+        align-items: flex-end;
+        height: 100px;
+      }
+      .spacing-bar {
         background: var(--primary);
-        opacity: 0.6;
-        border-radius: 2px;
-        height: 8px;
+        opacity: 0.15;
+        width: 28px;
+        border-radius: var(--r-xs) var(--r-xs) 0 0;
       }
-      .space-label {
+      .spacing-val {
         font-size: 11px;
+        font-family: var(--font-mono);
+        color: var(--muted);
+        text-align: center;
+      }
+      .spacing-name {
+        font-size: 10px;
         font-weight: 600;
         color: var(--ink);
-      }
-      .space-val {
-        font-size: 10px;
-        color: var(--muted-soft);
-        font-family: var(--font-mono);
-      }
-
-      .radius-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
+        text-align: center;
       }
       .radius-item {
         display: flex;
         flex-direction: column;
+        gap: var(--sp-xs);
         align-items: center;
-        gap: 8px;
       }
       .radius-block {
-        width: 56px;
-        height: 56px;
+        width: 52px;
+        height: 52px;
         background: var(--surface-card);
         border: 2px solid var(--hairline);
       }
-      .radius-label {
-        font-size: 11px;
+      .radius-name {
+        font-size: 10px;
         font-weight: 600;
         color: var(--ink);
         text-align: center;
       }
       .radius-val {
         font-size: 10px;
-        color: var(--muted-soft);
         font-family: var(--font-mono);
+        color: var(--muted);
         text-align: center;
       }
 
       /* ─── 5. Component States ───────────────────────────────────── */
-      .component-section {
-        display: flex;
-        flex-direction: column;
-        gap: 32px;
-      }
-      .comp-group {
-      }
-      .comp-group-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--muted);
-        margin-bottom: 14px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
       .comp-row {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 12px;
+        gap: var(--sp-md);
+        flex-wrap: wrap;
+        padding-bottom: var(--sp-md);
+        border-bottom: 1px solid var(--hairline-soft);
+      }
+      .comp-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
       }
       .comp-label {
         font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        width: 130px;
+        flex-shrink: 0;
+        font-family: var(--font-mono);
+      }
+      .comp-group {
+        display: flex;
+        gap: var(--sp-sm);
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .state-tag {
+        font-size: 10px;
+        font-weight: 500;
         color: var(--muted-soft);
-        margin-top: 4px;
+        background: var(--surface-soft);
+        border-radius: var(--r-xs);
+        padding: 2px 6px;
+        display: block;
         text-align: center;
       }
-      .comp-item {
+      .state-col {
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
         gap: 6px;
       }
 
-      /* Buttons */
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-family: var(--font-sans);
-        font-size: 14px;
-        font-weight: 500;
-        line-height: 1;
-        border: none;
-        cursor: pointer;
-        text-decoration: none;
-        padding: 10px 18px;
-        height: 38px;
-        border-radius: var(--r-md);
-        transition: background 120ms;
-        white-space: nowrap;
-      }
-      .btn-primary {
-        background: var(--primary);
-        color: var(--on-primary);
-      }
-      .btn-primary:hover {
+      .btn-primary-active {
         background: var(--primary-active);
+        color: var(--on-primary);
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: var(--r-md);
+        padding: 10px 18px;
+        height: 40px;
+        cursor: pointer;
+        line-height: 1;
       }
       .btn-primary-disabled {
         background: var(--primary-disabled);
         color: var(--muted);
-        cursor: not-allowed;
-      }
-      .btn-secondary {
-        background: var(--canvas);
-        color: var(--ink);
-        border: 1px solid var(--hairline);
-      }
-      .btn-ghost {
-        background: transparent;
-        color: var(--muted);
-        padding: 6px 8px;
-        height: auto;
-        font-size: 13px;
-      }
-      .btn-destruct {
-        background: transparent;
-        color: var(--error);
-        padding: 6px 8px;
-        height: auto;
-        font-size: 13px;
-      }
-
-      /* Article Card states */
-      .card-state-normal {
-        background: var(--surface-card);
-        border: 1px solid var(--hairline);
-        border-radius: var(--r-lg);
-        padding: var(--sp-card);
-        width: 260px;
-      }
-      .card-state-hover {
-        background: var(--canvas);
-        border: 1px solid var(--hairline);
-        border-radius: var(--r-lg);
-        padding: var(--sp-card);
-        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
-        width: 260px;
-      }
-
-      /* Session Banner states */
-      .banner-confirmed {
-        background: var(--canvas);
-        border: 1px solid var(--hairline);
-        border-radius: var(--r-lg);
-        padding: var(--sp-card);
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
-      }
-      .banner-pending {
-        background: var(--canvas);
-        border: 1px solid var(--hairline);
-        border-radius: var(--r-lg);
-        padding: var(--sp-card);
-      }
-
-      /* Login Card */
-      .login-card {
-        background: var(--canvas);
-        border-radius: var(--r-xl);
-        padding: 40px;
-        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
-        width: 320px;
-        text-align: center;
-      }
-      .login-title {
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-        color: var(--ink);
-        margin-bottom: 6px;
-      }
-      .login-sub {
         font-size: 14px;
-        color: var(--muted);
-        margin-bottom: 28px;
-      }
-      .btn-google {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        width: 100%;
-        padding: 11px 16px;
-        background: var(--canvas);
-        border: 1px solid var(--hairline);
-        border-radius: var(--r-md);
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--body);
-        cursor: pointer;
-      }
-
-      /* Article Reader (dark) */
-      .reader-card {
-        background: var(--surface-dark);
-        border-radius: var(--r-xl);
-        padding: 32px;
-        width: 100%;
-        max-width: 480px;
-      }
-      .reader-title {
-        font-size: 18px;
         font-weight: 600;
-        color: var(--on-dark);
-        margin-bottom: 12px;
-        line-height: 1.4;
-      }
-      .reader-body {
-        font-size: 14px;
-        color: var(--on-dark-soft);
-        line-height: 1.7;
-      }
-      .reader-code {
-        background: var(--surface-dark-el, #252320);
+        border: none;
         border-radius: var(--r-md);
-        padding: 14px 16px;
-        margin-top: 14px;
+        padding: 10px 18px;
+        height: 40px;
+        cursor: not-allowed;
+        line-height: 1;
       }
-      .reader-code pre {
-        font-family: var(--font-mono);
-        font-size: 13px;
-        color: #a9b8c3;
-        line-height: 1.6;
-      }
-
-      /* Input */
-      .input-normal {
-        width: 240px;
-        padding: 10px 14px;
+      .text-input {
         background: var(--canvas);
+        color: var(--ink);
+        font-size: 14px;
+        font-family: var(--font-sans);
         border: 1px solid var(--hairline);
         border-radius: var(--r-md);
-        font-family: var(--font-sans);
-        font-size: 14px;
-        color: var(--ink);
+        padding: 9px 14px;
+        height: 40px;
         outline: none;
+        width: 200px;
       }
-      .input-focused {
-        width: 240px;
-        padding: 10px 14px;
+      .text-input-focused {
         background: var(--canvas);
-        border: 1px solid var(--primary);
-        border-radius: var(--r-md);
-        font-family: var(--font-sans);
-        font-size: 14px;
         color: var(--ink);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
-      }
-
-      /* Error banner */
-      .error-banner {
-        background: var(--error-surface);
-        color: var(--error);
-        border-radius: var(--r-md);
-        padding: 12px 16px;
         font-size: 14px;
-        max-width: 320px;
+        font-family: var(--font-sans);
+        border: 1.5px solid var(--ink);
+        border-radius: var(--r-md);
+        padding: 9px 14px;
+        height: 40px;
+        outline: none;
+        width: 200px;
       }
-
-      /* Badges */
-      .badge {
+      .badge-pill {
         display: inline-flex;
         align-items: center;
+        background: var(--surface-card);
+        color: var(--ink);
         font-size: 12px;
         font-weight: 500;
-        padding: 3px 10px;
         border-radius: var(--r-pill);
+        padding: 3px 10px;
       }
-      .badge-session {
+      .source-badge {
+        display: inline-flex;
+        align-items: center;
         background: var(--surface-card);
-        color: var(--muted);
-        border: 1px solid var(--hairline);
-      }
-      .badge-primary {
-        background: var(--primary);
-        color: var(--on-primary);
-      }
-
-      /* Avatar sizes */
-      .av-sm {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: var(--primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 8px;
-        font-weight: 700;
-        color: white;
-        flex-shrink: 0;
-      }
-      .av-md {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: var(--primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        font-weight: 700;
-        color: white;
-        flex-shrink: 0;
-      }
-      .av-lg {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: var(--primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 22px;
-        font-weight: 700;
-        color: white;
-        flex-shrink: 0;
+        color: var(--muted-soft);
+        font-size: 11px;
+        font-weight: 500;
+        border-radius: var(--r-pill);
+        padding: 2px 8px;
       }
     </style>
   </head>
   <body>
-    <div class="page-header">
-      <h1>Checkin</h1>
-      <span>Design Preview — DESIGN.md v0.2 · 2026-06-03</span>
-    </div>
+    <div class="preview-root">
+      <!-- Header -->
+      <div class="preview-header">
+        <h1>Checkin — Cal.com 디자인 토큰 적용 프리뷰</h1>
+        <p>
+          Source: DESIGN-cal.md + Layout.tsx · SessionBanner.tsx ·
+          SessionFilter.tsx · ArticleCard.tsx · 생성일: 2026-06-03
+        </p>
+      </div>
 
-    <div class="sections">
-      <!-- ─── 1. App Frame ─────────────────────────────────────── -->
-      <div class="card" style="padding: 0; overflow: hidden">
-        <div
-          style="
-            padding: 20px 24px 16px;
-            border-bottom: 1px solid var(--hairline);
-          "
-        >
-          <div class="section-label" style="margin-bottom: 0">
-            App Frame — Desktop Layout
-          </div>
+      <!-- ─── 1. 앱 프레임 ─────────────────────────────────────────── -->
+      <div class="section-card" style="padding: 0; overflow: hidden">
+        <div style="padding: var(--sp-xl) var(--sp-xl) var(--sp-md)">
+          <div class="section-title">앱 프레임 — Layout + 메인 페이지</div>
         </div>
-        <div
-          class="app-frame"
-          style="border: none; border-radius: 0; box-shadow: none"
-        >
-          <div class="window-bar">
-            <div class="dot dot-red"></div>
-            <div class="dot dot-amber"></div>
-            <div class="dot dot-green"></div>
-          </div>
-          <div class="app-shell">
-            <!-- Top Nav -->
-            <div class="top-nav">
-              <div class="top-nav-logo">Checkin</div>
-              <nav class="nav-items">
-                <a class="nav-item active">메인</a>
-                <a class="nav-item">아카이브</a>
-                <a class="nav-item">일정</a>
-                <a class="nav-item">업데이트</a>
-                <a class="nav-item">사진첩</a>
-                <a class="nav-item">프로필</a>
-              </nav>
-              <div class="top-nav-user">
-                <span class="nickname">지욱</span>
-                <span class="logout">로그아웃</span>
-              </div>
+        <div class="app-shell" style="margin: 0 var(--sp-xl) var(--sp-xl)">
+          <!-- Sidebar -->
+          <aside class="sidebar">
+            <div class="sidebar-logo">Checkin</div>
+            <nav class="sidebar-nav">
+              <a class="nav-item active">메인</a>
+              <a class="nav-item">아카이브</a>
+              <a class="nav-item">일정</a>
+              <a class="nav-item">업데이트</a>
+              <a class="nav-item">사진첩</a>
+              <a class="nav-item">프로필</a>
+            </nav>
+            <div class="sidebar-user">
+              <div class="sidebar-user-name">danny</div>
+              <button class="sidebar-logout">로그아웃</button>
             </div>
+          </aside>
 
-            <!-- Content panel -->
-            <div class="content-panel">
-              <!-- Session Banner -->
+          <!-- Main Content -->
+          <div class="main-content">
+            <div class="main-inner">
+              <!-- SessionBanner -->
               <div class="session-banner">
                 <div>
-                  <div class="session-title">6월에 하는 5월 회고</div>
-                  <div class="session-meta">
-                    2025년 6월 14일 (토) 오후 3시 · 온라인 &nbsp;·&nbsp;
-                    <a href="#">회의 참여하기 →</a>
-                  </div>
+                  <h1 class="session-banner-title">6월에 하는 5월 회고</h1>
+                  <p class="session-banner-meta">
+                    6월 10일 (수) 오후 8시 · 온라인 &nbsp;·&nbsp;
+                    <a class="session-banner-link">회의 참여하기 →</a>
+                  </p>
                 </div>
-                <button class="btn btn-primary">+ 글 추가</button>
+                <button class="btn-primary">+ 글 추가</button>
               </div>
 
-              <!-- Article Grid -->
+              <!-- SessionFilter -->
+              <div class="session-filter">
+                <button class="filter-pill active">2026-05</button>
+                <button class="filter-pill">2026-04</button>
+                <button class="filter-pill">2026-03</button>
+              </div>
+
+              <!-- ArticleList grid -->
               <div class="article-grid">
-                <div class="article-card">
-                  <div class="card-footer">
-                    <div class="avatar">J</div>
-                    <span class="avatar-name">지욱</span>
+                <div class="article-card" style="background: var(--canvas)">
+                  <div class="article-card-meta">Notion</div>
+                  <div class="article-card-title">
+                    5월 회고: 퇴사 후 첫 달을 돌아보며
                   </div>
-                  <div class="article-card-body">
-                    <div class="card-title">5월은 집중력의 달이었다</div>
-                    <div class="card-preview">
-                      사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
-                      멀티태스킹의 한계와 딥워크의 중요성, 그리고 다음 달을
-                      어떻게 설계할지.
+                  <div class="article-card-preview">
+                    5월은 생각보다 훨씬 바쁘게 지나갔다. 사이드 프로젝트 두 개를
+                    동시에 진행하면서 번아웃이 오기도 했고, 커피 한 잔의 여유를
+                    찾는 것도 쉽지 않았다.
+                  </div>
+                  <div class="article-card-footer">
+                    <div
+                      class="member-avatar"
+                      style="background: var(--badge-orange); color: white"
+                    >
+                      D
                     </div>
+                    <span class="member-name">danny</span>
                   </div>
                 </div>
-                <div
-                  class="article-card"
-                  style="
-                    background: var(--canvas);
-                    box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
-                  "
-                >
-                  <div class="card-footer">
-                    <div class="avatar" style="background: #5db8a6">S</div>
-                    <span class="avatar-name">수현</span>
+
+                <div class="article-card">
+                  <div class="article-card-meta">Blog</div>
+                  <div class="article-card-title">
+                    TokenCat 개발 회고 — Swift로 메뉴바 앱 만들기
                   </div>
-                  <div class="article-card-body">
-                    <div class="card-title">Claude Code로 혼자 앱 만들기</div>
-                    <div class="card-preview">
-                      AI 페어 프로그래밍 한 달 경험기. 잘 됐던 것, 안 됐던 것,
-                      그리고 프롬프트 작성법에 대해 배운 것들.
+                  <div class="article-card-preview">
+                    SwiftUI로 처음 만들어보는 메뉴바 앱. NSStatusItem을 다루는
+                    게 예상보다 까다로웠지만, 결국 토큰 카운터가 실시간으로
+                    움직이는 걸 보면서 뿌듯함을 느꼈다.
+                  </div>
+                  <div class="article-card-footer">
+                    <div
+                      class="member-avatar"
+                      style="background: var(--badge-violet); color: white"
+                    >
+                      J
                     </div>
+                    <span class="member-name">jiwook</span>
                   </div>
                 </div>
+
                 <div class="article-card">
-                  <div class="card-footer">
-                    <div class="avatar" style="background: #e8a55a">M</div>
-                    <span class="avatar-name">민준</span>
+                  <div class="article-card-meta">Tistory</div>
+                  <div class="article-card-title">
+                    Go로 마이크로서비스 API 게이트웨이 구현하기
                   </div>
-                  <div class="article-card-body">
-                    <div class="card-title">번아웃 전조 증상과 회복 루틴</div>
-                    <div class="card-preview">
-                      퇴사 이후 첫 달. 쉬고 싶었지만 쉬지 못했던 이유, 그리고
-                      스스로를 충전하는 방법을 찾아가는 과정.
+                  <div class="article-card-preview">
+                    gRPC와 REST를 동시에 지원하는 게이트웨이를 Go로 구현했다.
+                    Protobuf 정의부터 시작해서 HTTP 트랜스코딩까지 생각보다 많은
+                    삽질이 있었다.
+                  </div>
+                  <div class="article-card-footer">
+                    <div
+                      class="member-avatar"
+                      style="background: var(--badge-emerald); color: white"
+                    >
+                      S
                     </div>
+                    <span class="member-name">sora</span>
                   </div>
                 </div>
+
                 <div class="article-card">
-                  <div class="card-footer">
-                    <div class="avatar" style="background: #8e8b82">Y</div>
-                    <span class="avatar-name">유나</span>
+                  <div class="article-card-meta">Notion</div>
+                  <div class="article-card-title">
+                    NestJS + Supabase 조합 실전 후기
                   </div>
-                  <div class="article-card-body">
-                    <div class="card-title">읽기의 밀도를 높이는 방법</div>
-                    <div class="card-preview">
-                      Readwise와 하이라이팅 습관, 책과 아티클을 어떻게
-                      소화하는지에 대한 나만의 시스템 정리.
+                  <div class="article-card-preview">
+                    Supabase의 Row Level Security와 NestJS Guard를 함께 쓸 때의
+                    주의점과 패턴을 정리했다.
+                  </div>
+                  <div class="article-card-footer">
+                    <div
+                      class="member-avatar"
+                      style="background: var(--badge-pink); color: white"
+                    >
+                      H
                     </div>
+                    <span class="member-name">hyebin</span>
+                  </div>
+                </div>
+
+                <div class="article-card">
+                  <div class="article-card-meta">Blog</div>
+                  <div class="article-card-title">
+                    AWS Lambda Cold Start 최적화 삽질기
+                  </div>
+                  <div class="article-card-preview">
+                    Provisioned Concurrency 없이 cold start를 100ms 이하로
+                    줄이기 위해 시도한 방법들을 공유합니다.
+                  </div>
+                  <div class="article-card-footer">
+                    <div
+                      class="member-avatar"
+                      style="background: var(--surface-card); color: var(--ink)"
+                    >
+                      M
+                    </div>
+                    <span class="member-name">minjun</span>
+                  </div>
+                </div>
+
+                <div class="article-card">
+                  <div class="article-card-meta">Notion</div>
+                  <div class="article-card-title">
+                    디자인 시스템 도입 3개월 회고
+                  </div>
+                  <div class="article-card-preview">
+                    Storybook과 Tailwind를 함께 쓰면서 느낀 점들. 컴포넌트
+                    카탈로그가 오히려 유지보수 부담을 높인 케이스도 있었다.
+                  </div>
+                  <div class="article-card-footer">
+                    <div
+                      class="member-avatar"
+                      style="background: var(--badge-orange); color: white"
+                    >
+                      Y
+                    </div>
+                    <span class="member-name">yujin</span>
                   </div>
                 </div>
               </div>
@@ -890,883 +807,715 @@
         </div>
       </div>
 
-      <!-- ─── 2. Color Palette ─────────────────────────────────── -->
-      <div class="card">
-        <div class="section-label">Color Palette</div>
-        <div class="color-groups">
-          <div>
-            <div class="color-group-title">Brand & Primary</div>
-            <div class="color-row">
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--primary)"
-                ></div>
-                <div class="swatch-name">primary</div>
-                <div class="swatch-hex">#cc785c</div>
-                <div class="swatch-use">CTA 버튼</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--primary-active)"
-                ></div>
-                <div class="swatch-name">primary-active</div>
-                <div class="swatch-hex">#a9583e</div>
-                <div class="swatch-use">hover/press</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="
-                    background: var(--primary-disabled);
-                    border: 1px solid var(--hairline);
-                  "
-                ></div>
-                <div class="swatch-name">primary-disabled</div>
-                <div class="swatch-hex">#e6dfd8</div>
-                <div class="swatch-use">비활성</div>
-              </div>
-            </div>
-          </div>
+      <!-- ─── 2. Color Palette ──────────────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-title">컬러 팔레트</div>
 
-          <div>
-            <div class="color-group-title">Surface</div>
-            <div class="color-row">
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="
-                    background: var(--canvas);
-                    border: 1px solid var(--hairline);
-                  "
-                ></div>
-                <div class="swatch-name">canvas</div>
-                <div class="swatch-hex">#faf9f5</div>
-                <div class="swatch-use">사이드바·배경</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="
-                    background: var(--surface-soft);
-                    border: 1px solid var(--hairline);
-                  "
-                ></div>
-                <div class="swatch-name">surface-soft</div>
-                <div class="swatch-hex">#f5f0e8</div>
-                <div class="swatch-use">구분 밴드</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="
-                    background: var(--surface-card);
-                    border: 1px solid var(--hairline);
-                  "
-                ></div>
-                <div class="swatch-name">surface-card</div>
-                <div class="swatch-hex">#efe9de</div>
-                <div class="swatch-use">콘텐츠 패널·카드</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--surface-dark)"
-                ></div>
-                <div class="swatch-name">surface-dark</div>
-                <div class="swatch-hex">#181715</div>
-                <div class="swatch-use">리더·코드블록</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--surface-dark-el)"
-                ></div>
-                <div class="swatch-name">surface-dark-el</div>
-                <div class="swatch-hex">#252320</div>
-                <div class="swatch-use">다크 내 elevated</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="
-                    background: var(--hairline);
-                    border: 1px solid var(--surface-card);
-                  "
-                ></div>
-                <div class="swatch-name">hairline</div>
-                <div class="swatch-hex">#e6dfd8</div>
-                <div class="swatch-use">카드·입력 테두리</div>
-              </div>
+        <div class="color-group">
+          <div class="color-group-label">Brand & Action</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #111111"></div>
+              <div class="swatch-name">primary</div>
+              <div class="swatch-hex">#111111</div>
             </div>
-          </div>
-
-          <div>
-            <div class="color-group-title">Text</div>
-            <div class="color-row">
-              <div class="swatch">
-                <div class="swatch-block" style="background: var(--ink)"></div>
-                <div class="swatch-name">ink</div>
-                <div class="swatch-hex">#141413</div>
-                <div class="swatch-use">헤딩·주요 텍스트</div>
-              </div>
-              <div class="swatch">
-                <div class="swatch-block" style="background: var(--body)"></div>
-                <div class="swatch-name">body</div>
-                <div class="swatch-hex">#3d3d3a</div>
-                <div class="swatch-use">기본 본문</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--muted)"
-                ></div>
-                <div class="swatch-name">muted</div>
-                <div class="swatch-hex">#6c6a64</div>
-                <div class="swatch-use">날짜·세션명</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--muted-soft)"
-                ></div>
-                <div class="swatch-name">muted-soft</div>
-                <div class="swatch-hex">#8e8b82</div>
-                <div class="swatch-use">캡션·미리보기</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--on-dark)"
-                ></div>
-                <div class="swatch-name">on-dark</div>
-                <div class="swatch-hex">#faf9f5</div>
-                <div class="swatch-use">다크 서피스 텍스트</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--on-dark-soft)"
-                ></div>
-                <div class="swatch-name">on-dark-soft</div>
-                <div class="swatch-hex">#a09d96</div>
-                <div class="swatch-use">다크 보조 텍스트</div>
-              </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #242424"></div>
+              <div class="swatch-name">primary-active</div>
+              <div class="swatch-hex">#242424</div>
             </div>
-          </div>
-
-          <div>
-            <div class="color-group-title">Semantic</div>
-            <div class="color-row">
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--error)"
-                ></div>
-                <div class="swatch-name">error</div>
-                <div class="swatch-hex">#c64545</div>
-                <div class="swatch-use">삭제·에러</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="
-                    background: var(--error-surface);
-                    border: 1px solid #f5c6c6;
-                  "
-                ></div>
-                <div class="swatch-name">error-surface</div>
-                <div class="swatch-hex">#fef2f2</div>
-                <div class="swatch-use">에러 배너 배경</div>
-              </div>
-              <div class="swatch">
-                <div
-                  class="swatch-block"
-                  style="background: var(--success)"
-                ></div>
-                <div class="swatch-name">success</div>
-                <div class="swatch-hex">#5db872</div>
-                <div class="swatch-use">확정·성공</div>
-              </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #e5e7eb"></div>
+              <div class="swatch-name">primary-disabled</div>
+              <div class="swatch-hex">#e5e7eb</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #3b82f6"></div>
+              <div class="swatch-name">brand-accent</div>
+              <div class="swatch-hex">#3b82f6</div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ─── 3. Typography ────────────────────────────────────── -->
-      <div class="card">
-        <div class="section-label">Typography Scale</div>
-        <div class="type-rows">
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">display-sm</div>
-              <div class="type-spec">Inter · 28px · 700 · ls -0.3px</div>
+        <div class="color-group">
+          <div class="color-group-label">Surface</div>
+          <div class="color-row">
+            <div class="color-swatch">
               <div
-                class="type-spec"
-                style="
-                  margin-top: 3px;
-                  color: var(--muted-soft);
-                  font-size: 10px;
-                "
-              >
-                SessionBanner 회고 제목
-              </div>
+                class="swatch-block"
+                style="background: #ffffff; border: 1px solid #e5e7eb"
+              ></div>
+              <div class="swatch-name">canvas</div>
+              <div class="swatch-hex">#ffffff</div>
             </div>
-            <div
-              class="type-sample"
-              style="
-                font-family: var(--font-sans);
-                font-size: 28px;
-                font-weight: 700;
-                letter-spacing: -0.3px;
-                line-height: 1.2;
-                color: var(--ink);
-              "
-            >
-              6월에 하는 5월 회고
+            <div class="color-swatch">
+              <div
+                class="swatch-block"
+                style="background: #f8f9fa; border: 1px solid #e5e7eb"
+              ></div>
+              <div class="swatch-name">surface-soft</div>
+              <div class="swatch-hex">#f8f9fa</div>
             </div>
-          </div>
-
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">title-lg</div>
-              <div class="type-spec">Inter · 18px · 600</div>
+            <div class="color-swatch">
+              <div
+                class="swatch-block"
+                style="background: #f5f5f5; border: 1px solid #e5e7eb"
+              ></div>
+              <div class="swatch-name">surface-card</div>
+              <div class="swatch-hex">#f5f5f5</div>
             </div>
-            <div
-              class="type-sample"
-              style="font-size: 18px; font-weight: 600; color: var(--ink)"
-            >
-              아카이브 — 지난 회고들
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #e5e7eb"></div>
+              <div class="swatch-name">hairline</div>
+              <div class="swatch-hex">#e5e7eb</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #101010"></div>
+              <div class="swatch-name">surface-dark</div>
+              <div class="swatch-hex">#101010</div>
             </div>
           </div>
+        </div>
 
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">title-md</div>
-              <div class="type-spec">Inter · 16px · 600</div>
+        <div class="color-group">
+          <div class="color-group-label">Text</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #111111"></div>
+              <div class="swatch-name">ink</div>
+              <div class="swatch-hex">#111111</div>
             </div>
-            <div
-              class="type-sample"
-              style="font-size: 16px; font-weight: 600; color: var(--ink)"
-            >
-              5월은 집중력의 달이었다
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #374151"></div>
+              <div class="swatch-name">body</div>
+              <div class="swatch-hex">#374151</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #6b7280"></div>
+              <div class="swatch-name">muted</div>
+              <div class="swatch-hex">#6b7280</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #898989"></div>
+              <div class="swatch-name">muted-soft</div>
+              <div class="swatch-hex">#898989</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #a1a1aa"></div>
+              <div class="swatch-name">on-dark-soft</div>
+              <div class="swatch-hex">#a1a1aa</div>
             </div>
           </div>
+        </div>
 
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">title-sm</div>
-              <div class="type-spec">Inter · 14px · 600</div>
+        <div class="color-group">
+          <div class="color-group-label">Semantic & Badge Pastels</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #10b981"></div>
+              <div class="swatch-name">success</div>
+              <div class="swatch-hex">#10b981</div>
             </div>
-            <div
-              class="type-sample"
-              style="font-size: 14px; font-weight: 600; color: var(--ink)"
-            >
-              이번 달 참여 현황
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #f59e0b"></div>
+              <div class="swatch-name">warning</div>
+              <div class="swatch-hex">#f59e0b</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #ef4444"></div>
+              <div class="swatch-name">error</div>
+              <div class="swatch-hex">#ef4444</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #fb923c"></div>
+              <div class="swatch-name">badge-orange</div>
+              <div class="swatch-hex">#fb923c</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #ec4899"></div>
+              <div class="swatch-name">badge-pink</div>
+              <div class="swatch-hex">#ec4899</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #8b5cf6"></div>
+              <div class="swatch-name">badge-violet</div>
+              <div class="swatch-hex">#8b5cf6</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-block" style="background: #34d399"></div>
+              <div class="swatch-name">badge-emerald</div>
+              <div class="swatch-hex">#34d399</div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">nav</div>
-              <div class="type-spec">Inter · 14px · 500 (active: 600)</div>
-            </div>
-            <div
-              class="type-sample"
-              style="display: flex; gap: 20px; align-items: center"
-            >
-              <span style="font-size: 14px; font-weight: 600; color: var(--ink)"
-                >메인</span
-              >
-              <span
-                style="font-size: 14px; font-weight: 500; color: var(--muted)"
-                >아카이브</span
-              >
-              <span
-                style="font-size: 14px; font-weight: 500; color: var(--muted)"
-                >일정</span
-              >
-            </div>
-          </div>
+      <!-- ─── 3. Typography ────────────────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-title">타이포그래피 스케일 — 실제 사용처 매핑</div>
 
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">body-md</div>
-              <div class="type-spec">Inter · 14px · 400 · lh 1.6</div>
-            </div>
+        <div class="typo-row">
+          <div
+            style="
+              font-size: 22px;
+              font-weight: 600;
+              letter-spacing: -0.3px;
+              line-height: 1.3;
+            "
+          >
+            6월에 하는 5월 회고
             <div
-              class="type-sample"
-              style="
-                font-size: 14px;
-                font-weight: 400;
-                color: var(--muted);
-                line-height: 1.6;
-                max-width: 400px;
-              "
-            >
-              사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
-              멀티태스킹의 한계와 딥워크의 중요성.
-            </div>
-          </div>
-
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">body-sm</div>
-              <div class="type-spec">Inter · 13px · 400 · lh 1.55</div>
-            </div>
-            <div
-              class="type-sample"
-              style="
-                font-size: 13px;
-                color: var(--muted-soft);
-                line-height: 1.55;
-              "
-            >
-              2025년 6월 14일 (토) · 오후 3시 · 온라인
-            </div>
-          </div>
-
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">label</div>
-              <div class="type-spec">Inter · 12px · 500</div>
-            </div>
-            <div
-              class="type-sample"
               style="
                 font-size: 12px;
-                font-weight: 500;
-                color: var(--muted-soft);
+                font-weight: 400;
+                color: var(--muted);
+                letter-spacing: 0;
+                margin-top: 4px;
               "
             >
-              May 2025 &middot; Notion
+              ↑ SessionBanner 제목
             </div>
           </div>
-
-          <div class="type-row">
-            <div class="type-meta">
-              <div class="type-token">wordmark</div>
-              <div class="type-spec">Inter · 15px · 800 · ls -0.3px</div>
-            </div>
+          <div class="typo-meta">
+            title-lg · 22px · w600<br />tracking -0.3px · Inter
+          </div>
+        </div>
+        <div class="typo-row">
+          <div style="font-size: 16px; font-weight: 600; line-height: 1.4">
+            TokenCat 개발 회고 — Swift로 메뉴바 앱 만들기
             <div
-              class="type-sample"
               style="
-                font-size: 15px;
-                font-weight: 800;
-                letter-spacing: -0.3px;
-                color: var(--ink);
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--muted);
+                margin-top: 4px;
               "
             >
-              Checkin
+              ↑ ArticleCard 제목
+            </div>
+          </div>
+          <div class="typo-meta">
+            title-sm · 16px → 14px · w600<br />tracking 0 · Inter<br /><span
+              style="color: var(--warning)"
+              >※ 현재 14px 사용</span
+            >
+          </div>
+        </div>
+        <div class="typo-row">
+          <div
+            style="
+              font-size: 14px;
+              font-weight: 400;
+              color: var(--body);
+              line-height: 1.5;
+            "
+          >
+            5월은 생각보다 훨씬 바쁘게 지나갔다. 사이드 프로젝트 두 개를 동시에
+            진행하면서…
+            <div
+              style="
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--muted);
+                margin-top: 4px;
+              "
+            >
+              ↑ ArticleCard 미리보기 텍스트
+            </div>
+          </div>
+          <div class="typo-meta">
+            body-sm · 14px · w400<br />tracking 0 · Inter
+          </div>
+        </div>
+        <div class="typo-row">
+          <div style="font-size: 14px; font-weight: 500; line-height: 1.4">
+            메인 &nbsp;·&nbsp; 아카이브 &nbsp;·&nbsp; 일정 &nbsp;·&nbsp;
+            업데이트
+            <div
+              style="
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--muted);
+                margin-top: 4px;
+              "
+            >
+              ↑ Sidebar nav-link
+            </div>
+          </div>
+          <div class="typo-meta">
+            nav-link · 14px · w500<br />tracking 0 · Inter
+          </div>
+        </div>
+        <div class="typo-row">
+          <div style="font-size: 14px; font-weight: 600; line-height: 1">
+            + 글 추가
+            <div
+              style="
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--muted);
+                margin-top: 6px;
+              "
+            >
+              ↑ 버튼 레이블
+            </div>
+          </div>
+          <div class="typo-meta">
+            button · 14px · w600<br />tracking 0 · Inter
+          </div>
+        </div>
+        <div class="typo-row">
+          <div
+            style="
+              font-size: 12px;
+              font-weight: 500;
+              color: var(--muted-soft);
+              line-height: 1.4;
+            "
+          >
+            Notion &nbsp;·&nbsp; 2026-05 &nbsp;·&nbsp; danny
+            <div
+              style="
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--muted);
+                margin-top: 4px;
+              "
+            >
+              ↑ ArticleCard 메타 / 멤버명
+            </div>
+          </div>
+          <div class="typo-meta">
+            caption · 12px · w500<br />tracking 0 · Inter
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 4. Spacing & Radius ───────────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-title">스페이싱 & 반경</div>
+
+        <div>
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 600;
+              color: var(--muted);
+              margin-bottom: 16px;
+            "
+          >
+            Spacing Scale (base: 4px)
+          </div>
+          <div class="token-grid">
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 4px"></div>
+              </div>
+              <div class="spacing-name">xxs</div>
+              <div class="spacing-val">4px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 8px"></div>
+              </div>
+              <div class="spacing-name">xs</div>
+              <div class="spacing-val">8px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 12px"></div>
+              </div>
+              <div class="spacing-name">sm</div>
+              <div class="spacing-val">12px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 16px"></div>
+              </div>
+              <div class="spacing-name">md</div>
+              <div class="spacing-val">16px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 24px"></div>
+              </div>
+              <div class="spacing-name">lg</div>
+              <div class="spacing-val">24px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 32px"></div>
+              </div>
+              <div class="spacing-name">xl</div>
+              <div class="spacing-val">32px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 48px"></div>
+              </div>
+              <div class="spacing-name">xxl</div>
+              <div class="spacing-val">48px</div>
+            </div>
+            <div class="spacing-item">
+              <div class="spacing-bar-wrap">
+                <div class="spacing-bar" style="height: 96px"></div>
+              </div>
+              <div class="spacing-name">section</div>
+              <div class="spacing-val">96px</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 600;
+              color: var(--muted);
+              margin-bottom: 16px;
+            "
+          >
+            Border Radius — 실제 사용처
+          </div>
+          <div class="token-grid" style="align-items: center">
+            <div class="radius-item">
+              <div
+                class="radius-block"
+                style="border-radius: var(--r-xs)"
+              ></div>
+              <div class="radius-name">xs</div>
+              <div class="radius-val">4px</div>
+            </div>
+            <div class="radius-item">
+              <div
+                class="radius-block"
+                style="border-radius: var(--r-sm)"
+              ></div>
+              <div class="radius-name">sm</div>
+              <div class="radius-val">6px</div>
+            </div>
+            <div class="radius-item">
+              <div
+                class="radius-block"
+                style="border-radius: var(--r-md)"
+              ></div>
+              <div class="radius-name">md · 버튼/입력</div>
+              <div class="radius-val">8px</div>
+            </div>
+            <div class="radius-item">
+              <div
+                class="radius-block"
+                style="border-radius: var(--r-lg)"
+              ></div>
+              <div class="radius-name">lg · 카드</div>
+              <div class="radius-val">12px</div>
+            </div>
+            <div class="radius-item">
+              <div
+                class="radius-block"
+                style="border-radius: var(--r-xl)"
+              ></div>
+              <div class="radius-name">xl · 앱 프레임</div>
+              <div class="radius-val">16px</div>
+            </div>
+            <div class="radius-item">
+              <div
+                class="radius-block"
+                style="border-radius: var(--r-pill); width: 72px"
+              ></div>
+              <div class="radius-name">pill · 세션 필터</div>
+              <div class="radius-val">9999px</div>
+            </div>
+            <div class="radius-item">
+              <div class="radius-block" style="border-radius: 50%"></div>
+              <div class="radius-name">full · 멤버 아바타</div>
+              <div class="radius-val">50%</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ─── 4. Spacing & Radius ──────────────────────────────── -->
-      <div class="card">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px">
-          <div>
-            <div class="section-label">Spacing</div>
-            <div style="display: flex; flex-direction: column; gap: 10px">
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 4px"></div>
-                <div>
-                  <div class="space-label">
-                    xxs <span class="space-val">4px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 8px"></div>
-                <div>
-                  <div class="space-label">
-                    xs <span class="space-val">8px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 12px"></div>
-                <div>
-                  <div class="space-label">
-                    sm <span class="space-val">12px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 16px"></div>
-                <div>
-                  <div class="space-label">
-                    md <span class="space-val">16px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 24px"></div>
-                <div>
-                  <div class="space-label">
-                    lg <span class="space-val">24px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 32px"></div>
-                <div>
-                  <div class="space-label">
-                    xl <span class="space-val">32px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div class="space-block" style="width: 48px"></div>
-                <div>
-                  <div class="space-label">
-                    xxl <span class="space-val">48px</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                class="space-item"
-                style="flex-direction: row; align-items: center; gap: 14px"
-              >
-                <div
-                  class="space-block"
-                  style="width: 20px; background: var(--muted-soft)"
-                ></div>
-                <div>
-                  <div class="space-label">
-                    card <span class="space-val">20px</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+      <!-- ─── 5. Component States ───────────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-title">컴포넌트 상태 — Checkin 실제 컴포넌트</div>
 
-          <div>
-            <div class="section-label">Border Radius</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 16px">
-              <div class="radius-item">
-                <div
-                  class="radius-block"
-                  style="border-radius: var(--r-sm)"
-                ></div>
-                <div class="radius-label">sm</div>
-                <div class="radius-val">6px</div>
-              </div>
-              <div class="radius-item">
-                <div
-                  class="radius-block"
-                  style="border-radius: var(--r-md)"
-                ></div>
-                <div class="radius-label">md</div>
-                <div class="radius-val">8px</div>
-              </div>
-              <div class="radius-item">
-                <div
-                  class="radius-block"
-                  style="border-radius: var(--r-lg)"
-                ></div>
-                <div class="radius-label">lg</div>
-                <div class="radius-val">12px</div>
-              </div>
-              <div class="radius-item">
-                <div
-                  class="radius-block"
-                  style="border-radius: var(--r-xl)"
-                ></div>
-                <div class="radius-label">xl</div>
-                <div class="radius-val">16px</div>
-              </div>
-              <div class="radius-item">
-                <div
-                  class="radius-block"
-                  style="border-radius: 50%; width: 56px; height: 56px"
-                ></div>
-                <div class="radius-label">full</div>
-                <div class="radius-val">9999px</div>
-              </div>
+        <!-- 버튼 (SessionBanner + drawer CTA) -->
+        <div class="comp-row">
+          <div class="comp-label">button-primary</div>
+          <div class="comp-group">
+            <div class="state-col">
+              <button class="btn-primary">+ 글 추가</button>
+              <span class="state-tag">default</span>
+            </div>
+            <div class="state-col">
+              <button class="btn-primary-active">+ 글 추가</button>
+              <span class="state-tag">active / pressed</span>
+            </div>
+            <div class="state-col">
+              <button class="btn-primary-disabled" disabled>+ 글 추가</button>
+              <span class="state-tag">disabled</span>
+            </div>
+            <div class="state-col">
+              <button class="btn-secondary">회의 참여하기 →</button>
+              <span class="state-tag">secondary</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ─── 5. Component States ──────────────────────────────── -->
-      <div class="card">
-        <div class="section-label">Component States</div>
-        <div class="component-section">
-          <!-- Buttons -->
+        <!-- SessionFilter 필터 pill -->
+        <div class="comp-row">
+          <div class="comp-label">SessionFilter</div>
+          <div
+            class="comp-group"
+            style="
+              background: var(--surface-soft);
+              padding: 8px 12px;
+              border-radius: var(--r-pill);
+              gap: 4px;
+            "
+          >
+            <button class="filter-pill active">2026-05</button>
+            <button class="filter-pill">2026-04</button>
+            <button class="filter-pill">2026-03</button>
+          </div>
+        </div>
+
+        <!-- Sidebar nav states -->
+        <div class="comp-row">
+          <div class="comp-label">nav-item</div>
           <div class="comp-group">
-            <div class="comp-group-title">Buttons</div>
-            <div class="comp-row">
-              <div class="comp-item">
-                <button class="btn btn-primary">+ 글 추가</button>
-                <div class="comp-label">primary</div>
+            <div class="state-col">
+              <div style="width: 140px">
+                <div class="nav-item active">메인</div>
               </div>
-              <div class="comp-item">
-                <button
-                  class="btn btn-primary"
-                  style="background: var(--primary-active)"
-                >
-                  + 글 추가
-                </button>
-                <div class="comp-label">primary-active</div>
+              <span class="state-tag">active</span>
+            </div>
+            <div class="state-col">
+              <div style="width: 140px">
+                <div class="nav-item">아카이브</div>
               </div>
-              <div class="comp-item">
-                <button class="btn btn-primary-disabled" disabled>
-                  + 글 추가
-                </button>
-                <div class="comp-label">primary-disabled</div>
-              </div>
-              <div class="comp-item">
-                <button class="btn btn-secondary">취소</button>
-                <div class="comp-label">secondary</div>
-              </div>
-              <div class="comp-item">
-                <button class="btn btn-ghost">수정</button>
-                <div class="comp-label">ghost</div>
-              </div>
-              <div class="comp-item">
-                <button class="btn btn-destruct">삭제</button>
-                <div class="comp-label">destructive</div>
-              </div>
-              <div class="comp-item">
-                <button
-                  class="btn btn-destruct"
-                  style="color: var(--error); font-weight: 600"
-                >
-                  확인
-                </button>
-                <div class="comp-label">destruct-confirm</div>
-              </div>
+              <span class="state-tag">default</span>
             </div>
           </div>
+        </div>
 
-          <!-- Article Card -->
-          <div class="comp-group">
-            <div class="comp-group-title">Article Card</div>
-            <div class="comp-row" style="align-items: flex-start">
-              <div class="comp-item">
-                <div class="card-state-normal">
-                  <div class="card-meta">May 2025 &middot; Notion</div>
-                  <div class="card-title">5월은 집중력의 달이었다</div>
-                  <div class="card-preview">
-                    사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
-                    멀티태스킹의 한계.
-                  </div>
-                  <div class="card-footer">
-                    <div class="avatar">J</div>
-                    <span class="avatar-name">지욱</span>
-                  </div>
+        <!-- ArticleCard states -->
+        <div class="comp-row" style="align-items: flex-start">
+          <div class="comp-label">ArticleCard</div>
+          <div class="comp-group" style="align-items: flex-start">
+            <!-- Default (=surface-card bg) -->
+            <div class="state-col" style="width: 240px">
+              <div class="article-card" style="width: 100%">
+                <div class="article-card-meta">Notion</div>
+                <div class="article-card-title">
+                  5월 회고: 퇴사 후 첫 달을 돌아보며
                 </div>
-                <div class="comp-label">normal (surface-card)</div>
-              </div>
-              <div class="comp-item">
-                <div class="card-state-hover">
-                  <div class="card-meta">May 2025 &middot; Notion</div>
-                  <div class="card-title">5월은 집중력의 달이었다</div>
-                  <div class="card-preview">
-                    사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
-                    멀티태스킹의 한계.
-                  </div>
-                  <div class="card-footer">
-                    <div class="avatar">J</div>
-                    <span class="avatar-name">지욱</span>
-                    <div style="margin-left: auto; display: flex; gap: 8px">
-                      <button
-                        class="btn btn-ghost"
-                        style="padding: 2px 6px; height: auto; font-size: 12px"
-                      >
-                        수정
-                      </button>
-                      <button
-                        class="btn btn-destruct"
-                        style="padding: 2px 6px; height: auto; font-size: 12px"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  </div>
+                <div class="article-card-preview">
+                  5월은 생각보다 훨씬 바쁘게 지나갔다.
                 </div>
-                <div class="comp-label">
-                  hover (canvas + shadow, owner 수정/삭제 표시)
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Session Banner -->
-          <div class="comp-group">
-            <div class="comp-group-title">Session Banner</div>
-            <div
-              style="
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                max-width: 640px;
-              "
-            >
-              <div>
-                <div class="banner-confirmed">
-                  <div>
-                    <div
-                      style="
-                        font-family: var(--font-sans);
-                        font-size: 22px;
-                        font-weight: 700;
-                        letter-spacing: -0.3px;
-                        color: var(--ink);
-                        margin-bottom: 4px;
-                      "
-                    >
-                      6월에 하는 5월 회고
-                    </div>
-                    <div style="font-size: 13px; color: var(--muted)">
-                      2025년 6월 14일 (토) 오후 3시 · 온라인
-                    </div>
-                    <a
-                      href="#"
-                      style="
-                        font-size: 13px;
-                        font-weight: 500;
-                        color: var(--body);
-                        text-decoration: underline;
-                        text-underline-offset: 2px;
-                        margin-top: 4px;
-                        display: inline-block;
-                      "
-                      >회의 참여하기 →</a
-                    >
-                  </div>
-                  <button class="btn btn-primary">+ 글 추가</button>
-                </div>
-                <div
-                  class="comp-label"
-                  style="text-align: left; margin-top: 6px"
-                >
-                  일정 확정 상태
-                </div>
-              </div>
-              <div>
-                <div class="banner-pending">
+                <div class="article-card-footer">
                   <div
+                    class="member-avatar"
+                    style="background: var(--badge-orange); color: white"
+                  >
+                    D
+                  </div>
+                  <span class="member-name">danny</span>
+                </div>
+              </div>
+              <span class="state-tag">default</span>
+            </div>
+            <!-- Hover (=canvas bg) -->
+            <div class="state-col" style="width: 240px">
+              <div
+                class="article-card"
+                style="
+                  width: 100%;
+                  background: var(--canvas);
+                  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+                "
+              >
+                <div class="article-card-meta">Blog</div>
+                <div class="article-card-title">
+                  TokenCat 개발 회고 — Swift 메뉴바 앱
+                </div>
+                <div class="article-card-preview">
+                  NSStatusItem을 다루는 게 예상보다 까다로웠다.
+                </div>
+                <div class="article-card-footer">
+                  <div
+                    class="member-avatar"
+                    style="background: var(--badge-violet); color: white"
+                  >
+                    J
+                  </div>
+                  <span class="member-name">jiwook</span>
+                  <span
                     style="
-                      font-family: var(--font-sans);
-                      font-size: 22px;
-                      font-weight: 700;
-                      letter-spacing: -0.3px;
-                      color: var(--ink);
-                      margin-bottom: 4px;
+                      margin-left: auto;
+                      font-size: 11px;
+                      color: var(--muted);
                     "
+                    >수정 &nbsp; 삭제</span
                   >
-                    6월에 하는 5월 회고
-                  </div>
-                  <div style="font-size: 13px; color: var(--muted-soft)">
-                    날짜 조율 중 ·
-                    <a
-                      href="#"
-                      style="
-                        color: var(--muted-soft);
-                        text-decoration: underline;
-                        text-underline-offset: 2px;
-                      "
-                      >일정 투표하러 가기 →</a
-                    >
-                  </div>
-                </div>
-                <div
-                  class="comp-label"
-                  style="text-align: left; margin-top: 6px"
-                >
-                  일정 미확정 상태
                 </div>
               </div>
+              <span class="state-tag">hover (isOwner)</span>
             </div>
           </div>
+        </div>
 
-          <!-- Login Card -->
+        <!-- Source type badges -->
+        <div class="comp-row">
+          <div class="comp-label">source-type badge</div>
           <div class="comp-group">
-            <div class="comp-group-title">Login Card</div>
-            <div class="comp-row" style="align-items: flex-start">
-              <div class="login-card">
-                <div class="login-title">Checkin</div>
-                <div class="login-sub">회고 멤버 전용 서비스입니다</div>
-                <button class="btn-google">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="18"
-                    height="18"
-                  >
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    />
-                  </svg>
-                  Google로 로그인
-                </button>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 10px">
-                <div>
-                  <div class="login-card" style="padding: 32px; width: 280px">
-                    <div class="login-title">Checkin</div>
-                    <div class="login-sub" style="margin-bottom: 16px">
-                      회고 멤버 전용 서비스입니다
-                    </div>
-                    <div
-                      class="error-banner"
-                      style="margin-bottom: 16px; font-size: 13px"
-                    >
-                      가입되지 않은 이메일입니다.
-                    </div>
-                    <button class="btn-google">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        width="16"
-                        height="16"
-                      >
-                        <path
-                          fill="#4285F4"
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        />
-                        <path
-                          fill="#34A853"
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        />
-                        <path
-                          fill="#FBBC05"
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-                        />
-                        <path
-                          fill="#EA4335"
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        />
-                      </svg>
-                      Google로 로그인
-                    </button>
-                  </div>
-                  <div
-                    class="comp-label"
-                    style="text-align: center; margin-top: 6px"
-                  >
-                    에러 상태
-                  </div>
-                </div>
-              </div>
+            <div class="state-col">
+              <span class="source-badge">Notion</span>
+              <span class="state-tag">notion</span>
+            </div>
+            <div class="state-col">
+              <span class="source-badge">Tistory</span>
+              <span class="state-tag">tistory</span>
+            </div>
+            <div class="state-col">
+              <span class="source-badge">Blog</span>
+              <span class="state-tag">other</span>
             </div>
           </div>
+        </div>
 
-          <!-- Article Reader (dark) -->
+        <!-- MemberAvatar -->
+        <div class="comp-row">
+          <div class="comp-label">MemberAvatar</div>
           <div class="comp-group">
-            <div class="comp-group-title">Article Reader (Dark Surface)</div>
-            <div class="reader-card">
-              <div class="reader-title">5월은 집중력의 달이었다</div>
-              <div class="reader-body">
-                사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
-                멀티태스킹의 한계와 딥워크의 중요성, 그리고 다음 달을 어떻게
-                설계할지.
+            <div class="state-col">
+              <div
+                class="member-avatar"
+                style="
+                  width: 36px;
+                  height: 36px;
+                  font-size: 12px;
+                  background: var(--badge-orange);
+                  color: white;
+                "
+              >
+                D
               </div>
-              <div class="reader-code">
-                <pre>
-// 집중 세션 측정
-const session = measure(() => {
-  return deepWork(task, { duration: '90min' });
-});</pre
-                >
+              <span class="state-tag">badge-orange</span>
+            </div>
+            <div class="state-col">
+              <div
+                class="member-avatar"
+                style="
+                  width: 36px;
+                  height: 36px;
+                  font-size: 12px;
+                  background: var(--badge-violet);
+                  color: white;
+                "
+              >
+                J
               </div>
+              <span class="state-tag">badge-violet</span>
+            </div>
+            <div class="state-col">
+              <div
+                class="member-avatar"
+                style="
+                  width: 36px;
+                  height: 36px;
+                  font-size: 12px;
+                  background: var(--badge-emerald);
+                  color: white;
+                "
+              >
+                S
+              </div>
+              <span class="state-tag">badge-emerald</span>
+            </div>
+            <div class="state-col">
+              <div
+                class="member-avatar"
+                style="
+                  width: 36px;
+                  height: 36px;
+                  font-size: 12px;
+                  background: var(--badge-pink);
+                  color: white;
+                "
+              >
+                H
+              </div>
+              <span class="state-tag">badge-pink</span>
+            </div>
+            <div class="state-col">
+              <div
+                class="member-avatar"
+                style="
+                  width: 36px;
+                  height: 36px;
+                  font-size: 12px;
+                  background: var(--surface-card);
+                  color: var(--ink);
+                "
+              >
+                M
+              </div>
+              <span class="state-tag">surface-card</span>
             </div>
           </div>
+        </div>
 
-          <!-- Inputs -->
+        <!-- TextInput -->
+        <div class="comp-row">
+          <div class="comp-label">text-input</div>
           <div class="comp-group">
-            <div class="comp-group-title">Inputs</div>
-            <div class="comp-row" style="align-items: flex-start">
-              <div class="comp-item">
-                <input
-                  class="input-normal"
-                  type="text"
-                  placeholder="회고 제목을 입력하세요"
-                />
-                <div class="comp-label">normal</div>
-              </div>
-              <div class="comp-item">
-                <input
-                  class="input-focused"
-                  type="text"
-                  value="5월은 집중력의 달이었다"
-                />
-                <div class="comp-label">focused (coral ring)</div>
-              </div>
+            <div class="state-col">
+              <input
+                class="text-input"
+                placeholder="회고 글 URL을 입력하세요"
+              />
+              <span class="state-tag">default</span>
+            </div>
+            <div class="state-col">
+              <input class="text-input-focused" value="https://notion.so/..." />
+              <span class="state-tag">focused</span>
             </div>
           </div>
+        </div>
 
-          <!-- Badges & Avatars -->
-          <div class="comp-group">
-            <div class="comp-group-title">Badges & Avatars</div>
-            <div style="display: flex; flex-direction: column; gap: 20px">
-              <div class="comp-row">
-                <div class="comp-item">
-                  <span class="badge badge-session">May 2025</span>
-                  <div class="comp-label">badge-session</div>
-                </div>
-                <div class="comp-item">
-                  <span class="badge badge-session">Notion</span>
-                  <div class="comp-label">badge-source</div>
-                </div>
-                <div class="comp-item">
-                  <span class="badge badge-primary">확정</span>
-                  <div class="comp-label">badge-primary</div>
-                </div>
-              </div>
-              <div class="comp-row">
-                <div class="comp-item">
-                  <div class="av-sm">J</div>
-                  <div class="comp-label">20px (카드 인라인)</div>
-                </div>
-                <div class="comp-item">
-                  <div class="av-md">J</div>
-                  <div class="comp-label">36px (리스트)</div>
-                </div>
-                <div class="comp-item">
-                  <div class="av-lg">J</div>
-                  <div class="comp-label">64px (프로필)</div>
-                </div>
-              </div>
-            </div>
+        <!-- Announcement banner (info state) -->
+        <div class="comp-row" style="align-items: flex-start">
+          <div class="comp-label">AnnouncementBanner</div>
+          <div
+            style="
+              flex: 1;
+              background: var(--surface-card);
+              border: 1px solid var(--hairline);
+              border-radius: var(--r-lg);
+              padding: 16px 20px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 16px;
+            "
+          >
+            <span style="font-size: 14px; color: var(--body); line-height: 1.5"
+              >📢 6월 모임은 10일(수) 오후 8시입니다. 회의 링크를
+              확인해주세요.</span
+            >
+            <button
+              style="
+                font-size: 12px;
+                color: var(--muted);
+                background: none;
+                border: none;
+                cursor: pointer;
+                white-space: nowrap;
+              "
+            >
+              닫기 ✕
+            </button>
           </div>
         </div>
       </div>

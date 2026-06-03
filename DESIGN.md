@@ -1,103 +1,118 @@
 ---
-version: "0.2"
-name: Checkin Design System
-description: A warm, document-first interface for a small developer retrospective community. Heavily inspired by Anthropic's Claude.com design language — warm cream canvas, coral primary CTA, dark navy surfaces, Inter throughout. Adapted from a marketing site to a product app context — no hero bands or pricing grids, but the same warmth, color system, and surface rhythm carries into sidebar navigation, article cards, and session banners.
+version: alpha
+name: Cal.com-design-analysis
+description: A clean, calendar-software-first interface anchored on white canvas with black primary CTAs and custom Cal Sans display typography. The system reads as friendly modern SaaS — generous whitespace, soft-rounded cards (~12px), product UI fragments shown directly inside cards, and a dark navy footer that visually closes long-scroll pages. Brand voltage comes from the Cal Sans display headline (a custom geometric face) and from product UI artifacts shown in-card rather than from accent colors.
 
 colors:
-  primary: "#cc785c"
-  primary-active: "#a9583e"
-  primary-disabled: "#e6dfd8"
-  ink: "#141413"
-  body: "#3d3d3a"
-  body-strong: "#252523"
-  muted: "#6c6a64"
-  muted-soft: "#8e8b82"
-  hairline: "#e6dfd8"
-  hairline-soft: "#ebe6df"
-  canvas: "#faf9f5"
-  surface-soft: "#f5f0e8"
-  surface-card: "#efe9de"
-  surface-dark: "#181715"
-  surface-dark-elevated: "#252320"
+  primary: "#111111"
+  primary-active: "#242424"
+  primary-disabled: "#e5e7eb"
+  ink: "#111111"
+  body: "#374151"
+  muted: "#6b7280"
+  muted-soft: "#898989"
+  hairline: "#e5e7eb"
+  hairline-soft: "#f3f4f6"
+  canvas: "#ffffff"
+  surface-soft: "#f8f9fa"
+  surface-card: "#f5f5f5"
+  surface-strong: "#e5e7eb"
+  surface-dark: "#101010"
+  surface-dark-elevated: "#1a1a1a"
   on-primary: "#ffffff"
-  on-dark: "#faf9f5"
-  on-dark-soft: "#a09d96"
-  error: "#c64545"
-  error-surface: "#fef2f2"
-  success: "#5db872"
+  on-dark: "#ffffff"
+  on-dark-soft: "#a1a1aa"
+  brand-accent: "#3b82f6"
+  success: "#10b981"
+  warning: "#f59e0b"
+  error: "#ef4444"
+  badge-orange: "#fb923c"
+  badge-pink: "#ec4899"
+  badge-violet: "#8b5cf6"
+  badge-emerald: "#34d399"
 
 typography:
+  display-xl:
+    fontFamily: "Cal Sans, Inter, sans-serif"
+    fontSize: 64px
+    fontWeight: 600
+    lineHeight: 1.05
+    letterSpacing: -2px
+  display-lg:
+    fontFamily: "Cal Sans, Inter, sans-serif"
+    fontSize: 48px
+    fontWeight: 600
+    lineHeight: 1.1
+    letterSpacing: -1.5px
+  display-md:
+    fontFamily: "Cal Sans, Inter, sans-serif"
+    fontSize: 36px
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: -1px
   display-sm:
-    fontFamily: "Inter, -apple-system, sans-serif"
+    fontFamily: "Cal Sans, Inter, sans-serif"
     fontSize: 28px
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: -0.3px
-    use: "SessionBanner 회고 제목 (월간 회고 타이틀)"
+    letterSpacing: -0.5px
   title-lg:
-    fontFamily: "Inter, -apple-system, sans-serif"
+    fontFamily: "Inter, sans-serif"
+    fontSize: 22px
+    fontWeight: 600
+    lineHeight: 1.3
+    letterSpacing: -0.3px
+  title-md:
+    fontFamily: "Inter, sans-serif"
     fontSize: 18px
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: 0
-    use: "페이지 섹션 헤딩, 모달 제목"
-  title-md:
-    fontFamily: "Inter, -apple-system, sans-serif"
+  title-sm:
+    fontFamily: "Inter, sans-serif"
     fontSize: 16px
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: 0
-    use: "카드 제목, 아티클 타이틀"
-  title-sm:
-    fontFamily: "Inter, -apple-system, sans-serif"
+  body-md:
+    fontFamily: "Inter, sans-serif"
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: 0
+  body-sm:
+    fontFamily: "Inter, sans-serif"
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: 0
+  caption:
+    fontFamily: "Inter, sans-serif"
+    fontSize: 13px
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: 0
+  code:
+    fontFamily: "JetBrains Mono, ui-monospace, monospace"
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: 0
+  button:
+    fontFamily: "Inter, sans-serif"
     fontSize: 14px
     fontWeight: 600
-    lineHeight: 1.4
-    letterSpacing: 0
-    use: "서브섹션 라벨, 강조 항목"
-  body-md:
-    fontFamily: "Inter, -apple-system, sans-serif"
-    fontSize: 14px
-    fontWeight: 400
-    lineHeight: 1.6
-    letterSpacing: 0
-    use: "카드 미리보기, 본문 텍스트"
-  body-sm:
-    fontFamily: "Inter, -apple-system, sans-serif"
-    fontSize: 13px
-    fontWeight: 400
-    lineHeight: 1.55
-    letterSpacing: 0
-    use: "캡션, 날짜, 메타 정보"
-  label:
-    fontFamily: "Inter, -apple-system, sans-serif"
-    fontSize: 12px
-    fontWeight: 500
-    lineHeight: 1.4
-    letterSpacing: 0
-    use: "세션명, 소스타입 태그"
-  nav:
-    fontFamily: "Inter, -apple-system, sans-serif"
-    fontSize: 14px
-    fontWeight: 500
-    lineHeight: 1.4
-    letterSpacing: 0
-    use: "사이드바 네비게이션, 드로어 링크"
-  button:
-    fontFamily: "Inter, -apple-system, sans-serif"
-    fontSize: 14px
-    fontWeight: 500
     lineHeight: 1
     letterSpacing: 0
-    use: "모든 버튼 레이블"
-  wordmark:
-    fontFamily: "Inter, -apple-system, sans-serif"
-    fontSize: 15px
-    fontWeight: 800
-    letterSpacing: -0.3px
-    use: "Checkin 워드마크"
+  nav-link:
+    fontFamily: "Inter, sans-serif"
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: 0
 
 rounded:
+  xs: 4px
   sm: 6px
   md: 8px
   lg: 12px
@@ -113,8 +128,7 @@ spacing:
   lg: 24px
   xl: 32px
   xxl: 48px
-  card: 20px
-  section: 48px
+  section: 96px
 
 components:
   button-primary:
@@ -122,9 +136,12 @@ components:
     textColor: "{colors.on-primary}"
     typography: "{typography.button}"
     rounded: "{rounded.md}"
-    padding: "10px 18px"
-    height: 38px
-    hover: "{colors.primary-active}"
+    padding: 12px 20px
+    height: 40px
+  button-primary-active:
+    backgroundColor: "{colors.primary-active}"
+    textColor: "{colors.on-primary}"
+    rounded: "{rounded.md}"
   button-primary-disabled:
     backgroundColor: "{colors.primary-disabled}"
     textColor: "{colors.muted}"
@@ -132,394 +149,413 @@ components:
   button-secondary:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.ink}"
-    border: "1px solid {colors.hairline}"
     typography: "{typography.button}"
     rounded: "{rounded.md}"
-    padding: "10px 18px"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.muted}"
-    typography: "{typography.body-sm}"
-    hover-textColor: "{colors.ink}"
-  button-destructive:
-    backgroundColor: "transparent"
-    textColor: "{colors.error}"
-    typography: "{typography.body-sm}"
-  article-card:
-    backgroundColor: "{colors.surface-card}"
-    border: "1px solid {colors.hairline}"
-    rounded: "{rounded.lg}"
-    padding: "{spacing.card}"
-    hover-backgroundColor: "{colors.canvas}"
-    hover-border: "1px solid {colors.hairline}"
-    hover-shadow: "0 1px 4px rgba(20,20,19,0.08)"
-  session-banner:
+    padding: 12px 20px
+    height: 40px
+  button-icon-circular:
     backgroundColor: "{colors.canvas}"
-    border: "1px solid {colors.hairline}"
-    rounded: "{rounded.lg}"
-    padding: "{spacing.card}"
-  sidebar:
+    textColor: "{colors.ink}"
+    rounded: "{rounded.full}"
+    size: 36px
+  button-text-link:
+    backgroundColor: transparent
+    textColor: "{colors.ink}"
+    typography: "{typography.button}"
+  text-link:
+    backgroundColor: transparent
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+  top-nav:
     backgroundColor: "{colors.canvas}"
-    width: 176px
-    padding: "28px 16px 20px"
-  content-panel:
-    backgroundColor: "{colors.surface-card}"
-    border-left: "1px solid {colors.hairline}"
-  mobile-header:
+    textColor: "{colors.ink}"
+    typography: "{typography.nav-link}"
+    height: 64px
+  nav-pill-group:
+    backgroundColor: "{colors.surface-soft}"
+    textColor: "{colors.ink}"
+    typography: "{typography.nav-link}"
+    rounded: "{rounded.pill}"
+    padding: 6px
+  hero-band:
     backgroundColor: "{colors.canvas}"
-    border-bottom: "1px solid {colors.hairline-soft}"
-    height: 56px
-  mobile-drawer:
+    textColor: "{colors.ink}"
+    typography: "{typography.display-xl}"
+    padding: 96px
+  hero-app-mockup-card:
     backgroundColor: "{colors.canvas}"
-    width: 256px
-    shadow: "0 8px 32px rgba(20,20,19,0.16)"
-  login-card:
-    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.xl}"
-    padding: 40px
-    shadow: "0 1px 4px rgba(20,20,19,0.08)"
-  article-reader:
+  feature-card:
+    backgroundColor: "{colors.surface-card}"
+    textColor: "{colors.ink}"
+    typography: "{typography.title-md}"
+    rounded: "{rounded.lg}"
+    padding: 32px
+  feature-icon-card:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.title-sm}"
+    rounded: "{rounded.lg}"
+    padding: 24px
+  product-mockup-card:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.lg}"
+    padding: 24px
+  testimonial-card:
+    backgroundColor: "{colors.surface-card}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.lg}"
+    padding: 24px
+  pricing-tier-card:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.title-lg}"
+    rounded: "{rounded.lg}"
+    padding: 32px
+  pricing-tier-card-featured:
     backgroundColor: "{colors.surface-dark}"
     textColor: "{colors.on-dark}"
+    typography: "{typography.title-lg}"
     rounded: "{rounded.lg}"
-    padding: "{spacing.xl}"
-  badge-session:
-    backgroundColor: "{colors.surface-card}"
-    textColor: "{colors.muted}"
-    typography: "{typography.label}"
-    rounded: "{rounded.pill}"
-    padding: "3px 10px"
+    padding: 32px
   text-input:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.ink}"
-    border: "1px solid {colors.hairline}"
     typography: "{typography.body-md}"
     rounded: "{rounded.md}"
-    padding: "10px 14px"
-    height: 38px
-    focus-border: "{colors.primary}"
+    padding: 10px 14px
+    height: 40px
   text-input-focused:
-    border: "1px solid {colors.primary}"
-    ring: "0 0 0 3px rgba(204,120,92,0.15)"
-  error-banner:
-    backgroundColor: "{colors.error-surface}"
-    textColor: "{colors.error}"
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.md}"
-    padding: "12px 16px"
-  member-avatar:
-    shape: "{rounded.full}"
-    size-sm: 20px
-    size-md: 36px
-    size-lg: 64px
+  category-tab:
+    backgroundColor: transparent
+    textColor: "{colors.muted}"
+    typography: "{typography.nav-link}"
+    padding: 8px 14px
+    rounded: "{rounded.md}"
+  category-tab-active:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.nav-link}"
+    rounded: "{rounded.md}"
+  avatar-circle:
+    backgroundColor: "{colors.surface-card}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.full}"
+    size: 36px
+  badge-pill:
+    backgroundColor: "{colors.surface-card}"
+    textColor: "{colors.ink}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.pill}"
+    padding: 4px 12px
+  rating-stars:
+    backgroundColor: transparent
+    textColor: "{colors.badge-orange}"
+    typography: "{typography.caption}"
+  cta-band-light:
+    backgroundColor: "{colors.surface-card}"
+    textColor: "{colors.ink}"
+    typography: "{typography.display-sm}"
+    rounded: "{rounded.lg}"
+    padding: 48px
+  footer:
+    backgroundColor: "{colors.surface-dark}"
+    textColor: "{colors.on-dark-soft}"
+    typography: "{typography.body-sm}"
+    padding: 64px
 ---
 
 ## Overview
 
-Checkin은 소수 개발자 회고 모임을 위한 프라이빗 앱이다. 디자인 언어는 **Anthropic Claude.com을 강하게 참조**한다 — 따뜻한 크림 캔버스, 코랄 primary CTA, 다크 네이비 서피스, Inter 단일 폰트. 마케팅 사이트가 아닌 **프로덕트 앱** 컨텍스트이므로, hero band나 pricing grid는 없지만 동일한 따뜻함과 색상 시스템, 서피스 리듬이 사이드바, 아티클 카드, 세션 배너 전반에 흐른다.
+Cal.com's marketing surface is a clean, friendly modern-SaaS interface — white canvas (`{colors.canvas}` — #ffffff) with black primary CTAs (`{colors.primary}` — #111111), custom **Cal Sans** display typography, and `{colors.surface-card}` (#f5f5f5) light-gray cards holding product UI fragments. The system reads as confidently engineered without trying to impress — every band has clear hierarchy, generous whitespace, and a single primary action.
 
-**시스템의 세 가지 서피스 모드:**
+Type voice splits cleanly into two roles: **Cal Sans** (the brand's custom geometric display face — used for h1, h2, h3, and hero headlines) and **Inter** (used for everything else — body, buttons, nav, captions). Cal Sans uses weight 600 with negative letter-spacing (-0.5px to -2px depending on size) — it feels modern, slightly condensed, distinctly Cal.com.
 
-1. **크림 캔버스** (`{colors.canvas}` — #faf9f5) — 사이드바, 페이지 바닥, 카드 기본
-2. **크림 카드** (`{colors.surface-card}` — #efe9de) — 콘텐츠 패널 배경, 아티클 카드 기본 상태
-3. **다크 네이비** (`{colors.surface-dark}` — #181715) — 아티클 리더(마크다운 뷰어), 특별 강조 섹션
+Component voltage comes from **product UI fragments shown directly inside cards** — calendar widgets, scheduling forms, automation diagrams, integration tiles. Cal.com doesn't paint marketing illustrations of the product; it shows the actual product chrome at small scale embedded in the marketing flow.
 
-**핵심 성격:**
+The footer flips to `{colors.surface-dark}` (#101010) — a deep near-black that visually closes every long-scroll page. The footer is the only dark surface in the system; everything above stays white-with-light-gray-cards.
 
-- 따뜻한 크림 캔버스 (`{colors.canvas}` — #faf9f5). 현재 코드의 `stone-50` / `bg-white` 혼용을 이 토큰으로 통일.
-- 코랄 primary (`{colors.primary}` — #cc785c). 현재 `bg-stone-900` 버튼을 코랄로 교체 — "+ 글 추가", 폼 제출, 주요 CTA 전반.
-- **Inter** 단일 폰트 패밀리. weight 400–800 범위에서 크기와 굵기로만 계층 구분.
-- 카드 깊이는 `{colors.surface-card}` → hover: `{colors.canvas}` + 미세 shadow로 표현. 그림자는 희박하게.
+**Key Characteristics:**
+
+- White canvas with black primary CTA (`{colors.primary}` — #111111). Buttons are `{rounded.md}` (8px) with confident weight-600 labels. Standard friendly-SaaS button.
+- Custom `Cal Sans` display typeface for headlines (substituted with Inter weight 600 here). Negative letter-spacing on display sizes — geometric, precise, slightly condensed.
+- Light-gray card surfaces (`{colors.surface-card}` — #f5f5f5) for feature cards, testimonials, and pricing tiers (non-featured). The featured pricing tier flips to `{colors.surface-dark}` (the only dark card on light pages).
+- Product UI fragments embedded directly in cards — Cal.com shows real schedule pickers, calendar widgets, integration grids inside its marketing cards. Brand voltage from real product chrome at small scale.
+- Nav-pill-group (`{component.nav-pill-group}`) — a small pill-radius wrapper around grouped nav segments (e.g., the sub-nav switcher between product views). The pill wrapper is one of the system's signature interactive components.
+- Avatars are circular (`{rounded.full}`), 36px diameter, used in testimonial rows and team-listing surfaces.
+- Footer is dark navy (`{colors.surface-dark}` — #101010) with light text (`{colors.on-dark-soft}` — #a1a1aa). The dark footer closes every page even though the body above is white.
+- Spacing rhythm is `{spacing.section}` (96px) between major bands — tight enough to feel modern-SaaS but generous enough to breathe.
+- Border radius is hierarchical: `{rounded.md}` (8px) for buttons + inputs, `{rounded.lg}` (12px) for content cards, `{rounded.xl}` (16px) for the hero app-mockup container, `{rounded.pill}` for nav-pill-group + badges, `{rounded.full}` for avatars + icon buttons.
 
 ## Colors
 
-### Brand & Primary
+### Brand & Accent
 
-- **Coral / Primary** (`{colors.primary}` — #cc785c): 모든 primary CTA 배경. "+ 글 추가", "로그인", 폼 제출 버튼. 코랄은 희박하게 — 개별 버튼에 집중, 페이지 전체에 뿌리지 않는다.
-- **Coral Active** (`{colors.primary-active}` — #a9583e): hover / press 시 어두워지는 variant.
-- **Coral Disabled** (`{colors.primary-disabled}` — #e6dfd8): 비활성 상태. 크림 톤의 탈채색.
+- **Primary** (`{colors.primary}` — #111111): The dominant action color. All primary CTAs, h1/h2 display type. Press state shifts to `{colors.primary-active}` (#242424).
+- **Brand Accent** (`{colors.brand-accent}` — #3b82f6): Used sparely on inline links and on a small badge / "Customer story" highlight. Cal.com is a near-monochrome brand — the blue appears rarely.
+- **Badge Pastels** — A small pastel set for category badges and avatar fills: `{colors.badge-orange}` (#fb923c), `{colors.badge-pink}` (#ec4899), `{colors.badge-violet}` (#8b5cf6), `{colors.badge-emerald}` (#34d399). These appear on tag pills and small accent moments inside product UI fragments — never on hero CTAs.
 
 ### Surface
 
-| 토큰                             | 헥스    | 사용처                                       |
-| -------------------------------- | ------- | -------------------------------------------- |
-| `{colors.canvas}`                | #faf9f5 | 사이드바, 페이지 바닥, 카드 hover 상태, 모달 |
-| `{colors.surface-soft}`          | #f5f0e8 | 섹션 구분 밴드, 매우 연한 대비               |
-| `{colors.surface-card}`          | #efe9de | 콘텐츠 패널 배경, 아티클 카드 기본 배경      |
-| `{colors.surface-dark}`          | #181715 | 아티클 리더, 마크다운 뷰어, 코드 블록        |
-| `{colors.surface-dark-elevated}` | #252320 | 다크 서피스 내 인라인 elevated 요소          |
-| `{colors.hairline}`              | #e6dfd8 | 카드 테두리, 입력 필드 테두리, 패널 구분선   |
-| `{colors.hairline-soft}`         | #ebe6df | 모바일 헤더 하단선, 내부 divider             |
-
-`canvas`와 `surface-card`는 **한 스텝 차이**다. 사이드바(canvas) ↔ 콘텐츠 패널(surface-card) 구분이 이 두 색상으로만 이루어진다. 절대 순수 흰색(`#ffffff`) 사용 금지.
+- **Canvas** (`{colors.canvas}` — #ffffff): The default page floor.
+- **Surface Soft** (`{colors.surface-soft}` — #f8f9fa): Nav-pill-group background, very-soft section dividers.
+- **Surface Card** (`{colors.surface-card}` — #f5f5f5): Feature cards, testimonial cards, badge pills, default avatar fills.
+- **Surface Strong** (`{colors.surface-strong}` — #e5e7eb): Hairline border alternative; disabled button background.
+- **Surface Dark** (`{colors.surface-dark}` — #101010): The footer background — the only dark surface on every page. Also used for the featured pricing tier card.
+- **Surface Dark Elevated** (`{colors.surface-dark-elevated}` — #1a1a1a): Used for nested cards inside the dark footer or featured pricing card.
+- **Hairline** (`{colors.hairline}` — #e5e7eb): The 1px border tone on light surfaces. Used on input borders, table dividers, content card outlines (sometimes).
+- **Hairline Soft** (`{colors.hairline-soft}` — #f3f4f6): A barely-visible divider used between sections that share the white canvas.
 
 ### Text
 
-| 토큰                    | 헥스    | 사용처                           |
-| ----------------------- | ------- | -------------------------------- |
-| `{colors.ink}`          | #141413 | 헤딩, 카드 제목, 주요 라벨       |
-| `{colors.body-strong}`  | #252523 | 강조 단락, 서브헤딩              |
-| `{colors.body}`         | #3d3d3a | 기본 본문 텍스트                 |
-| `{colors.muted}`        | #6c6a64 | 날짜, 세션명, 비활성 nav         |
-| `{colors.muted-soft}`   | #8e8b82 | 캡션, 버전 넘버, 미리보기 텍스트 |
-| `{colors.on-primary}`   | #ffffff | 코랄 버튼 위 텍스트              |
-| `{colors.on-dark}`      | #faf9f5 | 다크 서피스 위 주요 텍스트       |
-| `{colors.on-dark-soft}` | #a09d96 | 다크 서피스 위 보조 텍스트       |
+- **Ink** (`{colors.ink}` — #111111): All headlines and primary text.
+- **Body** (`{colors.body}` — #374151): Default running-text color.
+- **Muted** (`{colors.muted}` — #6b7280): Secondary text — sub-headings, breadcrumbs, footer body.
+- **Muted Soft** (`{colors.muted-soft}` — #898989): Tertiary text — captions, fine-print, copyright lines.
+- **On Primary / On Dark** (`{colors.on-primary}` / `{colors.on-dark}` — #ffffff): Text on primary buttons and dark footer.
+- **On Dark Soft** (`{colors.on-dark-soft}` — #a1a1aa): Footer body text — slightly muted white for the link rows.
 
 ### Semantic
 
-| 토큰                     | 헥스    | 사용처                               |
-| ------------------------ | ------- | ------------------------------------ |
-| `{colors.error}`         | #c64545 | 삭제 확인 버튼, 폼 에러 텍스트       |
-| `{colors.error-surface}` | #fef2f2 | 에러 배너 배경                       |
-| `{colors.success}`       | #5db872 | 투표 확정 상태 표시, "복사됨" 피드백 |
+- **Success** (`{colors.success}` — #10b981): Confirmation states, success badges in product UI.
+- **Warning** (`{colors.warning}` — #f59e0b): Warning callouts.
+- **Error** (`{colors.error}` — #ef4444): Validation errors.
 
 ## Typography
 
 ### Font Family
 
-**Inter** 단일 폰트. UI 전체에 Inter weight 400–800을 사용하고, JetBrains Mono는 아티클 리더 코드 블록에만.
+The system runs **Cal Sans** for display + brand wordmark and **Inter** for everything else. Cal Sans is Cal.com's custom geometric display typeface — slightly condensed, weight 600, negative letter-spacing. Inter handles body, buttons, navigation, captions, and tabular code blocks. The fallback stack walks `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif` for both families.
 
-```css
-/* index.css에 추가 */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-```
+The split is functional:
 
-크기와 weight 조합으로 계층을 만든다 — `display-sm`(28px/700)이 최상위, 아래로 내려갈수록 크기와 weight가 줄어든다.
+- Cal Sans (display, 600 weight, -0.5 to -2px tracking) — h1, h2, h3
+- Inter (body + UI, 400-600 weight, 0 letter-spacing) — paragraphs, labels, buttons, nav
 
 ### Hierarchy
 
-| 토큰                      | 사이즈 | Weight | Line Height | Letter Spacing | 사용처                      |
-| ------------------------- | ------ | ------ | ----------- | -------------- | --------------------------- |
-| `{typography.display-sm}` | 28px   | 700    | 1.2         | -0.3px         | SessionBanner 회고 제목     |
-| `{typography.title-lg}`   | 18px   | 600    | 1.4         | 0              | 페이지 섹션 헤딩, 모달 제목 |
-| `{typography.title-md}`   | 16px   | 600    | 1.4         | 0              | 아티클 카드 제목            |
-| `{typography.title-sm}`   | 14px   | 600    | 1.4         | 0              | 서브섹션 라벨               |
-| `{typography.nav}`        | 14px   | 500    | 1.4         | 0              | 사이드바 nav, 드로어 링크   |
-| `{typography.button}`     | 14px   | 500    | 1           | 0              | 버튼 레이블                 |
-| `{typography.body-md}`    | 14px   | 400    | 1.6         | 0              | 카드 미리보기, 설명 텍스트  |
-| `{typography.body-sm}`    | 13px   | 400    | 1.55        | 0              | 캡션, 날짜, 메타            |
-| `{typography.label}`      | 12px   | 500    | 1.4         | 0              | 세션명 태그, 소스 타입      |
-| `{typography.wordmark}`   | 15px   | 800    | —           | -0.3px         | "Checkin" 워드마크          |
+| Token                     | Size | Weight | Line Height | Letter Spacing | Use                                                                 |
+| ------------------------- | ---- | ------ | ----------- | -------------- | ------------------------------------------------------------------- |
+| `{typography.display-xl}` | 64px | 600    | 1.05        | -2px           | Homepage h1 ("The better way to schedule your meetings") — Cal Sans |
+| `{typography.display-lg}` | 48px | 600    | 1.1         | -1.5px         | Section heads ("Your all-purpose scheduling app") — Cal Sans        |
+| `{typography.display-md}` | 36px | 600    | 1.15        | -1px           | Sub-section heads, card titles — Cal Sans                           |
+| `{typography.display-sm}` | 28px | 600    | 1.2         | -0.5px         | CTA-band heads, pricing tier prices — Cal Sans                      |
+| `{typography.title-lg}`   | 22px | 600    | 1.3         | -0.3px         | Pricing plan names — Inter                                          |
+| `{typography.title-md}`   | 18px | 600    | 1.4         | 0              | Feature card titles, intro paragraphs                               |
+| `{typography.title-sm}`   | 16px | 600    | 1.4         | 0              | Small card titles, list labels                                      |
+| `{typography.body-md}`    | 16px | 400    | 1.5         | 0              | Default running-text                                                |
+| `{typography.body-sm}`    | 14px | 400    | 1.5         | 0              | Footer body, fine-print                                             |
+| `{typography.caption}`    | 13px | 500    | 1.4         | 0              | Badge labels, captions                                              |
+| `{typography.code}`       | 14px | 400    | 1.5         | 0              | Code snippets, API examples — JetBrains Mono                        |
+| `{typography.button}`     | 14px | 600    | 1.0         | 0              | Standard button labels                                              |
+| `{typography.nav-link}`   | 14px | 500    | 1.4         | 0              | Top-nav menu items                                                  |
+
+### Principles
+
+Cal Sans is the brand voice — every display headline uses it. Inter handles the supporting type. The boundary is strict: never put body copy in Cal Sans, never put a display headline in Inter. Cal Sans without negative letter-spacing reads as off-brand — the -0.5 to -2px tracking is part of the voice.
+
+Display weight stays at 600 across all sizes — never 700, never 500. The middle weight is what makes Cal Sans feel modern and confident without becoming bombastic.
+
+### Note on Font Substitutes
+
+If Cal Sans is unavailable, **Inter** at weight 600 with -0.04em letter-spacing is a usable approximation. The geometric character of Cal Sans differs from Inter's humanist forms, but the substitution preserves the weight + tracking signature. **Manrope** at weight 700 is another close alternative.
 
 ## Layout
 
-### Application Shell
-
-```
-Desktop (≥ 768px)
-┌──────────────────────────────────────────────┐
-│ Sidebar (176px)   │  Content Panel (flex-1)   │
-│ bg: {canvas}      │  bg: {surface-card}        │
-│                   │  border-l: {hairline}      │
-└──────────────────────────────────────────────┘
-
-Mobile (< 768px)
-┌─────────────────────────────────┐
-│ Fixed Header (56px)             │  bg: {canvas}, border-b: {hairline-soft}
-├─────────────────────────────────┤
-│ Content (pt-14)                 │  bg: {surface-card}
-└─────────────────────────────────┘
-  → 우측 Drawer (256px, bg: {canvas}, shadow)
-```
-
-현재 코드의 `bg-stone-50` / `bg-white` 혼용을 각각 `{colors.canvas}` / `{colors.surface-card}`로 정리한다.
-
 ### Spacing System
 
-| 토큰                | 값   | 사용처                                            |
-| ------------------- | ---- | ------------------------------------------------- |
-| `{spacing.xxs}`     | 4px  | 아이콘-텍스트 간격                                |
-| `{spacing.xs}`      | 8px  | 인라인 요소 간격                                  |
-| `{spacing.sm}`      | 12px | 카드 내부 요소 간격                               |
-| `{spacing.md}`      | 16px | 기본 요소 간격                                    |
-| `{spacing.lg}`      | 24px | 카드 간격, 섹션 내 여백                           |
-| `{spacing.xl}`      | 32px | 섹션 간격, 아티클 리더 패딩                       |
-| `{spacing.xxl}`     | 48px | 페이지 섹션 간격                                  |
-| `{spacing.card}`    | 20px | 카드 내부 패딩                                    |
-| `{spacing.section}` | 48px | 주요 섹션 간 여백 (Claude의 96px보다 앱답게 절반) |
+- **Base unit:** 4px.
+- **Tokens:** `{spacing.xxs}` 4px · `{spacing.xs}` 8px · `{spacing.sm}` 12px · `{spacing.md}` 16px · `{spacing.lg}` 24px · `{spacing.xl}` 32px · `{spacing.xxl}` 48px · `{spacing.section}` 96px.
+- **Section padding:** `{spacing.section}` (96px) — the universal vertical rhythm between editorial bands.
+- **Card internal padding:** `{spacing.xl}` (32px) for feature cards and pricing tier cards; `{spacing.lg}` (24px) for testimonial and product-mockup cards.
+- **Gutters:** `{spacing.lg}` (24px) between cards in 3-up grids; `{spacing.md}` (16px) inside footer columns.
 
-### Grid
+### Grid & Container
 
-- **ArticleList**: `grid grid-cols-1 md:grid-cols-2` — 모바일 1열, 데스크탑 2열
-- **콘텐츠 최대 너비**: `max-w-3xl` (768px) — 회고 글 가독성 중심
-- **ProfilePage, SettingsPage**: 단일 컬럼 `max-w-sm`
+- **Max content width:** ~1200px centered on marketing pages.
+- **Editorial body:** Single 12-column grid; hero band often uses 7/5 split (h1 left, app mockup card right).
+- **Feature card grids:** 3-up at desktop, 2-up at tablet, 1-up at mobile.
+- **Pricing grid:** 4-up at desktop, 2-up at tablet, 1-up at mobile.
+- **Footer:** 4-column link list at desktop, wrapping to 2-up at tablet, 1-up at mobile.
+
+### Whitespace Philosophy
+
+Cal.com uses generous but not excessive whitespace — section padding sits at 96px (modern-SaaS standard), and card internal padding stays at 32px. The rhythm is calibrated for fast scanning: every band has a single h1 + h2 + supporting cards, never densely packed lists. The result reads as confident-not-shouting.
 
 ## Elevation & Depth
 
-색상 블록 우선, 그림자는 희박하게 — Claude.com과 동일한 철학.
+| Level              | Treatment                                            | Use                                                                                                                        |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Flat               | No shadow, no border                                 | Body sections, top nav, hero bands                                                                                         |
+| Soft hairline      | 1px `{colors.hairline}` border                       | Inputs, table dividers, occasionally on cards                                                                              |
+| Card surface       | `{colors.surface-card}` background — no shadow       | Feature cards, testimonials                                                                                                |
+| Subtle drop shadow | Faint shadow at low alpha                            | Pricing tier cards, hover-elevated states (the system uses `0 1px 2px rgba(0,0,0,0.05)` and `0 4px 12px rgba(0,0,0,0.08)`) |
+| Featured tier      | `{colors.surface-dark}` background, no shadow needed | The featured pricing tier inverts to dark surface — color contrast does the elevation work                                 |
 
-| 레벨         | 처리                                                             | 사용처                          |
-| ------------ | ---------------------------------------------------------------- | ------------------------------- |
-| Flat         | 배경만, border 없음                                              | 사이드바, 캔버스 자체           |
-| Hairline     | `border: 1px solid {colors.hairline}`                            | 카드 기본, 입력 필드, 세션 배너 |
-| Card         | `bg: {colors.surface-card}` + hairline border                    | 아티클 카드 기본 상태           |
-| Elevated     | `bg: {colors.canvas}` + `shadow: 0 1px 4px rgba(20,20,19,0.08)`  | 카드 hover, 로그인 카드         |
-| Dark surface | `bg: {colors.surface-dark}`                                      | 아티클 리더, 코드 블록          |
-| Modal        | `bg: {colors.canvas}` + `shadow: 0 8px 32px rgba(20,20,19,0.16)` | 모바일 드로어, 모달             |
+The elevation philosophy is **soft and modern** — small drop shadows on elevated cards, color-block contrast for emphasis. No heavy shadows, no neumorphism, no glassmorphism.
 
-**카드 hover 방향성**: `surface-card` (약간 어두운 크림) → `canvas` (밝은 크림) + 미세 shadow. 카드가 "들어올려지는" 느낌.
+### Decorative Depth
+
+- Calendar widgets and product UI fragments embedded inside marketing cards carry their own internal shadows from the product UI itself — these are not system tokens, they're product chrome shown as content.
+- Avatar circles in testimonial sections sometimes carry pastel fill colors (`{colors.badge-orange}`, `{colors.badge-pink}`, etc.) — adds a small chromatic flourish without breaking the monochrome brand voice.
 
 ## Shapes
 
 ### Border Radius Scale
 
-| 토큰             | 값     | Tailwind       | 사용처                            |
-| ---------------- | ------ | -------------- | --------------------------------- |
-| `{rounded.sm}`   | 6px    | `rounded`      | 드롭다운 아이템, 작은 인라인 요소 |
-| `{rounded.md}`   | 8px    | `rounded-lg`   | 버튼, 입력 필드, 에러 배너        |
-| `{rounded.lg}`   | 12px   | `rounded-xl`   | 아티클 카드, 세션 배너, 모달      |
-| `{rounded.xl}`   | 16px   | `rounded-2xl`  | 로그인 카드, 아티클 리더          |
-| `{rounded.pill}` | 9999px | `rounded-full` | 세션 배지, 상태 태그              |
-| `{rounded.full}` | 9999px | `rounded-full` | 아바타                            |
+| Token            | Value        | Use                                                                       |
+| ---------------- | ------------ | ------------------------------------------------------------------------- |
+| `{rounded.xs}`   | 4px          | Almost no use — reserved for badge accents                                |
+| `{rounded.sm}`   | 6px          | Small inline buttons, dropdown items                                      |
+| `{rounded.md}`   | 8px          | Standard CTA buttons, text inputs, category tabs                          |
+| `{rounded.lg}`   | 12px         | Content cards (feature cards, testimonial cards, pricing tier cards)      |
+| `{rounded.xl}`   | 16px         | Hero app-mockup card (a slightly larger radius for the marquee component) |
+| `{rounded.pill}` | 9999px       | Nav-pill-group, badge pills                                               |
+| `{rounded.full}` | 9999px / 50% | Avatars, icon buttons                                                     |
+
+### Photography Geometry
+
+Avatar photos use `{rounded.full}` (perfect circles) at 36px or 40px. Product UI fragments inside marketing cards retain their native chrome (which often has its own internal radii — e.g., calendar grid cells, button rows). Hero illustration zones use 16:9 or 4:3 ratios with `{rounded.xl}` corners.
 
 ## Components
 
-### Navigation
+### Top Navigation
 
-**Sidebar (desktop)** — `w-44 bg-{canvas} px-4 pt-7 pb-5`. "Checkin" 워드마크(`{typography.wordmark}`), nav 링크, 하단 사용자 정보.
+**`top-nav`** — White nav bar pinned to the top of every page. 64px tall, `{colors.canvas}` background. Carries the Cal.com wordmark + logo at left (the lowercase "Cal.com" with the brand circle), primary horizontal menu (Product, Solutions, Resources, Pricing, Enterprise) center, right-side cluster with "Sign in" text-link, "Sign up free" `{component.button-primary}`, and a sometimes-visible language selector. Menu items in `{typography.nav-link}` (Inter 14px / 500).
 
-nav 아이템 상태:
-
-- Inactive: `color: {colors.muted}` / hover: `color: {colors.ink}` + `bg: {colors.surface-card}`
-- Active: `font-weight: 600` + `color: {colors.ink}` + `bg: {colors.surface-card}`
-
-**Mobile Header** — `h-14 bg-{canvas} border-b: {hairline-soft}`. 워드마크 + 햄버거 아이콘.
-
-**Mobile Drawer** — 우측 슬라이드, `w-64 bg-{canvas} shadow-[0_8px_32px_...]`. "+ 글 추가" primary 버튼, nav 링크, 사용자 정보.
+**`nav-pill-group`** — A small pill-radius wrapper around 2-3 sub-nav segments (e.g., the product-mode switcher between "Personal" / "Teams" / "Enterprise"). Background `{colors.surface-soft}` with internal padding 6px, rounded `{rounded.pill}`. Active segment renders as a white-canvas pill with a subtle drop shadow inside the wrapper. The pill-in-pill treatment is one of Cal.com's signature interactive components.
 
 ### Buttons
 
-**`button-primary`** — 코랄 CTA. `bg: {colors.primary} text: {colors.on-primary}`. 타이포: `{typography.button}`. 패딩 10px × 18px, 높이 38px, `rounded-{md}` (8px). Hover: `{colors.primary-active}`.
+**`button-primary`** — The signature primary CTA. Background `{colors.primary}` (#111111), text `{colors.on-primary}`, type `{typography.button}` (Inter 14px / 600), padding 12px × 20px, height 40px, rounded `{rounded.md}` (8px). Active state `button-primary-active` shifts to `{colors.primary-active}` (#242424).
 
-**`button-secondary`** — 크림 배경 + hairline 테두리. `bg: {colors.canvas} border: {colors.hairline} text: {colors.ink}`. 동일 패딩/높이/라운딩.
+**`button-secondary`** — White button with hairline outline. Background `{colors.canvas}`, text `{colors.ink}`, 1px hairline border, same padding + height + radius as primary.
 
-**`button-ghost`** — 텍스트만, 배경 없음. `color: {colors.muted}` → hover: `{colors.ink}`. 로그아웃, 카드 수정 등 낮은 중요도 액션.
+**`button-icon-circular`** — 36 × 36px circular icon button. Background `{colors.canvas}`, hairline border, ink-color icon. Used for share, "view more", carousel arrows.
 
-**`button-destructive`** — `color: {colors.error}`. 삭제 확인 버튼. 배경 없음.
+**`button-text-link`** — Inline text button, no background. Used for "Sign in" in the top nav and inline CTA links inside cards.
 
-### Cards
+**`text-link`** — Inline body links in `{colors.ink}` (the brand keeps inline links monochrome). Underlined on hover (not documented per the no-hover policy, but mentioned for context).
 
-**`article-card`** — 회고 목록의 핵심 카드.
+### Cards & Containers
 
-```
-배경: {colors.surface-card}  →  hover: {colors.canvas}
-테두리: {colors.hairline}
-rounded: {rounded.lg} (12px)
-padding: {spacing.card} (20px)
-transition: background-color 150ms, box-shadow 150ms
-hover-shadow: 0 1px 4px rgba(20,20,19,0.08)
-```
+**`hero-band`** — White-canvas hero with a 7-5 grid: h1 + sub-headline + button row on the left, `{component.hero-app-mockup-card}` on the right. Vertical padding `{spacing.section}` (96px).
 
-내부 구조: `{typography.label}` 세션/소스타입 → `{typography.title-md}` 제목 → `{typography.body-md}` 미리보기 2줄 → 아바타 + 닉네임 + (owner) 수정/삭제.
+**`hero-app-mockup-card`** — A larger product-UI mockup card showing the actual Cal.com booking widget with calendar grid, time slots, and a primary "Confirm" button inside. Background `{colors.canvas}`, 1px hairline border, rounded `{rounded.xl}` (16px), subtle drop shadow. Used as the hero's right-side artifact.
 
-**`session-banner`** — 메인 상단 회고 정보 카드.
+**`feature-card`** — Used in 3-up feature grids ("With us, appointment scheduling is easy"). Background `{colors.surface-card}` (#f5f5f5), rounded `{rounded.lg}` (12px), internal padding `{spacing.xl}` (32px). Carries a small icon at top, an `{typography.title-md}` headline, and a body description in `{typography.body-md}`.
 
-```
-배경: {colors.canvas}
-테두리: {colors.hairline}
-rounded: {rounded.lg} (12px)
-padding: {spacing.card} (20px)
-margin-bottom: {spacing.lg} (24px)
-```
+**`feature-icon-card`** — A simpler card variant used in 4-up feature grids on lower-density bands. Background `{colors.canvas}` with hairline border, rounded `{rounded.lg}`, padding `{spacing.lg}` (24px). Carries a small icon, `{typography.title-sm}` title, short description.
 
-회고 제목은 `{typography.display-sm}` (세리프 28px) 적용.
+**`product-mockup-card`** — A card showing actual Cal.com product UI fragments (workflow editor, calendar grid, integration grid, automation flow). Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.lg}` (24px). The product UI inside has its own internal chrome — these cards display the product, they don't decorate around it.
 
-**`article-reader`** — 마크다운 뷰어. Claude.com의 `code-window-card`에 해당.
+**`testimonial-card`** — Used in customer-quote grids. Background `{colors.surface-card}`, rounded `{rounded.lg}`, padding `{spacing.lg}` (24px). Top row carries a `{component.avatar-circle}` + name + role; below sits the testimonial quote in `{typography.body-md}`.
 
-```
-배경: {colors.surface-dark}
-텍스트: {colors.on-dark}
-rounded: {rounded.xl} (16px)
-padding: {spacing.xl} (32px)
-```
+**`pricing-tier-card`** — Standard tier card. Background `{colors.canvas}`, rounded `{rounded.lg}`, padding `{spacing.xl}` (32px). Carries the plan name in `{typography.title-lg}`, price in `{typography.display-sm}`, feature checklist in `{typography.body-md}`, and a `{component.button-primary}` at the bottom.
 
-코드 블록은 `{colors.surface-dark-elevated}` 내부 배경, JetBrains Mono 14px.
-
-**`login-card`** — 중앙 정렬 인증 카드.
-
-```
-배경: {colors.canvas}
-rounded: {rounded.xl} (16px)
-padding: 40px
-shadow: 0 1px 4px rgba(20,20,19,0.08)
-max-width: 384px
-```
+**`pricing-tier-card-featured`** — The featured tier (typically "Teams"). Background flips to `{colors.surface-dark}` (#101010), text inverts to `{colors.on-dark}`. The dark surface IS the featured-tier signal — no accent border, no badge, no scale shift.
 
 ### Inputs & Forms
 
-**`text-input`** — `bg: {colors.canvas} border: {colors.hairline} rounded: {rounded.md}`. 패딩 10px × 14px, 높이 38px.
+**`text-input`** — Standard text input. Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body-md}`, rounded `{rounded.md}` (8px), padding 10px × 14px, height 40px. 1px hairline border in `{colors.hairline}`.
 
-**`text-input-focused`** — border: `{colors.primary}` + 외부 ring: `0 0 0 3px rgba(204,120,92,0.15)`. 코랄 포커스 링.
+**`text-input-focused`** — Focus state. Border thickens or shifts to `{colors.ink}` for emphasis.
 
-**`error-banner`** — `bg: {colors.error-surface} text: {colors.error} rounded: {rounded.md}`. 패딩 12px × 16px.
+### Tags / Badges
 
-### Badges / Tags
+**`badge-pill`** — Small pill label used for category tags ("Product", "Article", "New") and pastel-fill avatar substitutes. Background `{colors.surface-card}` or one of the badge pastels (`{colors.badge-orange}`, `{colors.badge-pink}`, etc.), text `{colors.ink}`, type `{typography.caption}` (13px / 500), rounded `{rounded.pill}`, padding 4px × 12px.
 
-**`badge-session`** — 세션명, 소스타입 태그. `bg: {colors.surface-card} text: {colors.muted}`. `{typography.label}` (12px/500). `rounded-pill`. 패딩 3px × 10px.
+**`avatar-circle`** — 36px diameter, rounded `{rounded.full}`. Either holds a photo or a pastel fill with initials in `{typography.caption}`.
 
-### Avatar
+**`rating-stars`** — Inline star rating in `{colors.badge-orange}` (#fb923c). Used near testimonial avatars to display a 5-star satisfaction score.
 
-**`member-avatar`** — `rounded-full`. 크기: 20px (카드 인라인), 36px (리스트), 64px (프로필). 아바타 없을 때 이니셜 폴백, 배경색은 멤버 ID 해시 기반.
+### Tab / Filter
+
+**`category-tab`** + **`category-tab-active`** — Used inside the nav-pill-group. Inactive: transparent background, `{colors.muted}` text. Active: `{colors.canvas}` background, `{colors.ink}` text, subtle drop shadow inside the pill-group wrapper. Padding 8px × 14px, rounded `{rounded.md}`.
+
+### CTA / Footer
+
+**`cta-band-light`** — A pre-footer "Smarter, simpler scheduling" CTA card. Background `{colors.surface-card}`, rounded `{rounded.lg}`, padding `{spacing.xxl}` (48px). Carries an h2 in `{typography.display-sm}`, a sub-line, and a `{component.button-primary}` centered.
+
+**`footer`** — Dark navy footer that closes every page. Background `{colors.surface-dark}` (#101010), text `{colors.on-dark-soft}`. 4-column link list at desktop covering Product / Solutions / Company / Resources. Vertical padding 64px. The Cal.com wordmark sits at the top-left in `{colors.on-dark}`. The footer is the only dark surface on every page — the deliberate inversion visually closes the page.
 
 ## Do's and Don'ts
 
 ### Do
 
-- 모든 배경은 `{colors.canvas}` 또는 `{colors.surface-card}` 중 하나. 순수 흰색(`#ffffff`) 금지.
-- 코랄(`{colors.primary}`)은 primary CTA에만 — "+ 글 추가", "로그인", 폼 제출.
-- 카드 hover는 `surface-card → canvas + 미세 shadow` 방향으로.
-- 사이드바(canvas) ↔ 콘텐츠 패널(surface-card) 대비로 패널 경계 표현.
-- Inter weight 800을 워드마크에만 사용.
+- Reserve `{colors.primary}` (#111111) for primary CTAs and h1/h2 type. Cal.com's button is near-black, not blue.
+- Use Cal Sans for every display headline. Pair with Inter body. Never blur the boundary.
+- Apply negative letter-spacing on display sizes (-0.5 to -2px). Cal Sans without it reads as off-brand.
+- Use `{component.feature-card}` (light gray) and `{component.product-mockup-card}` (white with chrome) deliberately — the gray cards signal "abstract feature claim", white cards signal "look at the actual product".
+- Embed real product UI fragments inside marketing cards. Don't paint marketing illustrations of the product when you can show the product itself.
+- Keep avatar circles at 36px, perfect circles, sometimes with pastel fills. Avatars are the only place where badge pastels appear.
+- Use `{component.nav-pill-group}` for grouped sub-nav segments. The pill-in-pill treatment is signature.
+- End every page with the dark footer. The light-to-dark transition is part of the editorial rhythm.
 
 ### Don't
 
-- `bg-white`, `bg-gray-*`, `bg-stone-*` 신규 사용 금지 — 모두 `{colors.canvas}` 또는 `{colors.surface-card}`로.
-- 코랄 버튼을 여러 개 나란히 놓지 않는다. 한 화면에 primary CTA는 하나.
-- `shadow-md` 이상 그림자 금지. hover 상태에 `shadow-sm` 수준까지만.
-- `bg-stone-900` 검정 버튼 신규 사용 금지 — 코랄로 교체.
-- 인라인 스타일(`style=`) 사용 금지.
+- Don't use accent colors (`{colors.brand-accent}`, badge pastels) on primary CTAs. The system is monochrome at the action layer.
+- Don't bold display weight beyond 600. Cal Sans at 700 reads as bombastic.
+- Don't use rounded radius beyond `{rounded.xl}` (16px) on cards. Larger radii read as consumer-app, not professional booking software.
+- Don't put dark surface cards anywhere except the footer and the featured pricing tier. The dark surface is a deliberate, scarce signal.
+- Don't repeat the same surface mode in two consecutive bands. Cal.com's pacing alternates white → light-gray → white → product-mockup-card → white → dark-footer.
+- Don't add hover state styling beyond what the system already encodes — primary darkens on press; nothing else changes.
 
 ## Responsive Behavior
 
 ### Breakpoints
 
-| 이름    | 너비      | 주요 변경                                     |
-| ------- | --------- | --------------------------------------------- |
-| Mobile  | `< 768px` | 사이드바 숨김 → 고정 헤더(56px) + 우측 드로어 |
-| Desktop | `≥ 768px` | 사이드바 표시, 콘텐츠 패널 `border-l`         |
-
-### Mobile 특이사항
-
-- 콘텐츠 패딩 상단: `pt-14` (56px 헤더 보정)
-- 하단 여백: `pb-20` (모바일 safe area)
-- 드로어 오버레이: `bg-black/30` (Claude는 40%, CHECKIN은 좀 더 연하게)
-- 스크롤 시 헤더 숨김: translateY transition, 4px 이상 스크롤 방향 감지
+| Name    | Width       | Key Changes                                                                                                                    |
+| ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Mobile  | < 768px     | Hamburger nav; hero h1 64→32px; hero-app-mockup-card stacks below content; feature grids 1-up; pricing 1-up; footer 4 cols → 1 |
+| Tablet  | 768–1024px  | Top nav stays horizontal but tightens; nav-pill-group wraps; feature cards 2-up; pricing 2-up                                  |
+| Desktop | 1024–1440px | Full top-nav with all menu items; 3-up feature cards; 4-up pricing tiers                                                       |
+| Wide    | > 1440px    | Same as desktop with more outer breathing room; max content width caps at 1200px                                               |
 
 ### Touch Targets
 
-- Primary 버튼: 38px 높이 — 최소 기준 충족
-- 아이콘 버튼: `w-9 h-9` (36px) — 핵심 액션은 44px 목표
-- 카드 전체 영역 탭 가능
+- `{component.button-primary}` at minimum 40 × 40px.
+- `{component.button-icon-circular}` at exactly 36 × 36 — slightly under WCAG's 44 × 44 but the centered icon and full-circle silhouette compensate.
+- `{component.text-input}` height is 40px.
+- `{component.category-tab}` rendered inside nav-pill-group has 8 × 14 padding; effective tap area meets 44px+ with the surrounding pill.
 
-## Migration: 현재 코드 → 이 시스템
+### Collapsing Strategy
 
-현재 코드에서 우선순위별 정리 항목:
+- Top nav collapses to hamburger at < 768px; menu opens as a full-screen sheet.
+- Hero band's 7-5 grid collapses to single-column on mobile — h1 + sub-head + buttons first, then the app-mockup card below.
+- Feature grids reduce columns rather than scaling cards down.
+- Pricing tier cards collapse 4 → 2 → 1; featured-tier dark surface stays visually distinct at every breakpoint.
+- Nav-pill-group wraps to multi-row on tablet if the segments don't fit horizontally.
+- Avatar + testimonial card layouts stay grid-aligned at every breakpoint.
 
-| 현재                          | 교체                                                      | 우선순위 |
-| ----------------------------- | --------------------------------------------------------- | -------- |
-| `bg-stone-50` (canvas 역할)   | `{colors.canvas}`                                         | 높음     |
-| `bg-white` (콘텐츠 패널)      | `{colors.surface-card}`                                   | 높음     |
-| `bg-stone-900` (primary 버튼) | `{colors.primary}` (코랄)                                 | 높음     |
-| `border-stone-*`              | `{colors.hairline}` / `{colors.hairline-soft}`            | 중간     |
-| `text-stone-*`                | `{colors.ink}` / `{colors.muted}` / `{colors.muted-soft}` | 중간     |
-| `bg-gray-*` (LoginPage)       | `{colors.canvas}` / `{colors.surface-card}`               | 중간     |
-| 시스템 폰트 기본값            | Inter (Google Fonts) 명시적 로드                          | 낮음     |
-| SessionBanner 제목            | `{typography.display-sm}` (28px/700/Inter) 적용           | 낮음     |
+### Image Behavior
+
+- Product UI fragments inside cards retain native aspect ratios; the cards themselves resize.
+- Avatar photos crop to circles at every breakpoint.
+- Hero app-mockup card scales proportionally on mobile — the calendar grid stays legible.
+
+## Iteration Guide
+
+1. Focus on ONE component at a time. Reference its YAML key directly (`{component.feature-card}`, `{component.pricing-tier-card-featured}`).
+2. Variants of an existing component (`-active`, `-disabled`, `-focused`) live as separate entries in `components:`.
+3. Use `{token.refs}` everywhere — never inline hex.
+4. Never document hover. Default and Active/Pressed states only.
+5. Display headlines stay Cal Sans 600 with negative letter-spacing. Body stays Inter 400. The trinity does not blur.
+6. The dark footer is the only dark surface on most pages. Don't add other dark cards casually.
+7. When in doubt about emphasis: bigger Cal Sans before bolder Cal Sans.
 
 ## Known Gaps
 
-- **VotePage는 fullBleed 레이아웃** — VoteCalendar, TallyPopup의 토큰이 이 문서에 미반영.
-- **PhotoAlbumPage** — 사진 그리드 레이아웃 패턴 미정의.
-- **다크 모드** — 미지원. `{colors.surface-dark}`는 아티클 리더 등 특정 컴포넌트에만 사용, 전체 다크 모드 아님.
-- **포커스 스타일** — 현재 미정의. `text-input-focused`의 코랄 ring을 버튼 등에도 확장 필요.
-- **애니메이션 타이밍** — `transition-all 150ms ease` 기준으로 통일 권장, 현재 미공식화.
+- The dembrandt frequency analyzer captured `Buttons: 0 variants` — Cal.com renders most CTAs as styled `<a>` link elements rather than `<button>` tags, which dembrandt's button selector doesn't capture. Button styles are documented from screenshot ground-truth + standard Cal Sans / Inter baselines.
+- Cal Sans is licensed to Cal.com and not available as a public web font; substitutes are documented in the typography section.
+- The badge pastel set (orange / pink / violet / emerald) is documented from observed avatar fill colors; exact hex values may shift seasonally.
+- Animation and transition timings (calendar slot picker, schedule confirmation, integration grid hover-reveal) are not in scope.
+- Form validation states beyond `{component.text-input-focused}` are not extracted — error / success states would need a sign-up or booking flow to confirm.
+- The actual booking widget surface (cal.com/{username}) is the product, not a marketing surface; its spec is out of scope.
+- Avatar photos in testimonial sections sometimes carry pastel circular fills with initials instead of photographs; both treatments coexist on the same page.
