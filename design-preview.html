@@ -1,0 +1,1768 @@
+<!--
+  design-preview.html
+  Source: DESIGN.md (v0.2), src/components/ArticleCard.tsx, Layout.tsx, SessionBanner.tsx, LoginPage.tsx
+  Generated: 2026-06-03
+-->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkin — Design Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ─── Design Tokens ─────────────────────────────────────────── */
+      :root {
+        /* Colors */
+        --primary: #cc785c;
+        --primary-active: #a9583e;
+        --primary-disabled: #e6dfd8;
+        --ink: #141413;
+        --body: #3d3d3a;
+        --body-strong: #252523;
+        --muted: #6c6a64;
+        --muted-soft: #8e8b82;
+        --hairline: #e6dfd8;
+        --hairline-soft: #ebe6df;
+        --canvas: #faf9f5;
+        --surface-soft: #f5f0e8;
+        --surface-card: #efe9de;
+        --surface-dark: #181715;
+        --surface-dark-el: #252320;
+        --on-primary: #ffffff;
+        --on-dark: #faf9f5;
+        --on-dark-soft: #a09d96;
+        --error: #c64545;
+        --error-surface: #fef2f2;
+        --success: #5db872;
+
+        /* Typography */
+        --font-serif: "Cormorant Garamond", Georgia, serif;
+        --font-sans:
+          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+        /* Radius */
+        --r-sm: 6px;
+        --r-md: 8px;
+        --r-lg: 12px;
+        --r-xl: 16px;
+        --r-pill: 9999px;
+
+        /* Spacing */
+        --sp-xxs: 4px;
+        --sp-xs: 8px;
+        --sp-sm: 12px;
+        --sp-md: 16px;
+        --sp-lg: 24px;
+        --sp-xl: 32px;
+        --sp-xxl: 48px;
+        --sp-card: 20px;
+      }
+
+      /* ─── Reset ─────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-sans);
+        background: #f0ede8;
+        color: var(--ink);
+        min-height: 100vh;
+      }
+
+      /* ─── Page chrome ────────────────────────────────────────────── */
+      .page-header {
+        background: var(--surface-dark);
+        padding: 20px 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .page-header h1 {
+        font-family: var(--font-sans);
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        color: var(--on-dark);
+      }
+      .page-header span {
+        font-size: 12px;
+        color: var(--on-dark-soft);
+      }
+
+      .sections {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+
+      .card {
+        background: var(--canvas);
+        border-radius: var(--r-xl);
+        padding: 32px;
+        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.07);
+      }
+
+      .section-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 24px;
+      }
+
+      /* ─── 1. App Frame ───────────────────────────────────────────── */
+      .app-frame {
+        background: var(--canvas);
+        border-radius: var(--r-xl);
+        overflow: hidden;
+        box-shadow: 0 2px 20px rgba(20, 20, 19, 0.12);
+        /* macOS window chrome */
+        border: 1px solid var(--hairline);
+      }
+      .window-bar {
+        height: 38px;
+        background: var(--surface-card);
+        border-bottom: 1px solid var(--hairline);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 7px;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .dot-red {
+        background: #ff5f57;
+      }
+      .dot-amber {
+        background: #febc2e;
+      }
+      .dot-green {
+        background: #28c840;
+      }
+
+      .app-shell {
+        display: flex;
+        height: 520px;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 176px;
+        flex-shrink: 0;
+        background: var(--canvas);
+        padding: 28px 16px 20px;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--hairline);
+      }
+      .sidebar-logo {
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        color: var(--ink);
+        margin-bottom: 28px;
+      }
+      .nav-items {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .nav-item {
+        display: block;
+        padding: 6px 8px;
+        border-radius: var(--r-md);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 120ms;
+      }
+      .nav-item:hover {
+        color: var(--ink);
+        background: var(--surface-card);
+      }
+      .nav-item.active {
+        font-weight: 600;
+        color: var(--ink);
+        background: var(--surface-card);
+      }
+      .sidebar-user {
+        padding-top: 16px;
+        border-top: 1px solid var(--hairline);
+      }
+      .sidebar-user .nickname {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted);
+        margin-bottom: 3px;
+      }
+      .sidebar-user .logout {
+        font-size: 12px;
+        color: var(--muted-soft);
+        cursor: pointer;
+      }
+      .sidebar-user .version {
+        font-size: 11px;
+        color: var(--hairline);
+        margin-top: 6px;
+      }
+
+      /* Content panel */
+      .content-panel {
+        flex: 1;
+        background: var(--surface-card);
+        overflow-y: auto;
+        padding: 28px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Session Banner in frame */
+      .session-banner {
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: var(--sp-card);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .session-title {
+        font-family: var(--font-sans);
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: -0.3px;
+        color: var(--ink);
+        margin-bottom: 4px;
+      }
+      .session-meta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .session-meta a {
+        color: var(--muted);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      /* Article cards grid */
+      .article-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .article-card {
+        background: var(--surface-card);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: var(--sp-card);
+        cursor: pointer;
+        transition: all 150ms;
+      }
+      .article-card:hover {
+        background: var(--canvas);
+        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
+      }
+      .card-meta {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted-soft);
+        margin-bottom: 8px;
+      }
+      .card-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+        line-height: 1.4;
+        margin-bottom: 8px;
+      }
+      .card-preview {
+        font-size: 12px;
+        color: var(--muted-soft);
+        line-height: 1.6;
+        margin-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .card-footer {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+      }
+      .avatar-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted-soft);
+      }
+
+      /* ─── 2. Color Palette ───────────────────────────────────────── */
+      .color-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .color-group-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .color-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .swatch {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 80px;
+      }
+      .swatch-block {
+        width: 80px;
+        height: 52px;
+        border-radius: var(--r-md);
+        border: 1px solid rgba(20, 20, 19, 0.07);
+      }
+      .swatch-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .swatch-hex {
+        font-size: 10px;
+        color: var(--muted-soft);
+        font-family: var(--font-mono);
+      }
+      .swatch-use {
+        font-size: 10px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      /* ─── 3. Typography ──────────────────────────────────────────── */
+      .type-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .type-row {
+        display: flex;
+        align-items: baseline;
+        gap: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--hairline-soft);
+      }
+      .type-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+      .type-meta {
+        min-width: 200px;
+        flex-shrink: 0;
+      }
+      .type-token {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--primary);
+        font-family: var(--font-mono);
+        margin-bottom: 3px;
+      }
+      .type-spec {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .type-sample {
+        color: var(--ink);
+      }
+
+      /* ─── 4. Spacing & Radius ───────────────────────────────────── */
+      .token-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .space-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .space-block {
+        background: var(--primary);
+        opacity: 0.6;
+        border-radius: 2px;
+        height: 8px;
+      }
+      .space-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .space-val {
+        font-size: 10px;
+        color: var(--muted-soft);
+        font-family: var(--font-mono);
+      }
+
+      .radius-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .radius-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .radius-block {
+        width: 56px;
+        height: 56px;
+        background: var(--surface-card);
+        border: 2px solid var(--hairline);
+      }
+      .radius-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink);
+        text-align: center;
+      }
+      .radius-val {
+        font-size: 10px;
+        color: var(--muted-soft);
+        font-family: var(--font-mono);
+        text-align: center;
+      }
+
+      /* ─── 5. Component States ───────────────────────────────────── */
+      .component-section {
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+      .comp-group {
+      }
+      .comp-group-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .comp-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+      .comp-label {
+        font-size: 11px;
+        color: var(--muted-soft);
+        margin-top: 4px;
+        text-align: center;
+      }
+      .comp-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-sans);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        padding: 10px 18px;
+        height: 38px;
+        border-radius: var(--r-md);
+        transition: background 120ms;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+      .btn-primary:hover {
+        background: var(--primary-active);
+      }
+      .btn-primary-disabled {
+        background: var(--primary-disabled);
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+      .btn-secondary {
+        background: var(--canvas);
+        color: var(--ink);
+        border: 1px solid var(--hairline);
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 8px;
+        height: auto;
+        font-size: 13px;
+      }
+      .btn-destruct {
+        background: transparent;
+        color: var(--error);
+        padding: 6px 8px;
+        height: auto;
+        font-size: 13px;
+      }
+
+      /* Article Card states */
+      .card-state-normal {
+        background: var(--surface-card);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: var(--sp-card);
+        width: 260px;
+      }
+      .card-state-hover {
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: var(--sp-card);
+        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
+        width: 260px;
+      }
+
+      /* Session Banner states */
+      .banner-confirmed {
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: var(--sp-card);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .banner-pending {
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: var(--sp-card);
+      }
+
+      /* Login Card */
+      .login-card {
+        background: var(--canvas);
+        border-radius: var(--r-xl);
+        padding: 40px;
+        box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
+        width: 320px;
+        text-align: center;
+      }
+      .login-title {
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: var(--ink);
+        margin-bottom: 6px;
+      }
+      .login-sub {
+        font-size: 14px;
+        color: var(--muted);
+        margin-bottom: 28px;
+      }
+      .btn-google {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 11px 16px;
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-md);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--body);
+        cursor: pointer;
+      }
+
+      /* Article Reader (dark) */
+      .reader-card {
+        background: var(--surface-dark);
+        border-radius: var(--r-xl);
+        padding: 32px;
+        width: 100%;
+        max-width: 480px;
+      }
+      .reader-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--on-dark);
+        margin-bottom: 12px;
+        line-height: 1.4;
+      }
+      .reader-body {
+        font-size: 14px;
+        color: var(--on-dark-soft);
+        line-height: 1.7;
+      }
+      .reader-code {
+        background: var(--surface-dark-el, #252320);
+        border-radius: var(--r-md);
+        padding: 14px 16px;
+        margin-top: 14px;
+      }
+      .reader-code pre {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        color: #a9b8c3;
+        line-height: 1.6;
+      }
+
+      /* Input */
+      .input-normal {
+        width: 240px;
+        padding: 10px 14px;
+        background: var(--canvas);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-md);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        color: var(--ink);
+        outline: none;
+      }
+      .input-focused {
+        width: 240px;
+        padding: 10px 14px;
+        background: var(--canvas);
+        border: 1px solid var(--primary);
+        border-radius: var(--r-md);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        color: var(--ink);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+      }
+
+      /* Error banner */
+      .error-banner {
+        background: var(--error-surface);
+        color: var(--error);
+        border-radius: var(--r-md);
+        padding: 12px 16px;
+        font-size: 14px;
+        max-width: 320px;
+      }
+
+      /* Badges */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 3px 10px;
+        border-radius: var(--r-pill);
+      }
+      .badge-session {
+        background: var(--surface-card);
+        color: var(--muted);
+        border: 1px solid var(--hairline);
+      }
+      .badge-primary {
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+
+      /* Avatar sizes */
+      .av-sm {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+      }
+      .av-md {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+      }
+      .av-lg {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-header">
+      <h1>Checkin</h1>
+      <span>Design Preview — DESIGN.md v0.2 · 2026-06-03</span>
+    </div>
+
+    <div class="sections">
+      <!-- ─── 1. App Frame ─────────────────────────────────────── -->
+      <div class="card" style="padding: 0; overflow: hidden">
+        <div
+          style="
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--hairline);
+          "
+        >
+          <div class="section-label" style="margin-bottom: 0">
+            App Frame — Desktop Layout
+          </div>
+        </div>
+        <div
+          class="app-frame"
+          style="border: none; border-radius: 0; box-shadow: none"
+        >
+          <div class="window-bar">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-amber"></div>
+            <div class="dot dot-green"></div>
+          </div>
+          <div class="app-shell">
+            <!-- Sidebar -->
+            <div class="sidebar">
+              <div class="sidebar-logo">Checkin</div>
+              <nav class="nav-items">
+                <a class="nav-item active">메인</a>
+                <a class="nav-item">아카이브</a>
+                <a class="nav-item">일정</a>
+                <a class="nav-item">업데이트</a>
+                <a class="nav-item">사진첩</a>
+                <a class="nav-item">프로필</a>
+              </nav>
+              <div class="sidebar-user">
+                <div class="nickname">지욱</div>
+                <div class="logout">로그아웃</div>
+                <div class="version">v0.12.0</div>
+              </div>
+            </div>
+
+            <!-- Content panel -->
+            <div class="content-panel">
+              <!-- Session Banner -->
+              <div class="session-banner">
+                <div>
+                  <div class="session-title">6월에 하는 5월 회고</div>
+                  <div class="session-meta">
+                    2025년 6월 14일 (토) 오후 3시 · 온라인 &nbsp;·&nbsp;
+                    <a href="#">회의 참여하기 →</a>
+                  </div>
+                </div>
+                <button class="btn btn-primary">+ 글 추가</button>
+              </div>
+
+              <!-- Article Grid -->
+              <div class="article-grid">
+                <div class="article-card">
+                  <div class="card-meta">May 2025 &middot; Notion</div>
+                  <div class="card-title">5월은 집중력의 달이었다</div>
+                  <div class="card-preview">
+                    사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
+                    멀티태스킹의 한계와 딥워크의 중요성, 그리고 다음 달을 어떻게
+                    설계할지.
+                  </div>
+                  <div class="card-footer">
+                    <div class="avatar">J</div>
+                    <span class="avatar-name">지욱</span>
+                  </div>
+                </div>
+                <div
+                  class="article-card"
+                  style="
+                    background: var(--canvas);
+                    box-shadow: 0 1px 4px rgba(20, 20, 19, 0.08);
+                  "
+                >
+                  <div class="card-meta">May 2025 &middot; Blog</div>
+                  <div class="card-title">Claude Code로 혼자 앱 만들기</div>
+                  <div class="card-preview">
+                    AI 페어 프로그래밍 한 달 경험기. 잘 됐던 것, 안 됐던 것,
+                    그리고 프롬프트 작성법에 대해 배운 것들.
+                  </div>
+                  <div class="card-footer">
+                    <div class="avatar" style="background: #5db8a6">S</div>
+                    <span class="avatar-name">수현</span>
+                  </div>
+                </div>
+                <div class="article-card">
+                  <div class="card-meta">May 2025 &middot; Tistory</div>
+                  <div class="card-title">번아웃 전조 증상과 회복 루틴</div>
+                  <div class="card-preview">
+                    퇴사 이후 첫 달. 쉬고 싶었지만 쉬지 못했던 이유, 그리고
+                    스스로를 충전하는 방법을 찾아가는 과정.
+                  </div>
+                  <div class="card-footer">
+                    <div class="avatar" style="background: #e8a55a">M</div>
+                    <span class="avatar-name">민준</span>
+                  </div>
+                </div>
+                <div class="article-card">
+                  <div class="card-meta">May 2025 &middot; Notion</div>
+                  <div class="card-title">읽기의 밀도를 높이는 방법</div>
+                  <div class="card-preview">
+                    Readwise와 하이라이팅 습관, 책과 아티클을 어떻게
+                    소화하는지에 대한 나만의 시스템 정리.
+                  </div>
+                  <div class="card-footer">
+                    <div class="avatar" style="background: #8e8b82">Y</div>
+                    <span class="avatar-name">유나</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 2. Color Palette ─────────────────────────────────── -->
+      <div class="card">
+        <div class="section-label">Color Palette</div>
+        <div class="color-groups">
+          <div>
+            <div class="color-group-title">Brand & Primary</div>
+            <div class="color-row">
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--primary)"
+                ></div>
+                <div class="swatch-name">primary</div>
+                <div class="swatch-hex">#cc785c</div>
+                <div class="swatch-use">CTA 버튼</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--primary-active)"
+                ></div>
+                <div class="swatch-name">primary-active</div>
+                <div class="swatch-hex">#a9583e</div>
+                <div class="swatch-use">hover/press</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="
+                    background: var(--primary-disabled);
+                    border: 1px solid var(--hairline);
+                  "
+                ></div>
+                <div class="swatch-name">primary-disabled</div>
+                <div class="swatch-hex">#e6dfd8</div>
+                <div class="swatch-use">비활성</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="color-group-title">Surface</div>
+            <div class="color-row">
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="
+                    background: var(--canvas);
+                    border: 1px solid var(--hairline);
+                  "
+                ></div>
+                <div class="swatch-name">canvas</div>
+                <div class="swatch-hex">#faf9f5</div>
+                <div class="swatch-use">사이드바·배경</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="
+                    background: var(--surface-soft);
+                    border: 1px solid var(--hairline);
+                  "
+                ></div>
+                <div class="swatch-name">surface-soft</div>
+                <div class="swatch-hex">#f5f0e8</div>
+                <div class="swatch-use">구분 밴드</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="
+                    background: var(--surface-card);
+                    border: 1px solid var(--hairline);
+                  "
+                ></div>
+                <div class="swatch-name">surface-card</div>
+                <div class="swatch-hex">#efe9de</div>
+                <div class="swatch-use">콘텐츠 패널·카드</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--surface-dark)"
+                ></div>
+                <div class="swatch-name">surface-dark</div>
+                <div class="swatch-hex">#181715</div>
+                <div class="swatch-use">리더·코드블록</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--surface-dark-el)"
+                ></div>
+                <div class="swatch-name">surface-dark-el</div>
+                <div class="swatch-hex">#252320</div>
+                <div class="swatch-use">다크 내 elevated</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="
+                    background: var(--hairline);
+                    border: 1px solid var(--surface-card);
+                  "
+                ></div>
+                <div class="swatch-name">hairline</div>
+                <div class="swatch-hex">#e6dfd8</div>
+                <div class="swatch-use">카드·입력 테두리</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="color-group-title">Text</div>
+            <div class="color-row">
+              <div class="swatch">
+                <div class="swatch-block" style="background: var(--ink)"></div>
+                <div class="swatch-name">ink</div>
+                <div class="swatch-hex">#141413</div>
+                <div class="swatch-use">헤딩·주요 텍스트</div>
+              </div>
+              <div class="swatch">
+                <div class="swatch-block" style="background: var(--body)"></div>
+                <div class="swatch-name">body</div>
+                <div class="swatch-hex">#3d3d3a</div>
+                <div class="swatch-use">기본 본문</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--muted)"
+                ></div>
+                <div class="swatch-name">muted</div>
+                <div class="swatch-hex">#6c6a64</div>
+                <div class="swatch-use">날짜·세션명</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--muted-soft)"
+                ></div>
+                <div class="swatch-name">muted-soft</div>
+                <div class="swatch-hex">#8e8b82</div>
+                <div class="swatch-use">캡션·미리보기</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--on-dark)"
+                ></div>
+                <div class="swatch-name">on-dark</div>
+                <div class="swatch-hex">#faf9f5</div>
+                <div class="swatch-use">다크 서피스 텍스트</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--on-dark-soft)"
+                ></div>
+                <div class="swatch-name">on-dark-soft</div>
+                <div class="swatch-hex">#a09d96</div>
+                <div class="swatch-use">다크 보조 텍스트</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="color-group-title">Semantic</div>
+            <div class="color-row">
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--error)"
+                ></div>
+                <div class="swatch-name">error</div>
+                <div class="swatch-hex">#c64545</div>
+                <div class="swatch-use">삭제·에러</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="
+                    background: var(--error-surface);
+                    border: 1px solid #f5c6c6;
+                  "
+                ></div>
+                <div class="swatch-name">error-surface</div>
+                <div class="swatch-hex">#fef2f2</div>
+                <div class="swatch-use">에러 배너 배경</div>
+              </div>
+              <div class="swatch">
+                <div
+                  class="swatch-block"
+                  style="background: var(--success)"
+                ></div>
+                <div class="swatch-name">success</div>
+                <div class="swatch-hex">#5db872</div>
+                <div class="swatch-use">확정·성공</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 3. Typography ────────────────────────────────────── -->
+      <div class="card">
+        <div class="section-label">Typography Scale</div>
+        <div class="type-rows">
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">display-sm</div>
+              <div class="type-spec">Inter · 28px · 700 · ls -0.3px</div>
+              <div
+                class="type-spec"
+                style="
+                  margin-top: 3px;
+                  color: var(--muted-soft);
+                  font-size: 10px;
+                "
+              >
+                SessionBanner 회고 제목
+              </div>
+            </div>
+            <div
+              class="type-sample"
+              style="
+                font-family: var(--font-sans);
+                font-size: 28px;
+                font-weight: 700;
+                letter-spacing: -0.3px;
+                line-height: 1.2;
+                color: var(--ink);
+              "
+            >
+              6월에 하는 5월 회고
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">title-lg</div>
+              <div class="type-spec">Inter · 18px · 600</div>
+            </div>
+            <div
+              class="type-sample"
+              style="font-size: 18px; font-weight: 600; color: var(--ink)"
+            >
+              아카이브 — 지난 회고들
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">title-md</div>
+              <div class="type-spec">Inter · 16px · 600</div>
+            </div>
+            <div
+              class="type-sample"
+              style="font-size: 16px; font-weight: 600; color: var(--ink)"
+            >
+              5월은 집중력의 달이었다
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">title-sm</div>
+              <div class="type-spec">Inter · 14px · 600</div>
+            </div>
+            <div
+              class="type-sample"
+              style="font-size: 14px; font-weight: 600; color: var(--ink)"
+            >
+              이번 달 참여 현황
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">nav</div>
+              <div class="type-spec">Inter · 14px · 500 (active: 600)</div>
+            </div>
+            <div
+              class="type-sample"
+              style="display: flex; gap: 20px; align-items: center"
+            >
+              <span style="font-size: 14px; font-weight: 600; color: var(--ink)"
+                >메인</span
+              >
+              <span
+                style="font-size: 14px; font-weight: 500; color: var(--muted)"
+                >아카이브</span
+              >
+              <span
+                style="font-size: 14px; font-weight: 500; color: var(--muted)"
+                >일정</span
+              >
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">body-md</div>
+              <div class="type-spec">Inter · 14px · 400 · lh 1.6</div>
+            </div>
+            <div
+              class="type-sample"
+              style="
+                font-size: 14px;
+                font-weight: 400;
+                color: var(--muted);
+                line-height: 1.6;
+                max-width: 400px;
+              "
+            >
+              사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
+              멀티태스킹의 한계와 딥워크의 중요성.
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">body-sm</div>
+              <div class="type-spec">Inter · 13px · 400 · lh 1.55</div>
+            </div>
+            <div
+              class="type-sample"
+              style="
+                font-size: 13px;
+                color: var(--muted-soft);
+                line-height: 1.55;
+              "
+            >
+              2025년 6월 14일 (토) · 오후 3시 · 온라인
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">label</div>
+              <div class="type-spec">Inter · 12px · 500</div>
+            </div>
+            <div
+              class="type-sample"
+              style="
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--muted-soft);
+              "
+            >
+              May 2025 &middot; Notion
+            </div>
+          </div>
+
+          <div class="type-row">
+            <div class="type-meta">
+              <div class="type-token">wordmark</div>
+              <div class="type-spec">Inter · 15px · 800 · ls -0.3px</div>
+            </div>
+            <div
+              class="type-sample"
+              style="
+                font-size: 15px;
+                font-weight: 800;
+                letter-spacing: -0.3px;
+                color: var(--ink);
+              "
+            >
+              Checkin
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 4. Spacing & Radius ──────────────────────────────── -->
+      <div class="card">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px">
+          <div>
+            <div class="section-label">Spacing</div>
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 4px"></div>
+                <div>
+                  <div class="space-label">
+                    xxs <span class="space-val">4px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 8px"></div>
+                <div>
+                  <div class="space-label">
+                    xs <span class="space-val">8px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 12px"></div>
+                <div>
+                  <div class="space-label">
+                    sm <span class="space-val">12px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 16px"></div>
+                <div>
+                  <div class="space-label">
+                    md <span class="space-val">16px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 24px"></div>
+                <div>
+                  <div class="space-label">
+                    lg <span class="space-val">24px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 32px"></div>
+                <div>
+                  <div class="space-label">
+                    xl <span class="space-val">32px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div class="space-block" style="width: 48px"></div>
+                <div>
+                  <div class="space-label">
+                    xxl <span class="space-val">48px</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="space-item"
+                style="flex-direction: row; align-items: center; gap: 14px"
+              >
+                <div
+                  class="space-block"
+                  style="width: 20px; background: var(--muted-soft)"
+                ></div>
+                <div>
+                  <div class="space-label">
+                    card <span class="space-val">20px</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label">Border Radius</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 16px">
+              <div class="radius-item">
+                <div
+                  class="radius-block"
+                  style="border-radius: var(--r-sm)"
+                ></div>
+                <div class="radius-label">sm</div>
+                <div class="radius-val">6px</div>
+              </div>
+              <div class="radius-item">
+                <div
+                  class="radius-block"
+                  style="border-radius: var(--r-md)"
+                ></div>
+                <div class="radius-label">md</div>
+                <div class="radius-val">8px</div>
+              </div>
+              <div class="radius-item">
+                <div
+                  class="radius-block"
+                  style="border-radius: var(--r-lg)"
+                ></div>
+                <div class="radius-label">lg</div>
+                <div class="radius-val">12px</div>
+              </div>
+              <div class="radius-item">
+                <div
+                  class="radius-block"
+                  style="border-radius: var(--r-xl)"
+                ></div>
+                <div class="radius-label">xl</div>
+                <div class="radius-val">16px</div>
+              </div>
+              <div class="radius-item">
+                <div
+                  class="radius-block"
+                  style="border-radius: 50%; width: 56px; height: 56px"
+                ></div>
+                <div class="radius-label">full</div>
+                <div class="radius-val">9999px</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 5. Component States ──────────────────────────────── -->
+      <div class="card">
+        <div class="section-label">Component States</div>
+        <div class="component-section">
+          <!-- Buttons -->
+          <div class="comp-group">
+            <div class="comp-group-title">Buttons</div>
+            <div class="comp-row">
+              <div class="comp-item">
+                <button class="btn btn-primary">+ 글 추가</button>
+                <div class="comp-label">primary</div>
+              </div>
+              <div class="comp-item">
+                <button
+                  class="btn btn-primary"
+                  style="background: var(--primary-active)"
+                >
+                  + 글 추가
+                </button>
+                <div class="comp-label">primary-active</div>
+              </div>
+              <div class="comp-item">
+                <button class="btn btn-primary-disabled" disabled>
+                  + 글 추가
+                </button>
+                <div class="comp-label">primary-disabled</div>
+              </div>
+              <div class="comp-item">
+                <button class="btn btn-secondary">취소</button>
+                <div class="comp-label">secondary</div>
+              </div>
+              <div class="comp-item">
+                <button class="btn btn-ghost">수정</button>
+                <div class="comp-label">ghost</div>
+              </div>
+              <div class="comp-item">
+                <button class="btn btn-destruct">삭제</button>
+                <div class="comp-label">destructive</div>
+              </div>
+              <div class="comp-item">
+                <button
+                  class="btn btn-destruct"
+                  style="color: var(--error); font-weight: 600"
+                >
+                  확인
+                </button>
+                <div class="comp-label">destruct-confirm</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Article Card -->
+          <div class="comp-group">
+            <div class="comp-group-title">Article Card</div>
+            <div class="comp-row" style="align-items: flex-start">
+              <div class="comp-item">
+                <div class="card-state-normal">
+                  <div class="card-meta">May 2025 &middot; Notion</div>
+                  <div class="card-title">5월은 집중력의 달이었다</div>
+                  <div class="card-preview">
+                    사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
+                    멀티태스킹의 한계.
+                  </div>
+                  <div class="card-footer">
+                    <div class="avatar">J</div>
+                    <span class="avatar-name">지욱</span>
+                  </div>
+                </div>
+                <div class="comp-label">normal (surface-card)</div>
+              </div>
+              <div class="comp-item">
+                <div class="card-state-hover">
+                  <div class="card-meta">May 2025 &middot; Notion</div>
+                  <div class="card-title">5월은 집중력의 달이었다</div>
+                  <div class="card-preview">
+                    사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
+                    멀티태스킹의 한계.
+                  </div>
+                  <div class="card-footer">
+                    <div class="avatar">J</div>
+                    <span class="avatar-name">지욱</span>
+                    <div style="margin-left: auto; display: flex; gap: 8px">
+                      <button
+                        class="btn btn-ghost"
+                        style="padding: 2px 6px; height: auto; font-size: 12px"
+                      >
+                        수정
+                      </button>
+                      <button
+                        class="btn btn-destruct"
+                        style="padding: 2px 6px; height: auto; font-size: 12px"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="comp-label">
+                  hover (canvas + shadow, owner 수정/삭제 표시)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Session Banner -->
+          <div class="comp-group">
+            <div class="comp-group-title">Session Banner</div>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                max-width: 640px;
+              "
+            >
+              <div>
+                <div class="banner-confirmed">
+                  <div>
+                    <div
+                      style="
+                        font-family: var(--font-sans);
+                        font-size: 22px;
+                        font-weight: 700;
+                        letter-spacing: -0.3px;
+                        color: var(--ink);
+                        margin-bottom: 4px;
+                      "
+                    >
+                      6월에 하는 5월 회고
+                    </div>
+                    <div style="font-size: 13px; color: var(--muted)">
+                      2025년 6월 14일 (토) 오후 3시 · 온라인
+                    </div>
+                    <a
+                      href="#"
+                      style="
+                        font-size: 13px;
+                        font-weight: 500;
+                        color: var(--body);
+                        text-decoration: underline;
+                        text-underline-offset: 2px;
+                        margin-top: 4px;
+                        display: inline-block;
+                      "
+                      >회의 참여하기 →</a
+                    >
+                  </div>
+                  <button class="btn btn-primary">+ 글 추가</button>
+                </div>
+                <div
+                  class="comp-label"
+                  style="text-align: left; margin-top: 6px"
+                >
+                  일정 확정 상태
+                </div>
+              </div>
+              <div>
+                <div class="banner-pending">
+                  <div
+                    style="
+                      font-family: var(--font-sans);
+                      font-size: 22px;
+                      font-weight: 700;
+                      letter-spacing: -0.3px;
+                      color: var(--ink);
+                      margin-bottom: 4px;
+                    "
+                  >
+                    6월에 하는 5월 회고
+                  </div>
+                  <div style="font-size: 13px; color: var(--muted-soft)">
+                    날짜 조율 중 ·
+                    <a
+                      href="#"
+                      style="
+                        color: var(--muted-soft);
+                        text-decoration: underline;
+                        text-underline-offset: 2px;
+                      "
+                      >일정 투표하러 가기 →</a
+                    >
+                  </div>
+                </div>
+                <div
+                  class="comp-label"
+                  style="text-align: left; margin-top: 6px"
+                >
+                  일정 미확정 상태
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Login Card -->
+          <div class="comp-group">
+            <div class="comp-group-title">Login Card</div>
+            <div class="comp-row" style="align-items: flex-start">
+              <div class="login-card">
+                <div class="login-title">Checkin</div>
+                <div class="login-sub">회고 멤버 전용 서비스입니다</div>
+                <button class="btn-google">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                  >
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                  Google로 로그인
+                </button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px">
+                <div>
+                  <div class="login-card" style="padding: 32px; width: 280px">
+                    <div class="login-title">Checkin</div>
+                    <div class="login-sub" style="margin-bottom: 16px">
+                      회고 멤버 전용 서비스입니다
+                    </div>
+                    <div
+                      class="error-banner"
+                      style="margin-bottom: 16px; font-size: 13px"
+                    >
+                      가입되지 않은 이메일입니다.
+                    </div>
+                    <button class="btn-google">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="16"
+                        height="16"
+                      >
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                        />
+                      </svg>
+                      Google로 로그인
+                    </button>
+                  </div>
+                  <div
+                    class="comp-label"
+                    style="text-align: center; margin-top: 6px"
+                  >
+                    에러 상태
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Article Reader (dark) -->
+          <div class="comp-group">
+            <div class="comp-group-title">Article Reader (Dark Surface)</div>
+            <div class="reader-card">
+              <div class="reader-title">5월은 집중력의 달이었다</div>
+              <div class="reader-body">
+                사이드 프로젝트 두 개를 병행하면서 느낀 점들을 정리했다.
+                멀티태스킹의 한계와 딥워크의 중요성, 그리고 다음 달을 어떻게
+                설계할지.
+              </div>
+              <div class="reader-code">
+                <pre>
+// 집중 세션 측정
+const session = measure(() => {
+  return deepWork(task, { duration: '90min' });
+});</pre
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Inputs -->
+          <div class="comp-group">
+            <div class="comp-group-title">Inputs</div>
+            <div class="comp-row" style="align-items: flex-start">
+              <div class="comp-item">
+                <input
+                  class="input-normal"
+                  type="text"
+                  placeholder="회고 제목을 입력하세요"
+                />
+                <div class="comp-label">normal</div>
+              </div>
+              <div class="comp-item">
+                <input
+                  class="input-focused"
+                  type="text"
+                  value="5월은 집중력의 달이었다"
+                />
+                <div class="comp-label">focused (coral ring)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Badges & Avatars -->
+          <div class="comp-group">
+            <div class="comp-group-title">Badges & Avatars</div>
+            <div style="display: flex; flex-direction: column; gap: 20px">
+              <div class="comp-row">
+                <div class="comp-item">
+                  <span class="badge badge-session">May 2025</span>
+                  <div class="comp-label">badge-session</div>
+                </div>
+                <div class="comp-item">
+                  <span class="badge badge-session">Notion</span>
+                  <div class="comp-label">badge-source</div>
+                </div>
+                <div class="comp-item">
+                  <span class="badge badge-primary">확정</span>
+                  <div class="comp-label">badge-primary</div>
+                </div>
+              </div>
+              <div class="comp-row">
+                <div class="comp-item">
+                  <div class="av-sm">J</div>
+                  <div class="comp-label">20px (카드 인라인)</div>
+                </div>
+                <div class="comp-item">
+                  <div class="av-md">J</div>
+                  <div class="comp-label">36px (리스트)</div>
+                </div>
+                <div class="comp-item">
+                  <div class="av-lg">J</div>
+                  <div class="comp-label">64px (프로필)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
