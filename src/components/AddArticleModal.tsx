@@ -197,7 +197,7 @@ export default function AddArticleModal({
               <EmotionBlob avatar={avatar} size={72} />
               <p className="text-xs text-muted">
                 {apiResult === null
-                  ? "등록하는 동안 꾸며보세요"
+                  ? "기다리는 동안 이번 달 기분을 꾸며봐요"
                   : "완성됐으면 완료를 눌러주세요"}
               </p>
             </div>
