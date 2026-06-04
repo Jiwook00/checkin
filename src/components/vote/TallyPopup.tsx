@@ -35,17 +35,17 @@ export default function TallyPopup({
   if (closePhase === "tally") {
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-          <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
+        <div className="bg-canvas rounded-[12px] w-full max-w-md shadow-2xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-hairline-soft flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
+              <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-1">
                 {monthKO}
               </p>
-              <h2 className="text-lg font-black text-stone-900">득표 현황</h2>
-              <p className="text-xs text-stone-400 mt-1">
+              <h2 className="text-lg font-black text-ink">득표 현황</h2>
+              <p className="text-xs text-muted mt-1">
                 {respondedCount}/{totalMembers}명 응답 완료
                 {cannotAttendCount > 0 && (
-                  <span className="ml-2 text-stone-400">
+                  <span className="ml-2 text-muted">
                     (불참 {cannotAttendCount}명)
                   </span>
                 )}
@@ -53,7 +53,7 @@ export default function TallyPopup({
             </div>
             <button
               onClick={() => onSetClosePhase(null)}
-              className="text-stone-400 hover:text-stone-600 text-xl font-light transition-colors"
+              className="text-muted hover:text-body text-xl font-light transition-colors"
             >
               ✕
             </button>
@@ -70,19 +70,19 @@ export default function TallyPopup({
                       className={`flex items-center gap-3 p-3 rounded-xl border ${
                         isTop
                           ? "border-emerald-200 bg-emerald-50"
-                          : "border-stone-100 bg-white"
+                          : "border-hairline bg-canvas"
                       }`}
                     >
-                      <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 bg-white border border-stone-100">
-                        <span className="text-sm font-black text-stone-900">
+                      <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 bg-canvas border border-hairline-soft">
+                        <span className="text-sm font-black text-ink">
                           {item.date}
                         </span>
-                        <span className="text-[10px] text-stone-400">
+                        <span className="text-[10px] text-muted">
                           {item.dayName}
                         </span>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-stone-800">
+                        <p className="text-sm font-semibold text-ink">
                           {poll.month}월 {item.date}일 ({item.dayName}){" "}
                           {item.time}
                         </p>
@@ -93,9 +93,9 @@ export default function TallyPopup({
                         )}
                       </div>
                       <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                        <p className="text-sm font-black text-stone-900">
+                        <p className="text-sm font-black text-ink">
                           {item.voters.length}
-                          <span className="text-xs font-normal text-stone-400">
+                          <span className="text-xs font-normal text-muted">
                             /{totalMembers}명
                           </span>
                         </p>
@@ -118,7 +118,7 @@ export default function TallyPopup({
                           {item.voters.length > 5 && (
                             <div
                               style={{ marginLeft: -8 }}
-                              className="w-6 h-6 bg-stone-200 rounded-full flex items-center justify-center text-stone-500 text-[9px] font-bold ring-2 ring-white"
+                              className="w-6 h-6 bg-surface-card rounded-full flex items-center justify-center text-muted text-[9px] font-bold ring-2 ring-white"
                             >
                               +{item.voters.length - 5}
                             </div>
@@ -129,23 +129,23 @@ export default function TallyPopup({
                   );
                 })
               ) : (
-                <p className="text-sm text-stone-400 text-center py-4">
+                <p className="text-sm text-muted text-center py-4">
                   아직 투표 데이터가 없어요
                 </p>
               )}
             </div>
           </div>
 
-          <div className="p-4 border-t border-stone-100 flex gap-2">
+          <div className="p-4 border-t border-hairline-soft flex gap-2">
             <button
               onClick={() => onSetClosePhase(null)}
-              className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
+              className="flex-1 py-2.5 border border-hairline rounded-[8px] text-sm text-body hover:border-muted transition-colors"
             >
               닫기
             </button>
             <button
               onClick={() => onSetClosePhase("date-modal")}
-              className="flex-1 py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors"
+              className="flex-1 py-2.5 bg-primary text-on-primary rounded-[8px] text-sm font-semibold hover:bg-primary-active transition-colors"
             >
               마감하기
             </button>
@@ -158,15 +158,15 @@ export default function TallyPopup({
   // closePhase === "date-modal"
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-stone-100">
-          <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-1">
+      <div className="bg-canvas rounded-[12px] w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-hairline-soft">
+          <p className="text-xs font-semibold text-muted uppercase tracking-widest mb-1">
             마감하기
           </p>
-          <h2 className="text-lg font-black text-stone-900">
+          <h2 className="text-lg font-black text-ink">
             확정 날짜를 선택하세요
           </h2>
-          <p className="text-xs text-stone-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             득표 수를 참고해 최종 날짜를 골라주세요
           </p>
         </div>
@@ -190,27 +190,27 @@ export default function TallyPopup({
                     }
                     className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
                       isSelected
-                        ? "border-stone-900 bg-stone-900 text-white"
+                        ? "border-primary bg-primary text-on-primary"
                         : isTop
                           ? "border-emerald-200 bg-emerald-50 hover:border-emerald-400"
-                          : "border-stone-100 bg-white hover:border-stone-200"
+                          : "border-hairline bg-canvas hover:border-muted"
                     }`}
                   >
                     <div className="w-10 h-10 rounded-lg flex flex-col items-center justify-center flex-shrink-0 bg-white/20">
                       <span
-                        className={`text-sm font-black ${isSelected ? "text-white" : "text-stone-900"}`}
+                        className={`text-sm font-black ${isSelected ? "text-on-primary" : "text-ink"}`}
                       >
                         {item.date}
                       </span>
                       <span
-                        className={`text-[10px] ${isSelected ? "text-stone-300" : "text-stone-400"}`}
+                        className={`text-[10px] ${isSelected ? "text-on-primary/60" : "text-muted"}`}
                       >
                         {item.dayName}
                       </span>
                     </div>
                     <div className="flex-1">
                       <p
-                        className={`text-sm font-semibold ${isSelected ? "text-white" : "text-stone-800"}`}
+                        className={`text-sm font-semibold ${isSelected ? "text-on-primary" : "text-ink"}`}
                       >
                         {poll.month}월 {item.date}일 ({item.dayName}){" "}
                         {item.time}
@@ -223,11 +223,11 @@ export default function TallyPopup({
                     </div>
                     <div className="flex-shrink-0 text-right">
                       <p
-                        className={`text-sm font-black ${isSelected ? "text-white" : "text-stone-900"}`}
+                        className={`text-sm font-black ${isSelected ? "text-on-primary" : "text-ink"}`}
                       >
                         {item.count}
                         <span
-                          className={`text-xs font-normal ${isSelected ? "text-stone-400" : "text-stone-400"}`}
+                          className={`text-xs font-normal ${isSelected ? "text-on-primary/60" : "text-muted"}`}
                         >
                           /{totalMembers}명
                         </span>
@@ -239,13 +239,13 @@ export default function TallyPopup({
                             className={`w-2 h-2 rounded-sm ${
                               i < item.count
                                 ? isSelected
-                                  ? "bg-white"
+                                  ? "bg-on-primary"
                                   : isTop
                                     ? "bg-emerald-500"
-                                    : "bg-stone-500"
+                                    : "bg-muted"
                                 : isSelected
-                                  ? "bg-white/20"
-                                  : "bg-stone-200"
+                                  ? "bg-on-primary/20"
+                                  : "bg-hairline"
                             }`}
                           />
                         ))}
@@ -255,27 +255,27 @@ export default function TallyPopup({
                 );
               })
             ) : (
-              <p className="text-sm text-stone-400 text-center py-4">
+              <p className="text-sm text-muted text-center py-4">
                 아직 투표 데이터가 없어요
               </p>
             )}
           </div>
         </div>
 
-        <div className="p-4 border-t border-stone-100 flex gap-2">
+        <div className="p-4 border-t border-hairline-soft flex gap-2">
           <button
             onClick={() => {
               onSetClosePhase("tally");
               onSelectConfirmedDate(null);
             }}
-            className="flex-1 py-2.5 border border-stone-200 rounded-xl text-sm text-stone-600 hover:border-stone-400 transition-colors"
+            className="flex-1 py-2.5 border border-hairline rounded-[8px] text-sm text-body hover:border-muted transition-colors"
           >
             ← 돌아가기
           </button>
           <button
             disabled={!confirmedDate || confirming}
             onClick={onConfirm}
-            className="flex-1 py-2.5 bg-stone-900 text-white rounded-xl text-sm font-semibold hover:bg-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 py-2.5 bg-primary text-on-primary rounded-[8px] text-sm font-semibold hover:bg-primary-active transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {confirming
               ? "확정 중..."
