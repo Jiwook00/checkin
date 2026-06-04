@@ -160,12 +160,6 @@ export default function App() {
     return sortWithinSession(filtered);
   }, [articles, recentSessions, selectedSession]);
 
-  // 모바일용 — 세션 필터 없이 최근 전체
-  const mobileArticles = useMemo(() => {
-    const filtered = articles.filter((a) => recentSessions.includes(a.session));
-    return sortWithinSession(filtered);
-  }, [articles, recentSessions]);
-
   // 글 추가
   const handleAddArticle = async (
     form: AddArticleForm,
@@ -333,7 +327,7 @@ export default function App() {
   if (authState.status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50">
-        <p className="text-sm text-stone-400">로딩 중...</p>
+        <p className="text-sm text-muted">로딩 중...</p>
       </div>
     );
   }
@@ -376,12 +370,11 @@ export default function App() {
               </div>
               {loading ? (
                 <div className="py-20 text-center">
-                  <p className="text-stone-400">불러오는 중...</p>
+                  <p className="text-muted">불러오는 중...</p>
                 </div>
               ) : (
                 <ArticleList
                   articles={filteredArticles}
-                  mobileArticles={mobileArticles}
                   onArticleClick={(article) =>
                     navigate(`/articles/${article.id}`)
                   }

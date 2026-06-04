@@ -21,5 +21,8 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": ["Bash(curl -s \"http://localhost:5174/src/index.css\")"]
   }
 }
