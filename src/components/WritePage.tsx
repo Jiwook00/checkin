@@ -9,6 +9,9 @@ import TaskItem from "@tiptap/extension-task-item";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import type { AvatarConfig } from "../types";
+import EmotionPicker, { DEFAULT_AVATAR } from "./EmotionPicker";
+import EmotionBlob from "./EmotionBlob";
 
 function getCurrentSession(): string {
   const now = new Date();
@@ -62,6 +65,12 @@ export default function WritePage({
   const [loadingArticle, setLoadingArticle] = useState(!!editId);
   const [pendingContent, setPendingContent] = useState<object | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // 감정 아바타 선택 — 신규 작성 시 저장 후 표시
+  const [avatarPhase, setAvatarPhase] = useState(false);
+  const [avatar, setAvatar] = useState<AvatarConfig>(DEFAULT_AVATAR);
+  const [savedArticleId, setSavedArticleId] = useState<string | null>(null);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -157,8 +166,10 @@ export default function WritePage({
           })
           .eq("id", editId);
         if (updateError) throw new Error(updateError.message);
+        onSave();
+        navigate("/");
       } else {
-        const { error: insertError } = await supabase
+        const { data: inserted, error: insertError } = await supabase
           .from("checkin_retrospectives")
           .insert({
             member_id: memberId,
@@ -169,20 +180,73 @@ export default function WritePage({
             content_markdown,
             source_url: null,
             source_type: "other",
-          });
+          })
+          .select("id")
+          .single();
         if (insertError) throw new Error(insertError.message);
+        setSavedArticleId(inserted.id);
+        setAvatarPhase(true);
+        setSaving(false);
+        return;
       }
-
-      onSave();
-      navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장에 실패했습니다");
       setSaving(false);
     }
   };
 
+  const handleConfirmAvatar = async () => {
+    if (!savedArticleId) return;
+    setSavingAvatar(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("checkin_retrospectives")
+        .update({ avatar })
+        .eq("id", savedArticleId);
+      if (updateError) throw new Error(updateError.message);
+      onSave();
+      navigate("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장에 실패했습니다");
+      setSavingAvatar(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-canvas">
+      {/* 감정 아바타 선택 오버레이 */}
+      {avatarPhase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-[12px] bg-canvas p-6 shadow-xl">
+            <h2 className="mb-1 text-lg font-bold text-ink">
+              이번 달 나의 감정은?
+            </h2>
+            <p className="mb-4 text-xs text-muted">
+              글에 표시될 캐릭터를 자유롭게 꾸며보세요
+            </p>
+            {/* 미리보기 고정 */}
+            <div className="flex justify-center pb-4 border-b border-hairline">
+              <EmotionBlob avatar={avatar} size={72} />
+            </div>
+            <div className="max-h-[320px] overflow-y-auto pt-3">
+              <EmotionPicker value={avatar} onChange={setAvatar} />
+            </div>
+            {error && (
+              <p className="mt-3 rounded-[8px] bg-error/10 px-3 py-2 text-sm text-error">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleConfirmAvatar}
+              disabled={savingAvatar}
+              className="mt-5 w-full rounded-[8px] bg-primary py-2.5 text-sm font-medium text-on-primary transition-colors hover:bg-primary-active disabled:opacity-50"
+            >
+              {savingAvatar ? "저장 중..." : "완료"}
+            </button>
+          </div>
+        </div>
+      )}
       {/* 상단 바 */}
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-hairline bg-canvas px-4 py-3">
         <button

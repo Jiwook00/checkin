@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase";
 import type {
   AddArticleForm,
   Announcement,
+  AvatarConfig,
   Retrospective,
   VotePoll,
 } from "./types";
@@ -264,20 +265,15 @@ export default function App() {
     return { parseFailed: false, articleId: data.data.id };
   };
 
-  // 발표 순서 저장
-  const handleUpdatePresentationOrder = async (
-    articleId: string,
-    score: number,
-  ) => {
+  // 감정 아바타 저장
+  const handleSaveAvatar = async (articleId: string, avatar: AvatarConfig) => {
     const { error } = await supabase
       .from("checkin_retrospectives")
-      .update({ presentation_order: score })
+      .update({ avatar })
       .eq("id", articleId);
     if (error) throw new Error(error.message);
     setArticles((prev) =>
-      prev.map((a) =>
-        a.id === articleId ? { ...a, presentation_order: score } : a,
-      ),
+      prev.map((a) => (a.id === articleId ? { ...a, avatar } : a)),
     );
   };
 
@@ -445,7 +441,7 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
-        onSaveDiceScore={handleUpdatePresentationOrder}
+        onSaveAvatar={handleSaveAvatar}
         defaultSession={defaultSession}
       />
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Retrospective } from "../types";
 import MemberAvatar from "./MemberAvatar";
+import EmotionBlob from "./EmotionBlob";
 
 interface ArticleCardProps {
   article: Retrospective;
@@ -82,12 +83,16 @@ export default function ArticleCard({
     >
       {/* Left: avatar + nickname */}
       <div className="flex flex-col items-center gap-1.5 w-12 flex-shrink-0 pt-0.5">
-        <MemberAvatar
-          memberId={article.member_id}
-          name={nickname}
-          avatarUrl={article.checkin_members?.avatar_url ?? null}
-          size={44}
-        />
+        {article.avatar ? (
+          <EmotionBlob avatar={article.avatar} size={44} />
+        ) : (
+          <MemberAvatar
+            memberId={article.member_id}
+            name={nickname}
+            avatarUrl={article.checkin_members?.avatar_url ?? null}
+            size={44}
+          />
+        )}
         <span className="text-[11px] text-muted-soft font-medium text-center leading-tight w-full truncate">
           {nickname}
         </span>

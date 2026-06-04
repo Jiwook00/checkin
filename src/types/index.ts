@@ -1,3 +1,31 @@
+export type AvatarColor =
+  | "yellow"
+  | "orange"
+  | "green"
+  | "blue"
+  | "purple"
+  | "red"
+  | "gray"
+  | "navy"
+  | "pink"
+  | "teal";
+
+export type AvatarShape = "round" | "blob1" | "blob2" | "blob3";
+
+export type AvatarEyes = "dots" | "happy" | "wink" | "sad" | "crying" | "angry";
+
+export type AvatarNose = "none" | "dot" | "dots" | "circle";
+
+export type AvatarMouth = "smile" | "grin" | "flat" | "frown" | "wavy";
+
+export interface AvatarConfig {
+  color: AvatarColor;
+  shape: AvatarShape;
+  eyes: AvatarEyes;
+  nose: AvatarNose;
+  mouth: AvatarMouth;
+}
+
 export interface Retrospective {
   id: string;
   member_id: string;
@@ -9,6 +37,7 @@ export interface Retrospective {
   content_markdown: string;
   session: string;
   presentation_order: number | null;
+  avatar: AvatarConfig | null;
   created_at: string;
   updated_at: string;
   checkin_members: { nickname: string; avatar_url: string | null } | null;
