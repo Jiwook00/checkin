@@ -109,7 +109,7 @@ export default function ArchivePage({ articles }: ArchivePageProps) {
   return (
     <div className="flex h-full overflow-hidden pt-14 md:pt-0">
       {/* 좌 패널 — 글 목록 */}
-      <div className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden border-r border-stone-100 md:w-[22rem] lg:w-[26rem]">
+      <div className="flex h-full w-full flex-shrink-0 flex-col overflow-hidden border-r border-hairline-soft md:w-[22rem] lg:w-[26rem]">
         <ArchiveList
           groupedArticles={groupedArticles}
           sessions={sessions}

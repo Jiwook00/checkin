@@ -80,13 +80,13 @@ export default function ProfilePage({
         <div className="flex flex-col items-center text-center mb-8">
           <div className="relative mb-4">
             <button
-              className="w-24 h-24 rounded-full bg-stone-200 flex items-center justify-center text-stone-500 text-3xl font-semibold overflow-hidden cursor-pointer hover:brightness-90 active:brightness-75 transition-[filter] disabled:cursor-not-allowed"
+              className="w-24 h-24 rounded-full bg-surface-card flex items-center justify-center text-muted text-3xl font-semibold overflow-hidden cursor-pointer hover:brightness-90 active:brightness-75 transition-[filter] disabled:cursor-not-allowed"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               title="프로필 사진 변경"
             >
               {uploading ? (
-                <span className="text-base text-stone-400">업로드 중</span>
+                <span className="text-base text-muted">업로드 중</span>
               ) : member.avatar_url ? (
                 <img
                   src={member.avatar_url}
@@ -98,7 +98,7 @@ export default function ProfilePage({
               )}
             </button>
             <button
-              className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-stone-900 flex items-center justify-center text-white text-xs shadow-md hover:bg-stone-700 active:bg-stone-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center text-on-primary text-xs shadow-md hover:bg-primary-active active:bg-primary-active transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               title="프로필 사진 변경"
@@ -106,23 +106,21 @@ export default function ProfilePage({
               ✎
             </button>
           </div>
-          <h1 className="text-xl font-bold text-stone-900 mb-1">
-            {member.nickname}
-          </h1>
-          <p className="text-sm text-stone-400">{member.email}</p>
+          <h1 className="text-xl font-bold text-ink mb-1">{member.nickname}</h1>
+          <p className="text-sm text-muted">{member.email}</p>
         </div>
 
         {/* 구분선 */}
-        <div className="border-t border-stone-100 mb-8" />
+        <div className="border-t border-hairline-soft mb-8" />
 
         {/* 활동 통계 */}
-        <div className="bg-stone-50 rounded-2xl p-5">
-          <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-4">
+        <div className="bg-surface-card rounded-[12px] p-5">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
             활동
           </h2>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-stone-600">회고 작성</span>
-            <span className="text-sm font-bold text-stone-900">
+            <span className="text-sm text-body">회고 작성</span>
+            <span className="text-sm font-bold text-ink">
               {retroCount === null ? "…" : `${retroCount}건`}
             </span>
           </div>

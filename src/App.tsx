@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase";
 import type {
   AddArticleForm,
   Announcement,
+  AvatarConfig,
   Retrospective,
   VotePoll,
 } from "./types";
@@ -23,6 +24,7 @@ import { useAuth } from "./hooks/useAuth";
 import ProfilePage from "./components/ProfilePage";
 import ArchivePage from "./components/ArchivePage";
 import PhotoAlbumPage from "./components/PhotoAlbumPage";
+import WritePage from "./components/WritePage";
 
 const BUCKET_PREFIX = "/checkin-images/";
 
@@ -159,12 +161,6 @@ export default function App() {
     return sortWithinSession(filtered);
   }, [articles, recentSessions, selectedSession]);
 
-  // 모바일용 — 세션 필터 없이 최근 전체
-  const mobileArticles = useMemo(() => {
-    const filtered = articles.filter((a) => recentSessions.includes(a.session));
-    return sortWithinSession(filtered);
-  }, [articles, recentSessions]);
-
   // 글 추가
   const handleAddArticle = async (
     form: AddArticleForm,
@@ -269,20 +265,15 @@ export default function App() {
     return { parseFailed: false, articleId: data.data.id };
   };
 
-  // 발표 순서 저장
-  const handleUpdatePresentationOrder = async (
-    articleId: string,
-    score: number,
-  ) => {
+  // 감정 아바타 저장
+  const handleSaveAvatar = async (articleId: string, avatar: AvatarConfig) => {
     const { error } = await supabase
       .from("checkin_retrospectives")
-      .update({ presentation_order: score })
+      .update({ avatar })
       .eq("id", articleId);
     if (error) throw new Error(error.message);
     setArticles((prev) =>
-      prev.map((a) =>
-        a.id === articleId ? { ...a, presentation_order: score } : a,
-      ),
+      prev.map((a) => (a.id === articleId ? { ...a, avatar } : a)),
     );
   };
 
@@ -297,6 +288,15 @@ export default function App() {
       .eq("id", id);
     if (error) throw new Error(error.message);
     await fetchArticles();
+  };
+
+  // 수정 진입점 분기: written → /write/:id, url → 모달
+  const handleEditArticleAction = (article: Retrospective) => {
+    if (article.content_type === "written") {
+      navigate(`/write/${article.id}`);
+    } else {
+      setEditingArticle(article);
+    }
   };
 
   // 글 삭제
@@ -323,7 +323,7 @@ export default function App() {
   if (authState.status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-stone-50">
-        <p className="text-sm text-stone-400">로딩 중...</p>
+        <p className="text-sm text-muted">로딩 중...</p>
       </div>
     );
   }
@@ -337,7 +337,10 @@ export default function App() {
       nickname={authState.member.nickname}
       onLogout={signOut}
       onAddClick={() => setShowAddModal(true)}
-      fullBleed={location.pathname === "/archive"}
+      fullBleed={
+        location.pathname === "/archive" ||
+        location.pathname.startsWith("/write")
+      }
       noPadding={location.pathname === "/photos"}
     >
       <Routes>
@@ -363,17 +366,16 @@ export default function App() {
               </div>
               {loading ? (
                 <div className="py-20 text-center">
-                  <p className="text-stone-400">불러오는 중...</p>
+                  <p className="text-muted">불러오는 중...</p>
                 </div>
               ) : (
                 <ArticleList
                   articles={filteredArticles}
-                  mobileArticles={mobileArticles}
                   onArticleClick={(article) =>
                     navigate(`/articles/${article.id}`)
                   }
                   currentMemberId={authState.member.id}
-                  onEdit={setEditingArticle}
+                  onEdit={handleEditArticleAction}
                   onDelete={handleDeleteArticle}
                 />
               )}
@@ -402,6 +404,26 @@ export default function App() {
             </>
           }
         />
+        <Route
+          path="/write"
+          element={
+            <WritePage
+              memberId={authState.member.id}
+              defaultSession={defaultSession}
+              onSave={fetchArticles}
+            />
+          }
+        />
+        <Route
+          path="/write/:id"
+          element={
+            <WritePage
+              memberId={authState.member.id}
+              defaultSession={defaultSession}
+              onSave={fetchArticles}
+            />
+          }
+        />
         <Route path="/updates" element={<UpdatesPage />} />
         <Route path="/photos" element={<PhotoAlbumPage />} />
         <Route
@@ -419,7 +441,7 @@ export default function App() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddArticle}
-        onSaveDiceScore={handleUpdatePresentationOrder}
+        onSaveAvatar={handleSaveAvatar}
         defaultSession={defaultSession}
       />
 

@@ -38,3 +38,163 @@
   --color-badge-violet: #8b5cf6;
   --color-badge-emerald: #34d399;
 }
+
+/* Tiptap 에디터 prose 스타일 */
+.tiptap {
+  color: var(--color-ink);
+  line-height: 1.75;
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 1.25rem 0 0.5rem;
+  }
+
+  p {
+    margin: 0.5rem 0;
+  }
+
+  ul,
+  ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  ul[data-type="taskList"] {
+    list-style: none;
+    padding-left: 0;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+
+      > label {
+        margin-top: 0.2rem;
+        flex-shrink: 0;
+      }
+
+      > div {
+        flex: 1;
+      }
+    }
+  }
+
+  a {
+    color: var(--color-brand-accent);
+    text-decoration: underline;
+  }
+
+  img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 0.75rem 0;
+  }
+
+  blockquote {
+    border-left: 3px solid var(--color-hairline);
+    padding-left: 1rem;
+    color: var(--color-muted);
+    margin: 0.75rem 0;
+  }
+
+  code {
+    background: var(--color-surface-card);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.875em;
+    padding: 0.1em 0.3em;
+  }
+
+  pre {
+    background: var(--color-surface-card);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+
+    code {
+      background: none;
+      padding: 0;
+    }
+  }
+
+  strong {
+    font-weight: 700;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  u {
+    text-decoration: underline;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--color-hairline);
+    margin: 1.25rem 0;
+  }
+
+  p.is-editor-empty:first-child::before {
+    color: var(--color-muted);
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+}
+
+/* 에디터 컨테이너 포커스 링 */
+.tiptap-editor-wrapper {
+  border-radius: 8px;
+  border: 1px solid var(--color-hairline);
+  padding: 1rem;
+  transition: border-color 0.15s ease;
+
+  &:focus-within {
+    border-color: var(--color-ink);
+    outline: none;
+  }
+}
+
+/* 툴바 버튼 */
+.tiptap-toolbar-btn {
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
+  color: var(--color-body);
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-surface-strong);
+    color: var(--color-ink);
+  }
+
+  &.is-active {
+    background-color: var(--color-ink);
+    color: var(--color-canvas);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}

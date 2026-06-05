@@ -48,7 +48,7 @@ export default function PhotoAlbumPage() {
   if (loading) {
     return (
       <div className="py-20 text-center">
-        <p className="text-stone-400 text-sm">불러오는 중...</p>
+        <p className="text-muted text-sm">불러오는 중...</p>
       </div>
     );
   }
@@ -56,7 +56,7 @@ export default function PhotoAlbumPage() {
   if (photos.length === 0) {
     return (
       <div className="py-20 text-center">
-        <p className="text-stone-400 text-sm">아직 사진이 없어요.</p>
+        <p className="text-muted text-sm">아직 사진이 없어요.</p>
       </div>
     );
   }
@@ -65,17 +65,17 @@ export default function PhotoAlbumPage() {
     const others = photos.filter((p) => p.name !== selected.name);
 
     return (
-      <div className="bg-white">
+      <div className="bg-canvas">
         {/* Top bar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-hairline-soft">
           <button
             onClick={() => setSelected(null)}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-600 text-lg transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-card text-body text-lg transition-colors"
           >
             ←
           </button>
           <div className="flex-1" />
-          <button className="flex items-center gap-1.5 text-stone-500 hover:text-stone-800 transition-colors text-sm">
+          <button className="flex items-center gap-1.5 text-muted hover:text-ink transition-colors text-sm">
             <svg
               viewBox="0 0 24 24"
               className="w-5 h-5"
@@ -87,7 +87,7 @@ export default function PhotoAlbumPage() {
             </svg>
             <span>11</span>
           </button>
-          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-500 transition-colors">
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-card text-muted transition-colors">
             <svg
               viewBox="0 0 24 24"
               className="w-5 h-5"
@@ -98,7 +98,7 @@ export default function PhotoAlbumPage() {
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </button>
-          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-500 transition-colors">
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-card text-muted transition-colors">
             <svg
               viewBox="0 0 24 24"
               className="w-5 h-5"
@@ -113,7 +113,7 @@ export default function PhotoAlbumPage() {
               <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
           </button>
-          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-stone-100 text-stone-500 transition-colors text-lg leading-none">
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-card text-muted transition-colors text-lg leading-none">
             ···
           </button>
           <button className="px-4 py-2 rounded-full bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors">
@@ -122,9 +122,9 @@ export default function PhotoAlbumPage() {
         </div>
 
         {/* Main section: photo | comments [| photos at xl] */}
-        <div className="flex flex-col md:flex-row border-b border-stone-100">
+        <div className="flex flex-col md:flex-row border-b border-hairline-soft">
           {/* Selected photo */}
-          <div className="md:w-1/2 xl:w-[40%] bg-stone-50 flex items-center justify-center p-4 md:p-8 md:border-r border-stone-100">
+          <div className="md:w-1/2 xl:w-[40%] bg-surface-card flex items-center justify-center p-4 md:p-8 md:border-r border-hairline-soft">
             <img
               src={selected.url}
               alt=""
@@ -133,20 +133,20 @@ export default function PhotoAlbumPage() {
           </div>
 
           {/* Comment area */}
-          <div className="md:w-1/2 xl:w-[30%] flex flex-col xl:border-r border-stone-100">
-            <div className="flex-1 px-4 py-5 text-sm text-stone-400 text-center">
+          <div className="md:w-1/2 xl:w-[30%] flex flex-col xl:border-r border-hairline-soft">
+            <div className="flex-1 px-4 py-5 text-sm text-muted text-center">
               아직 댓글이 없어요.
             </div>
-            <div className="px-4 py-4 border-t border-stone-100">
-              <div className="flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2.5 bg-white">
+            <div className="px-4 py-4 border-t border-hairline-soft">
+              <div className="flex items-center gap-2 rounded-full border border-hairline px-4 py-2.5 bg-canvas">
                 <input
                   type="text"
                   placeholder="댓글을 추가하고 대화를 시작하세요."
                   readOnly
-                  className="flex-1 text-sm text-stone-500 bg-transparent outline-none cursor-default placeholder:text-stone-400"
+                  className="flex-1 text-sm text-muted bg-transparent outline-none cursor-default placeholder:text-muted"
                 />
-                <div className="flex items-center gap-1 text-stone-400">
-                  <button className="w-7 h-7 flex items-center justify-center hover:text-stone-600 transition-colors">
+                <div className="flex items-center gap-1 text-muted">
+                  <button className="w-7 h-7 flex items-center justify-center hover:text-body transition-colors">
                     <svg
                       viewBox="0 0 24 24"
                       className="w-4 h-4"
@@ -160,10 +160,10 @@ export default function PhotoAlbumPage() {
                       <line x1="15" y1="9" x2="15.01" y2="9" />
                     </svg>
                   </button>
-                  <button className="w-7 h-7 flex items-center justify-center hover:text-stone-600 transition-colors text-xs font-bold">
+                  <button className="w-7 h-7 flex items-center justify-center hover:text-body transition-colors text-xs font-bold">
                     GIF
                   </button>
-                  <button className="w-7 h-7 flex items-center justify-center hover:text-stone-600 transition-colors">
+                  <button className="w-7 h-7 flex items-center justify-center hover:text-body transition-colors">
                     <svg
                       viewBox="0 0 24 24"
                       className="w-4 h-4"

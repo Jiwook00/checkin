@@ -78,19 +78,19 @@ export default function ArchiveList({
   return (
     <div className="flex h-full flex-col">
       {/* 필터 바 */}
-      <div className="flex-shrink-0 space-y-2 border-b border-stone-100 px-3 py-3">
+      <div className="flex-shrink-0 space-y-2 border-b border-hairline-soft px-3 py-3">
         <input
           type="text"
           placeholder="제목 검색..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 outline-none placeholder:text-stone-400 focus:border-stone-400 focus:bg-white"
+          className="w-full rounded-[8px] border border-hairline bg-surface-card px-3 py-2 text-sm text-body outline-none placeholder:text-muted focus:border-muted focus:bg-canvas"
         />
         <div className="flex gap-2">
           <select
             value={selectedMemberId ?? ""}
             onChange={(e) => onMemberChange(e.target.value || null)}
-            className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs text-stone-600 outline-none focus:border-stone-400"
+            className="flex-1 rounded-[8px] border border-hairline bg-surface-card px-2 py-1.5 text-xs text-body outline-none focus:border-muted"
           >
             <option value="">전체 멤버</option>
             {members.map((m) => (
@@ -102,7 +102,7 @@ export default function ArchiveList({
           <select
             value={selectedSession ?? ""}
             onChange={(e) => onSessionChange(e.target.value || null)}
-            className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs text-stone-600 outline-none focus:border-stone-400"
+            className="flex-1 rounded-[8px] border border-hairline bg-surface-card px-2 py-1.5 text-xs text-body outline-none focus:border-muted"
           >
             <option value="">전체 기간</option>
             {sessions.map((s) => (
@@ -117,7 +117,7 @@ export default function ArchiveList({
       {/* 글 목록 — 뉴스피드형 */}
       <div className="flex-1 overflow-y-auto">
         {totalFiltered === 0 ? (
-          <div className="py-16 text-center text-xs text-stone-400">
+          <div className="py-16 text-center text-xs text-muted">
             검색 결과가 없어요
           </div>
         ) : (
@@ -126,8 +126,8 @@ export default function ArchiveList({
               {yearGroup.months.map((monthGroup) => (
                 <div key={monthGroup.session}>
                   {/* 년월 헤더 — sticky */}
-                  <div className="sticky top-0 z-10 border-b border-stone-200 bg-white px-4 py-2.5">
-                    <span className="text-sm font-bold text-stone-800">
+                  <div className="sticky top-0 z-10 border-b border-hairline bg-canvas px-4 py-2.5">
+                    <span className="text-sm font-bold text-ink">
                       {formatSessionLabel(monthGroup.session)}
                     </span>
                   </div>
@@ -149,9 +149,9 @@ export default function ArchiveList({
                         }}
                         className={`w-full px-4 py-4 text-left transition-colors ${
                           isSelected
-                            ? "bg-stone-900"
-                            : "bg-white hover:bg-stone-50"
-                        } ${!isLast ? "border-b border-stone-100" : ""}`}
+                            ? "bg-primary"
+                            : "bg-canvas hover:bg-surface-card"
+                        } ${!isLast ? "border-b border-hairline-soft" : ""}`}
                       >
                         {/* 작성자 헤더 */}
                         <div className="mb-2 flex items-center gap-2">
@@ -163,21 +163,23 @@ export default function ArchiveList({
                           />
                           <span
                             className={`text-xs font-semibold ${
-                              isSelected ? "text-white/80" : "text-stone-600"
+                              isSelected ? "text-on-primary/80" : "text-body"
                             }`}
                           >
                             {nickname}
                           </span>
                           <span
                             className={`text-[10px] ${
-                              isSelected ? "text-white/40" : "text-stone-300"
+                              isSelected
+                                ? "text-on-primary/40"
+                                : "text-muted-soft"
                             }`}
                           >
                             ·
                           </span>
                           <span
                             className={`text-[10px] ${
-                              isSelected ? "text-white/40" : "text-stone-400"
+                              isSelected ? "text-on-primary/40" : "text-muted"
                             }`}
                           >
                             {article.session}
@@ -186,7 +188,7 @@ export default function ArchiveList({
                         {/* 제목 */}
                         <div
                           className={`mb-1.5 line-clamp-2 text-[15px] font-bold leading-snug ${
-                            isSelected ? "text-white" : "text-stone-900"
+                            isSelected ? "text-on-primary" : "text-ink"
                           }`}
                         >
                           {article.title}
@@ -194,7 +196,7 @@ export default function ArchiveList({
                         {/* 본문 미리보기 */}
                         <div
                           className={`line-clamp-3 text-xs leading-relaxed ${
-                            isSelected ? "text-white/55" : "text-stone-400"
+                            isSelected ? "text-on-primary/55" : "text-muted"
                           }`}
                         >
                           {extractPreview(article.content_markdown)}

@@ -1,16 +1,88 @@
+export type AvatarColor =
+  | "yellow"
+  | "orange"
+  | "green"
+  | "blue"
+  | "purple"
+  | "red"
+  | "gray"
+  | "navy"
+  | "pink"
+  | "teal";
+
+export type AvatarShape = "round" | "blob1" | "blob2" | "blob3";
+
+export type AvatarEyes =
+  | "dots"
+  | "happy"
+  | "wink"
+  | "sad"
+  | "crying"
+  | "angry"
+  | "sparkle"
+  | "cross"
+  | "heart"
+  | "round"
+  | "closed"
+  | "stripe"
+  | "bigdot"
+  | "slash"
+  | "swirl"
+  | "arch";
+
+export type AvatarNose = "none" | "dot" | "dots" | "circle" | "hook";
+
+export type AvatarMouth =
+  | "smile"
+  | "grin"
+  | "flat"
+  | "frown"
+  | "wavy"
+  | "teeth"
+  | "open"
+  | "fang"
+  | "squiggle"
+  | "bigteeth"
+  | "onetooth"
+  | "spiky"
+  | "egg"
+  | "swoosh"
+  | "arc"
+  | "ring"
+  | "ahh"
+  | "laugh"
+  | "pout"
+  | "curl";
+
+export interface AvatarConfig {
+  color: AvatarColor;
+  shape: AvatarShape;
+  eyes: AvatarEyes;
+  nose: AvatarNose;
+  mouth: AvatarMouth;
+}
+
 export interface Retrospective {
   id: string;
   member_id: string;
   title: string;
-  source_url: string;
+  source_url: string | null;
   source_type: "notion" | "tistory" | "other";
+  content_type: "url" | "written";
   content_html: string | null;
   content_markdown: string;
   session: string;
   presentation_order: number | null;
+  avatar: AvatarConfig | null;
   created_at: string;
   updated_at: string;
   checkin_members: { nickname: string; avatar_url: string | null } | null;
+}
+
+export interface WriteArticleForm {
+  title: string;
+  session: string;
+  content: object;
 }
 
 export interface AddArticleForm {

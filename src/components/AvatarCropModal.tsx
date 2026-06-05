@@ -221,7 +221,7 @@ export default function AvatarCropModal({
           <h2 className="text-base font-semibold text-white">
             프로필 사진 편집
           </h2>
-          <p className="text-xs text-stone-400 mt-1">
+          <p className="text-xs text-on-dark-soft mt-1">
             모서리를 드래그해서 크기 조절, 안쪽을 드래그해서 위치 이동
           </p>
         </div>
@@ -400,7 +400,7 @@ export default function AvatarCropModal({
         {/* Action buttons — iOS 스타일 */}
         <div className="px-5 pb-5 flex justify-between items-center">
           <button
-            className="text-sm font-medium text-stone-300 px-4 py-2 hover:text-white transition-colors"
+            className="text-sm font-medium text-on-dark-soft px-4 py-2 hover:text-on-dark transition-colors"
             onClick={onCancel}
           >
             취소
