@@ -124,7 +124,9 @@ export default function AddArticleModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-[12px] bg-canvas p-6 shadow-xl">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">이번 달 나의 감정은?</h2>
+          <h2 className="text-lg font-bold text-ink">
+            {phase === "game" ? "이번 달 나의 감정은?" : "글 등록 방식 선택"}
+          </h2>
           <button
             onClick={handleClose}
             className="text-muted transition-colors hover:text-body"
