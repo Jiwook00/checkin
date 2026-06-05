@@ -12,11 +12,47 @@ export type AvatarColor =
 
 export type AvatarShape = "round" | "blob1" | "blob2" | "blob3";
 
-export type AvatarEyes = "dots" | "happy" | "wink" | "sad" | "crying" | "angry";
+export type AvatarEyes =
+  | "dots"
+  | "happy"
+  | "wink"
+  | "sad"
+  | "crying"
+  | "angry"
+  | "sparkle"
+  | "cross"
+  | "heart"
+  | "round"
+  | "closed"
+  | "stripe"
+  | "bigdot"
+  | "slash"
+  | "swirl"
+  | "arch";
 
-export type AvatarNose = "none" | "dot" | "dots" | "circle";
+export type AvatarNose = "none" | "dot" | "dots" | "circle" | "hook";
 
-export type AvatarMouth = "smile" | "grin" | "flat" | "frown" | "wavy";
+export type AvatarMouth =
+  | "smile"
+  | "grin"
+  | "flat"
+  | "frown"
+  | "wavy"
+  | "teeth"
+  | "open"
+  | "fang"
+  | "squiggle"
+  | "bigteeth"
+  | "onetooth"
+  | "spiky"
+  | "egg"
+  | "swoosh"
+  | "arc"
+  | "ring"
+  | "ahh"
+  | "laugh"
+  | "pout"
+  | "curl";
 
 export interface AvatarConfig {
   color: AvatarColor;

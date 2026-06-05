@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(curl -s \"http://localhost:5174/src/index.css\")",
+      "Bash(xargs cat)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -21,8 +27,5 @@
         ]
       }
     ]
-  },
-  "permissions": {
-    "allow": ["Bash(curl -s \"http://localhost:5174/src/index.css\")"]
   }
 }

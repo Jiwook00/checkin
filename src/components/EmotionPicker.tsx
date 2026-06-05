@@ -40,6 +40,16 @@ const EYES_OPTIONS: { value: AvatarEyes; label: string }[] = [
   { value: "sad", label: "슬픈" },
   { value: "crying", label: "눈물" },
   { value: "angry", label: "화난" },
+  { value: "sparkle", label: "반짝" },
+  { value: "cross", label: "X눈" },
+  { value: "heart", label: "속눈썹" },
+  { value: "round", label: "왕눈" },
+  { value: "closed", label: "단정" },
+  { value: "stripe", label: "띠" },
+  { value: "bigdot", label: "통통" },
+  { value: "slash", label: "빗금" },
+  { value: "swirl", label: "방울" },
+  { value: "arch", label: "아치" },
 ];
 
 const NOSE_OPTIONS: { value: AvatarNose; label: string }[] = [
@@ -47,6 +57,7 @@ const NOSE_OPTIONS: { value: AvatarNose; label: string }[] = [
   { value: "dot", label: "점" },
   { value: "dots", label: "두점" },
   { value: "circle", label: "동그라미" },
+  { value: "hook", label: "훅" },
 ];
 
 const MOUTH_OPTIONS: { value: AvatarMouth; label: string }[] = [
@@ -55,6 +66,21 @@ const MOUTH_OPTIONS: { value: AvatarMouth; label: string }[] = [
   { value: "flat", label: "일자" },
   { value: "frown", label: "찡그림" },
   { value: "wavy", label: "물결" },
+  { value: "teeth", label: "이빨" },
+  { value: "open", label: "동그란" },
+  { value: "fang", label: "송곳니" },
+  { value: "squiggle", label: "지그재그" },
+  { value: "bigteeth", label: "크게" },
+  { value: "onetooth", label: "이빨2" },
+  { value: "spiky", label: "뾰족" },
+  { value: "egg", label: "타원" },
+  { value: "swoosh", label: "씩" },
+  { value: "arc", label: "호" },
+  { value: "ring", label: "링" },
+  { value: "ahh", label: "아" },
+  { value: "laugh", label: "폭소" },
+  { value: "pout", label: "포" },
+  { value: "curl", label: "컬" },
 ];
 
 function OptionButton({
