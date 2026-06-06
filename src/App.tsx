@@ -201,6 +201,7 @@ export default function App() {
           content_markdown: "",
           content_html: null,
           session: form.session,
+          presentation_order: Math.floor(Math.random() * 1000) + 1,
         })
         .select("id")
         .single();

@@ -199,6 +199,7 @@ export default function WritePage({
             content_markdown,
             source_url: null,
             source_type: "other",
+            presentation_order: Math.floor(Math.random() * 1000) + 1,
           })
           .select("id")
           .single();

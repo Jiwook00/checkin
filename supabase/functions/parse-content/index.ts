@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
         content_html: parsed.content_html,
         content_markdown: parsed.content_markdown,
         session,
+        presentation_order: Math.floor(Math.random() * 1000) + 1,
       })
       .select()
       .single();
