@@ -65,6 +65,9 @@ export default function WritePage({
   const [loadingArticle, setLoadingArticle] = useState(!!editId);
   const [pendingContent, setPendingContent] = useState<object | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const handleImageFileRef = useRef<((file: File) => Promise<void>) | null>(
+    null,
+  );
 
   // 감정 아바타 선택 — 신규 작성 시 저장 후 표시
   const [avatarPhase, setAvatarPhase] = useState(false);
@@ -85,6 +88,21 @@ export default function WritePage({
     editorProps: {
       attributes: {
         class: "tiptap focus:outline-none min-h-[400px]",
+      },
+      handlePaste(_view, event) {
+        const items = Array.from(event.clipboardData?.items ?? []);
+        const imageFiles = items
+          .filter((i) => i.type.startsWith("image/"))
+          .map((i) => i.getAsFile())
+          .filter((f): f is File => f !== null);
+        if (!imageFiles.length) return false;
+        event.preventDefault();
+        imageFiles.forEach((file) => {
+          handleImageFileRef.current?.(file).catch((err) => {
+            setError(err instanceof Error ? err.message : "이미지 업로드 실패");
+          });
+        });
+        return true;
       },
     },
   });
@@ -128,6 +146,7 @@ export default function WritePage({
     const { data } = supabase.storage.from("checkin-images").getPublicUrl(path);
     editor?.chain().focus().setImage({ src: data.publicUrl }).run();
   };
+  handleImageFileRef.current = handleImageFile;
 
   const handleSetLink = () => {
     const prev = editor?.getAttributes("link").href ?? "";
