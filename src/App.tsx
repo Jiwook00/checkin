@@ -385,7 +385,13 @@ export default function App() {
         />
         <Route
           path="/articles/:id"
-          element={<ArticleReader articles={articles} />}
+          element={
+            <ArticleReader
+              articles={articles}
+              currentMemberId={authState.member.id}
+              onEdit={handleEditArticleAction}
+            />
+          }
         />
         <Route path="/archive" element={<ArchivePage articles={articles} />} />
         <Route

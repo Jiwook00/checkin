@@ -5,9 +5,15 @@ import type { Retrospective } from "../types";
 
 interface ArticleReaderProps {
   articles: Retrospective[];
+  currentMemberId: string;
+  onEdit: (article: Retrospective) => void;
 }
 
-export default function ArticleReader({ articles }: ArticleReaderProps) {
+export default function ArticleReader({
+  articles,
+  currentMemberId,
+  onEdit,
+}: ArticleReaderProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const article = articles.find((a) => a.id === id);
@@ -30,16 +36,27 @@ export default function ArticleReader({ articles }: ArticleReaderProps) {
           >
             <span>&larr;</span> 목록으로
           </button>
-          {article.source_url && (
-            <a
-              href={article.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-soft transition-colors hover:text-muted"
-            >
-              원본 링크
-            </a>
-          )}
+          <div className="flex items-center gap-3">
+            {article.source_url && (
+              <a
+                href={article.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-soft transition-colors hover:text-muted"
+              >
+                원본 링크
+              </a>
+            )}
+            {article.member_id === currentMemberId &&
+              article.content_type === "written" && (
+                <button
+                  onClick={() => onEdit(article)}
+                  className="rounded-[8px] bg-primary px-3 py-1.5 text-xs font-medium text-on-primary transition-colors hover:bg-primary-active"
+                >
+                  수정하기
+                </button>
+              )}
+          </div>
         </div>
         {/* 메타 정보 */}
         <header className="mb-10">
