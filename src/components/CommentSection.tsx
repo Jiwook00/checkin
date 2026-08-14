@@ -12,6 +12,7 @@ import ReactionBar from "./ReactionBar";
 interface CommentSectionProps {
   retrospectiveId: string;
   currentMemberId: string;
+  onCommentCountChange?: (count: number) => void;
 }
 
 function formatRelative(iso: string): string {
@@ -59,6 +60,7 @@ function Avatar({
 export default function CommentSection({
   retrospectiveId,
   currentMemberId,
+  onCommentCountChange,
 }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -68,6 +70,7 @@ export default function CommentSection({
   const load = async () => {
     const cs = await fetchComments(retrospectiveId);
     setComments(cs);
+    onCommentCountChange?.(cs.length);
     setReactions(
       await fetchReactions([retrospectiveId, ...cs.map((c) => c.id)]),
     );
@@ -126,7 +129,7 @@ export default function CommentSection({
   );
 
   return (
-    <section className="mx-auto max-w-3xl px-6 pb-20">
+    <section id="comments" className="mx-auto max-w-3xl px-6 pb-20">
       {/* 글 반응 */}
       <div className="border-t border-hairline pt-6">
         <ReactionBar

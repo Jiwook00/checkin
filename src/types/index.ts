@@ -112,6 +112,14 @@ export interface ReactionGroup {
 // 반응 기본 이모지 (원탭). 프리뷰 B 채택.
 export const DEFAULT_REACTION_EMOJIS = ["👍", "👏🏻", "🥹", "😂", "😄"] as const;
 
+// 글별 참여 신호 집계 (checkin_retrospective_engagement 뷰)
+export interface RetrospectiveEngagement {
+  retrospective_id: string;
+  comment_count: number;
+  reaction_count: number;
+  reaction_emojis: string[]; // 많이 눌린 순 최대 3개
+}
+
 export interface WriteArticleForm {
   title: string;
   session: string;

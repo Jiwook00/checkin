@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Retrospective } from "../types";
+import type { Retrospective, RetrospectiveEngagement } from "../types";
 import ArticleCard from "./ArticleCard";
 
 function formatSessionLabel(session: string): string {
@@ -9,6 +9,7 @@ function formatSessionLabel(session: string): string {
 
 interface ArticleListProps {
   articles: Retrospective[];
+  engagement: Record<string, RetrospectiveEngagement>;
   onArticleClick: (article: Retrospective) => void;
   currentMemberId: string;
   onEdit: (article: Retrospective) => void;
@@ -17,6 +18,7 @@ interface ArticleListProps {
 
 export default function ArticleList({
   articles,
+  engagement,
   onArticleClick,
   currentMemberId,
   onEdit,
@@ -57,6 +59,7 @@ export default function ArticleList({
               <ArticleCard
                 key={article.id}
                 article={article}
+                engagement={engagement[article.id]}
                 onClick={() => onArticleClick(article)}
                 currentMemberId={currentMemberId}
                 onEdit={onEdit}
