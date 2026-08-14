@@ -5,6 +5,7 @@ import type {
   VoteDateSelection,
   DateInfo,
 } from "../types";
+import { usesHourGrid } from "../types";
 
 const AVATAR_COLORS = [
   "bg-badge-orange",
@@ -84,6 +85,7 @@ export interface CreatePollData {
   location: string | null;
   date_from: string;
   date_to: string;
+  dates: string[] | null;
   time_weekday: string | null;
   time_start: string;
   time_end: string;
@@ -110,6 +112,7 @@ export async function createPoll(
       location: data.location,
       date_from: data.date_from,
       date_to: data.date_to,
+      dates: data.dates,
       time_weekday: data.time_weekday,
       time_start: data.time_start,
       time_end: data.time_end,
@@ -160,6 +163,7 @@ export async function updatePollMeta(
 export interface UpdatePollScheduleData {
   date_from: string;
   date_to: string;
+  dates: string[] | null;
   time_weekday: string | null;
   time_start: string;
   time_end: string;
@@ -217,7 +221,7 @@ export async function upsertVoteResponse(
       const info = dateInfos.find((d) => d.date === date);
       if (!info) continue;
 
-      if (info.isWeekend) {
+      if (usesHourGrid(info.isWeekend, poll.type)) {
         const hours = weekendHours[date]
           ? [...weekendHours[date]].sort((a, b) => a - b)
           : [];

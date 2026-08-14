@@ -1,10 +1,5 @@
 import type { DateInfo, VotePoll } from "../../types";
-import { DAY_NAMES } from "../../types";
-
-function isDateClickable(dateInfo: DateInfo, poll: VotePoll): boolean {
-  if (poll.type === "offline") return dateInfo.isWeekend;
-  return true;
-}
+import { DAY_NAMES, usesHourGrid } from "../../types";
 
 interface VoteCalendarProps {
   poll: VotePoll;
@@ -15,8 +10,7 @@ interface VoteCalendarProps {
   allWeekdayVotes: Record<number, number>;
   allWeekendHourVotes: Record<number, Record<number, number>>;
   maxVoteCount: number;
-  dateFromDay: number;
-  dateToDay: number;
+  dateLabel: string;
   monthKO: string;
   onToggleDate: (date: number) => void;
 }
@@ -30,8 +24,7 @@ export default function VoteCalendar({
   allWeekdayVotes,
   allWeekendHourVotes,
   maxVoteCount,
-  dateFromDay,
-  dateToDay,
+  dateLabel,
   monthKO,
   onToggleDate,
 }: VoteCalendarProps) {
@@ -40,7 +33,7 @@ export default function VoteCalendar({
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-bold text-ink">{monthKO}</span>
         <span className="text-xs text-muted bg-surface-card rounded-full px-2 py-0.5">
-          {dateFromDay}일 ~ {dateToDay}일
+          {dateLabel}
         </span>
       </div>
 
@@ -63,16 +56,17 @@ export default function VoteCalendar({
             if (!day) return <div key={di} className="aspect-square" />;
             const dateInfo = dates.find((d) => d.date === day);
             const inRange = !!dateInfo;
-            const clickable = inRange && isDateClickable(dateInfo!, poll);
+            const clickable = inRange;
             const isMarked = selectedDates.has(day);
             const isActive = activeDate === day;
             const isSun = di === 0;
             const isSat = di === 6;
             const isWeekend = dateInfo?.isWeekend ?? false;
+            const hourGrid = inRange && usesHourGrid(isWeekend, poll.type);
             const weekdayCount =
-              inRange && !isWeekend ? (allWeekdayVotes[day] ?? 0) : 0;
+              inRange && !hourGrid ? (allWeekdayVotes[day] ?? 0) : 0;
             const weekendMaxCount =
-              inRange && isWeekend && allWeekendHourVotes[day]
+              hourGrid && allWeekendHourVotes[day]
                 ? Math.max(...Object.values(allWeekendHourVotes[day]))
                 : 0;
             const isTopVote = weekdayCount === maxVoteCount && weekdayCount > 0;
@@ -99,14 +93,14 @@ export default function VoteCalendar({
                 `}
               >
                 <span>{day}</span>
-                {inRange && !isWeekend && weekdayCount > 0 && (
+                {inRange && !hourGrid && weekdayCount > 0 && (
                   <span
                     className={`text-[9px] leading-none mt-0.5 font-bold ${isMarked ? "text-on-primary/60" : isTopVote ? "text-emerald-600" : "text-muted"}`}
                   >
                     {weekdayCount}명
                   </span>
                 )}
-                {inRange && isWeekend && weekendMaxCount > 0 && (
+                {hourGrid && weekendMaxCount > 0 && (
                   <span
                     className={`text-[9px] leading-none mt-0.5 font-bold ${isMarked ? "text-on-primary/60" : "text-blue-400"}`}
                   >

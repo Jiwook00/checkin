@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { VotePoll, VoteResponse, DateInfo, TallyItem } from "../types";
-import { DAY_NAMES } from "../types";
+import type {
+  VotePoll,
+  VoteResponse,
+  DateInfo,
+  TallyItem,
+  PollFormData,
+} from "../types";
+import { DAY_NAMES, usesHourGrid } from "../types";
 import {
   getVoteResponses,
   getTotalMemberCount,
@@ -28,18 +34,34 @@ import {
 
 // --- Utility functions ---
 
-function buildDates(dateFrom: string, dateTo: string): DateInfo[] {
+function dateInfoOf(d: Date): DateInfo {
+  const dow = d.getDay();
+  return {
+    date: d.getDate(),
+    dayName: DAY_NAMES[dow],
+    isWeekend: dow === 0 || dow === 6,
+  };
+}
+
+function buildDates(
+  dateFrom: string,
+  dateTo: string,
+  dates?: string[] | null,
+): DateInfo[] {
+  // 특정 날짜 모드: 명시된 날짜들만 후보로 사용
+  if (dates && dates.length > 0) {
+    return dates
+      .map((d) => new Date(d + "T00:00:00"))
+      .sort((a, b) => a.getTime() - b.getTime())
+      .map(dateInfoOf);
+  }
+  // 범위 모드: date_from ~ date_to 연속 날짜
   const from = new Date(dateFrom + "T00:00:00");
   const to = new Date(dateTo + "T00:00:00");
   const result: DateInfo[] = [];
   const cur = new Date(from);
   while (cur <= to) {
-    const dow = cur.getDay();
-    result.push({
-      date: cur.getDate(),
-      dayName: DAY_NAMES[dow],
-      isWeekend: dow === 0 || dow === 6,
-    });
+    result.push(dateInfoOf(cur));
     cur.setDate(cur.getDate() + 1);
   }
   return result;
@@ -65,9 +87,12 @@ function buildCalendarRows(year: number, month: number): (number | null)[][] {
 function computeWeekdayVotes(
   others: VoteResponse[],
   dates: DateInfo[],
+  pollType: "online" | "offline",
 ): Record<number, number> {
   const result: Record<number, number> = {};
-  for (const { date } of dates.filter((d) => !d.isWeekend)) {
+  for (const { date } of dates.filter(
+    (d) => !usesHourGrid(d.isWeekend, pollType),
+  )) {
     let count = 0;
     for (const r of others) {
       if (r.selected_dates.some((s) => s.date === date)) count++;
@@ -81,9 +106,12 @@ function computeWeekendHourVotes(
   others: VoteResponse[],
   dates: DateInfo[],
   weekendHourRange: number[],
+  pollType: "online" | "offline",
 ): Record<number, Record<number, number>> {
   const result: Record<number, Record<number, number>> = {};
-  for (const { date } of dates.filter((d) => d.isWeekend)) {
+  for (const { date } of dates.filter((d) =>
+    usesHourGrid(d.isWeekend, pollType),
+  )) {
     for (const hour of weekendHourRange) {
       let count = 0;
       for (const r of others) {
@@ -108,8 +136,8 @@ function computeVoteTally(
   const items: TallyItem[] = [];
 
   for (const dateInfo of dates) {
-    if (dateInfo.isWeekend) {
-      // 주말: (날짜 × 시간) 단위로 각각 집계
+    if (usesHourGrid(dateInfo.isWeekend, poll.type)) {
+      // 시간 그리드 날: (날짜 × 시간) 단위로 각각 집계
       const hourCounts: Record<number, number> = {};
       const hourVoters: Record<
         number,
@@ -313,8 +341,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
   // useMemo는 early return 전에 반드시 호출되어야 함 (hooks 순서 고정)
   const dates = useMemo(
-    () => (poll ? buildDates(poll.date_from, poll.date_to) : []),
-    [poll?.date_from, poll?.date_to],
+    () => (poll ? buildDates(poll.date_from, poll.date_to, poll.dates) : []),
+    [poll?.date_from, poll?.date_to, poll?.dates],
   );
   const voteTally = useMemo(
     () =>
@@ -345,7 +373,11 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
         if (!initializedRef.current) {
           initializedRef.current = true;
-          const effectDates = buildDates(poll.date_from, poll.date_to);
+          const effectDates = buildDates(
+            poll.date_from,
+            poll.date_to,
+            poll.dates,
+          );
           const mine = allResponses.find((r) => r.member_id === memberId);
           if (mine) {
             const restoredDates = new Set(
@@ -354,7 +386,11 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             const restoredHours: Record<number, Set<number>> = {};
             for (const s of mine.selected_dates) {
               const info = effectDates.find((d) => d.date === s.date);
-              if (info?.isWeekend && s.hours.length > 0) {
+              if (
+                info &&
+                usesHourGrid(info.isWeekend, poll.type) &&
+                s.hours.length > 0
+              ) {
                 restoredHours[s.date] = new Set(s.hours);
               }
             }
@@ -395,20 +431,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
     );
   }
 
-  const handleCreatePoll = async (data: {
-    dateFrom: string;
-    dateTo: string;
-    timeWeekday: string | null;
-    timeStart: string;
-    timeEnd: string;
-    location: string | null;
-  }) => {
+  const handleCreatePoll = async (data: PollFormData) => {
     setCreating(true);
     const { poll: newPoll, error } = await createPoll({
       type: pollType,
       location: data.location,
       date_from: data.dateFrom,
       date_to: data.dateTo,
+      dates: data.dates,
       time_weekday: data.timeWeekday,
       time_start: data.timeStart,
       time_end: data.timeEnd,
@@ -495,18 +525,20 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
   const weekendHourRange = getWeekendHourRange(poll);
   const otherResponses = responses.filter((r) => r.member_id !== memberId);
   // 오른쪽 패널 "다른 멤버 응답" 표시용 (나 제외)
-  const weekdayVotes = computeWeekdayVotes(otherResponses, dates);
+  const weekdayVotes = computeWeekdayVotes(otherResponses, dates, poll.type);
   const weekendHourVotes = computeWeekendHourVotes(
     otherResponses,
     dates,
     weekendHourRange,
+    poll.type,
   );
   // 달력 셀 인원 표시용 (나 포함 전체)
-  const allWeekdayVotes = computeWeekdayVotes(responses, dates);
+  const allWeekdayVotes = computeWeekdayVotes(responses, dates, poll.type);
   const allWeekendHourVotes = computeWeekendHourVotes(
     responses,
     dates,
     weekendHourRange,
+    poll.type,
   );
 
   const respondedCount = new Set(responses.map((r) => r.member_id)).size;
@@ -519,12 +551,16 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
   const dateFromDay = parseInt(poll.date_from.split("-")[2]);
   const dateToDay = parseInt(poll.date_to.split("-")[2]);
+  const dateLabel =
+    poll.dates && poll.dates.length > 0
+      ? `${dates.map((d) => d.date).join(", ")}일`
+      : `${dateFromDay}일 ~ ${dateToDay}일`;
 
   const getSummaryLines = () =>
     dates
       .filter((d) => selectedDates.has(d.date))
       .map((d) => {
-        if (!d.isWeekend)
+        if (!usesHourGrid(d.isWeekend, poll.type))
           return `${d.date}일 (${d.dayName}) ${poll.time_weekday ?? "22:00"}`;
         const h = weekendHours[d.date];
         const hList =
@@ -543,7 +579,12 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       if (selectedDates.size === 0) return false;
       for (const date of selectedDates) {
         const info = dates.find((d) => d.date === date);
-        if (info?.isWeekend && !(weekendHours[date]?.size > 0)) return false;
+        if (
+          info &&
+          usesHourGrid(info.isWeekend, poll.type) &&
+          !(weekendHours[date]?.size > 0)
+        )
+          return false;
       }
       return true;
     })();
@@ -674,7 +715,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
           <>
             <p className="text-xs text-muted mb-5">
               {poll.type === "offline"
-                ? "가능한 주말을 선택하고 시작 시간을 골라주세요."
+                ? "가능한 날짜를 선택하고 시작 시간을 골라주세요."
                 : `가능한 날짜를 선택하세요. 평일은 ${poll.time_weekday ?? "22:00"}, 주말은 시간도 선택해주세요.`}
             </p>
 
@@ -690,8 +731,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                 allWeekdayVotes={allWeekdayVotes}
                 allWeekendHourVotes={allWeekendHourVotes}
                 maxVoteCount={maxVoteCount}
-                dateFromDay={dateFromDay}
-                dateToDay={dateToDay}
+                dateLabel={dateLabel}
                 monthKO={MONTH_KO}
                 onToggleDate={(date) => dispatch({ type: "TOGGLE_DATE", date })}
               />
@@ -712,7 +752,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                           {activeDateInfo.isWeekend ? "주말" : "평일"}
                         </p>
                       </div>
-                      {!activeDateInfo.isWeekend &&
+                      {!usesHourGrid(activeDateInfo.isWeekend, poll.type) &&
                         weekdayVotes[activeDate!] !== undefined && (
                           <div className="text-right">
                             <p className="text-xs text-muted mb-1">
@@ -732,8 +772,8 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     </div>
 
                     <div className="p-5">
-                      {activeDateInfo.isWeekend ? (
-                        /* 주말: 시간 복수 선택 */
+                      {usesHourGrid(activeDateInfo.isWeekend, poll.type) ? (
+                        /* 시간 그리드: 시작 시간 복수 선택 */
                         <div>
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-xs font-semibold text-muted">
@@ -968,7 +1008,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                   .filter((d) => selectedDates.has(d.date))
                   .map((d) => {
                     const hrs = weekendHours[d.date];
-                    const hourLabel = d.isWeekend
+                    const hourLabel = usesHourGrid(d.isWeekend, poll.type)
                       ? hrs && hrs.size > 0
                         ? [...hrs]
                             .sort((a, b) => a - b)
@@ -1042,7 +1082,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                       </p>
                       <p className="text-[10px] text-muted mt-0.5">
                         {activeDateInfo.isWeekend ? "주말" : "평일"}
-                        {activeDateInfo.isWeekend &&
+                        {usesHourGrid(activeDateInfo.isWeekend, poll.type) &&
                           weekendHourVotes[activeDateInfo.date] &&
                           Object.keys(weekendHourVotes[activeDateInfo.date])
                             .length > 0 && (
@@ -1059,7 +1099,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                               명 응답
                             </span>
                           )}
-                        {!activeDateInfo.isWeekend &&
+                        {!usesHourGrid(activeDateInfo.isWeekend, poll.type) &&
                           weekdayVotes[activeDate!] !== undefined && (
                             <span>
                               {" "}
@@ -1078,7 +1118,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                     </button>
                   </div>
 
-                  {activeDateInfo.isWeekend ? (
+                  {usesHourGrid(activeDateInfo.isWeekend, poll.type) ? (
                     <>
                       <p className="text-[11px] font-semibold text-muted mb-2.5">
                         참여 가능한 시작 시간을 선택하세요

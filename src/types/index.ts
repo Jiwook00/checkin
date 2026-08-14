@@ -140,12 +140,24 @@ export interface DateInfo {
   isWeekend: boolean;
 }
 
+// 복수 시간대(시간 그리드)로 선택하는 날인지 판정.
+// - 오프라인: 모든 날 (시간 범위 기반)
+// - 온라인: 주말만 (평일은 고정 시간)
+export function usesHourGrid(
+  isWeekend: boolean,
+  pollType: "online" | "offline",
+): boolean {
+  return pollType === "offline" || isWeekend;
+}
+
 export interface VotePoll {
   id: string;
   type: "online" | "offline";
   location: string | null;
-  date_from: string; // "2026-03-01"
-  date_to: string; // "2026-03-10"
+  date_from: string; // "2026-03-01" (dates 사용 시 목록의 최소값)
+  date_to: string; // "2026-03-10" (dates 사용 시 목록의 최대값)
+  dates: string[] | null; // 특정 날짜 목록 ["2026-03-07", ...]. null 이면 date_from~date_to 범위 사용
+
   time_weekday: string | null; // "22:00" (온라인 전용)
   time_start: string; // "10:00"
   time_end: string; // "22:00" or "18:00"
@@ -203,6 +215,7 @@ export interface TallyItem {
 export interface PollFormData {
   dateFrom: string;
   dateTo: string;
+  dates: string[] | null; // 특정 날짜 모드일 때 목록, 범위 모드일 때 null
   timeWeekday: string | null;
   timeStart: string;
   timeEnd: string;
