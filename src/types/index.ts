@@ -79,6 +79,47 @@ export interface Retrospective {
   checkin_members: { nickname: string; avatar_url: string | null } | null;
 }
 
+export interface Comment {
+  id: string;
+  retrospective_id: string;
+  member_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  checkin_members: { nickname: string; avatar_url: string | null } | null;
+}
+
+export type ReactionTargetType = "retrospective" | "comment";
+
+export interface Reaction {
+  id: string;
+  target_type: ReactionTargetType;
+  target_id: string;
+  member_id: string;
+  emoji: string;
+  created_at: string;
+  checkin_members: { nickname: string } | null;
+}
+
+// 반응 칩 하나로 묶인 집계 결과 (렌더 타임에 계산)
+export interface ReactionGroup {
+  emoji: string;
+  count: number;
+  mine: boolean; // 현재 유저가 이 이모지를 눌렀는지
+  memberNames: string[]; // 호버 툴팁용
+}
+
+// 반응 기본 이모지 (원탭). 프리뷰 B 채택.
+export const DEFAULT_REACTION_EMOJIS = ["👍", "👏🏻", "🥹", "😂", "😄"] as const;
+
+// 글별 참여 신호 집계 (checkin_retrospective_engagement 뷰)
+export interface RetrospectiveEngagement {
+  retrospective_id: string;
+  comment_count: number;
+  reaction_count: number;
+  reaction_emojis: string[]; // 많이 눌린 순 최대 3개
+}
+
 export interface WriteArticleForm {
   title: string;
   session: string;

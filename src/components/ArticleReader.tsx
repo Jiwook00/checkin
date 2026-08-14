@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Retrospective } from "../types";
+import CommentSection from "./CommentSection";
 
 interface ArticleReaderProps {
   articles: Retrospective[];
@@ -16,7 +18,14 @@ export default function ArticleReader({
 }: ArticleReaderProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [commentCount, setCommentCount] = useState<number | null>(null);
   const article = articles.find((a) => a.id === id);
+
+  const scrollToComments = () => {
+    document
+      .getElementById("comments")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   if (!article) {
     return (
@@ -77,6 +86,16 @@ export default function ArticleReader({
                 day: "numeric",
               })}
             </span>
+            {commentCount !== null && (
+              <button
+                type="button"
+                onClick={scrollToComments}
+                className="inline-flex items-center gap-1 rounded-full border border-hairline bg-surface-soft px-2.5 py-0.5 text-xs text-muted transition-colors hover:bg-surface-card hover:text-ink"
+              >
+                💬 댓글{" "}
+                <span className="font-semibold text-body">{commentCount}</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -128,6 +147,13 @@ export default function ArticleReader({
           </div>
         )}
       </article>
+
+      {/* 반응 · 댓글 */}
+      <CommentSection
+        retrospectiveId={article.id}
+        currentMemberId={currentMemberId}
+        onCommentCountChange={setCommentCount}
+      />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import type { Retrospective } from "../types";
+import type { Retrospective, RetrospectiveEngagement } from "../types";
 import MemberAvatar from "./MemberAvatar";
 import EmotionBlob from "./EmotionBlob";
 
 interface ArticleCardProps {
   article: Retrospective;
+  engagement?: RetrospectiveEngagement;
   onClick: () => void;
   currentMemberId: string;
   onEdit: (article: Retrospective) => void;
@@ -35,6 +36,7 @@ function extractTextFromTiptapJson(jsonStr: string): string {
 
 export default function ArticleCard({
   article,
+  engagement,
   onClick,
   currentMemberId,
   onEdit,
@@ -215,6 +217,31 @@ export default function ArticleCard({
         <p className="text-xs text-muted-soft leading-relaxed line-clamp-2">
           {preview}
         </p>
+
+        {/* 참여 신호 — 반응·댓글이 있을 때만 노출 */}
+        {engagement &&
+          (engagement.reaction_count > 0 || engagement.comment_count > 0) && (
+            <div className="mt-3 flex items-center gap-3 border-t border-hairline pt-2.5">
+              {engagement.reaction_count > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted">
+                  <span className="-tracking-[0.05em]">
+                    {engagement.reaction_emojis.join("")}
+                  </span>
+                  <span className="font-semibold text-body">
+                    {engagement.reaction_count}
+                  </span>
+                </span>
+              )}
+              {engagement.comment_count > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted">
+                  💬
+                  <span className="font-semibold text-body">
+                    {engagement.comment_count}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );

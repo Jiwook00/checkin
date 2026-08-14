@@ -6,6 +6,7 @@ import type {
   Announcement,
   AvatarConfig,
   Retrospective,
+  RetrospectiveEngagement,
   VotePoll,
 } from "./types";
 import EditArticleModal from "./components/EditArticleModal";
@@ -66,6 +67,9 @@ export default function App() {
   });
   const [activePoll, setActivePoll] = useState<VotePoll | null>(null);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [engagement, setEngagement] = useState<
+    Record<string, RetrospectiveEngagement>
+  >({});
   const [editingArticle, setEditingArticle] = useState<Retrospective | null>(
     null,
   );
@@ -84,6 +88,20 @@ export default function App() {
     setLoading(false);
   };
 
+  // 글별 참여 신호(반응·댓글 수) 집계 — 목록 카드/상세 상단용
+  const fetchEngagement = async () => {
+    const { data } = await supabase
+      .from("checkin_retrospective_engagement")
+      .select("*");
+    if (data) {
+      const map: Record<string, RetrospectiveEngagement> = {};
+      for (const row of data as RetrospectiveEngagement[]) {
+        map[row.retrospective_id] = row;
+      }
+      setEngagement(map);
+    }
+  };
+
   const fetchAnnouncement = async () => {
     const { data } = await supabase
       .from("checkin_announcements")
@@ -100,6 +118,11 @@ export default function App() {
     getActivePoll().then(setActivePoll);
     fetchAnnouncement();
   }, []);
+
+  // 목록으로 돌아올 때마다 참여 신호를 최신화 (상세에서 반응·댓글 남긴 뒤 반영)
+  useEffect(() => {
+    if (location.pathname === "/") fetchEngagement();
+  }, [location.pathname]);
 
   const handleAddAnnouncement = async (content: string) => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -372,6 +395,7 @@ export default function App() {
               ) : (
                 <ArticleList
                   articles={filteredArticles}
+                  engagement={engagement}
                   onArticleClick={(article) =>
                     navigate(`/articles/${article.id}`)
                   }
