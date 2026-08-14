@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Retrospective } from "../types";
+import CommentSection from "./CommentSection";
 
 interface ArticleReaderProps {
   articles: Retrospective[];
@@ -128,6 +129,12 @@ export default function ArticleReader({
           </div>
         )}
       </article>
+
+      {/* 반응 · 댓글 */}
+      <CommentSection
+        retrospectiveId={article.id}
+        currentMemberId={currentMemberId}
+      />
     </div>
   );
 }

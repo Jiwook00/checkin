@@ -1,0 +1,824 @@
+<!--
+  reaction-preview.html
+  회고 글·댓글 반응 기능 (이슈 #50) 구현 디자인 샘플
+  소스: DESIGN.md (Cal.com 계열 모노크롬), src/index.css (@theme 토큰), src/components/ArticleReader.tsx
+  생성: 2026-08-14
+  ※ self-contained. 브라우저에서 바로 열기.
+-->
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>반응·댓글 UI 프리뷰 · CHECKIN</title>
+    <style>
+      :root {
+        /* @theme 토큰 미러 */
+        --canvas: #ffffff;
+        --ink: #111111;
+        --primary: #111111;
+        --primary-active: #242424;
+        --on-primary: #ffffff;
+        --body: #374151;
+        --muted: #6b7280;
+        --muted-soft: #898989;
+        --hairline: #e5e7eb;
+        --hairline-soft: #f3f4f6;
+        --surface-soft: #f8f9fa;
+        --surface-card: #f5f5f5;
+        --brand-accent: #3b82f6;
+        --badge-orange: #fb923c;
+        --badge-pink: #ec4899;
+        --badge-violet: #8b5cf6;
+        --badge-emerald: #34d399;
+        --r-sm: 6px;
+        --r-md: 8px;
+        --r-lg: 12px;
+        --r-pill: 9999px;
+        --font:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        background: #ececec;
+        color: var(--ink);
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 40px 24px 96px;
+      }
+
+      .page-head {
+        margin-bottom: 32px;
+      }
+      .page-head h1 {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        margin: 0 0 6px;
+      }
+      .page-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .page-head .meta {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted-soft);
+      }
+
+      .section {
+        background: var(--canvas);
+        border-radius: 16px;
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.04),
+          0 8px 24px rgba(0, 0, 0, 0.05);
+        padding: 28px;
+        margin-bottom: 24px;
+      }
+      .section > h2 {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--muted-soft);
+        margin: 0 0 4px;
+      }
+      .section > .lead {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0 0 22px;
+        max-width: 62ch;
+      }
+
+      /* 3-up 비교 그리드 */
+      .compare {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+      }
+      @media (max-width: 900px) {
+        .compare {
+          grid-template-columns: 1fr;
+        }
+      }
+      .variant {
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        padding: 20px;
+        background: var(--canvas);
+        display: flex;
+        flex-direction: column;
+      }
+      .variant.pick {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 1px var(--ink);
+      }
+      .variant .vhead {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+      .variant .vname {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .variant .vtag {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--on-primary);
+        background: var(--ink);
+        border-radius: var(--r-pill);
+        padding: 2px 8px;
+      }
+      .variant .vdesc {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin: 0 0 18px;
+        min-height: 48px;
+      }
+      .variant .vstage {
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px dashed var(--hairline);
+      }
+
+      /* ===== 반응 칩 공통 ===== */
+      .rxrow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 10px;
+        border-radius: var(--r-pill);
+        border: 1px solid var(--hairline);
+        background: var(--surface-soft);
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+        transition:
+          background 0.12s,
+          border-color 0.12s;
+      }
+      .chip:hover {
+        background: var(--surface-card);
+      }
+      .chip .emo {
+        font-size: 15px;
+      }
+      .chip .cnt {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--body);
+      }
+      /* 내가 누른 반응 */
+      .chip.mine {
+        background: #eef2ff;
+        border-color: var(--ink);
+      }
+      .chip.mine .cnt {
+        color: var(--ink);
+      }
+      .chip.add {
+        color: var(--muted);
+        font-weight: 600;
+        padding: 0 11px;
+        background: var(--canvas);
+      }
+      .chip.add:hover {
+        color: var(--ink);
+        border-color: var(--muted);
+      }
+
+      /* mini 아바타 */
+      .ava {
+        width: 20px;
+        height: 20px;
+        border-radius: var(--r-pill);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        border: 1.5px solid var(--canvas);
+      }
+      .ava.lg {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+        border-width: 0;
+      }
+      .a1 {
+        background: var(--badge-orange);
+      }
+      .a2 {
+        background: var(--badge-pink);
+      }
+      .a3 {
+        background: var(--badge-violet);
+      }
+      .a4 {
+        background: var(--badge-emerald);
+      }
+      .a5 {
+        background: #64748b;
+      }
+      .stack {
+        display: inline-flex;
+        align-items: center;
+      }
+      .stack .ava + .ava {
+        margin-left: -7px;
+      }
+      .more {
+        margin-left: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* Variant A: 칩 안에 얼굴 */
+      .chip .stack .ava {
+        width: 18px;
+        height: 18px;
+        font-size: 9px;
+      }
+      /* Variant C: 이름줄 */
+      .namerow {
+        margin-top: 9px;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .namerow b {
+        color: var(--body);
+        font-weight: 600;
+      }
+
+      /* ===== 이모지 피커 팝오버 ===== */
+      .picker {
+        width: 268px;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        background: var(--canvas);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+        padding: 12px;
+      }
+      .picker .quick {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+      .picker .qbtn {
+        flex: 1;
+        height: 38px;
+        border-radius: var(--r-md);
+        border: none;
+        background: var(--surface-soft);
+        font-size: 20px;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .picker .qbtn:hover {
+        background: var(--surface-card);
+      }
+      .picker .search {
+        height: 34px;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-md);
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        color: var(--muted-soft);
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+      .picker .grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        font-size: 18px;
+      }
+      .picker .grid span {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--r-sm);
+        cursor: pointer;
+      }
+      .picker .grid span:hover {
+        background: var(--surface-card);
+      }
+      .picker .plabel {
+        font-size: 11px;
+        color: var(--muted-soft);
+        margin: 0 0 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+
+      /* ===== 풀 맥락 목업 (상세 페이지) ===== */
+      .reader {
+        max-width: 720px;
+        margin: 0 auto;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+      }
+      .reader .body {
+        padding: 32px 34px;
+      }
+      .reader h1.title {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        margin: 0 0 12px;
+      }
+      .reader .metaline {
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 22px;
+      }
+      .reader .metaline b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .reader .content p {
+        color: var(--body);
+        font-size: 15px;
+        line-height: 1.75;
+        margin: 0 0 14px;
+      }
+      .reader .fade {
+        color: var(--muted-soft);
+      }
+
+      .divider {
+        height: 1px;
+        background: var(--hairline);
+        margin: 26px 0;
+      }
+
+      /* 글 반응 바 */
+      .postrx {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      /* 댓글 영역 */
+      .comments {
+        background: var(--surface-soft);
+        padding: 26px 34px 30px;
+        border-top: 1px solid var(--hairline);
+      }
+      .comments .chead {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .comments .chead .num {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .comment {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .comment .cbody {
+        flex: 1;
+      }
+      .comment .cmeta {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 3px;
+      }
+      .comment .cname {
+        font-size: 13.5px;
+        font-weight: 700;
+      }
+      .comment .ctime {
+        font-size: 12px;
+        color: var(--muted-soft);
+      }
+      .comment .ctext {
+        font-size: 14px;
+        color: var(--body);
+        margin: 0 0 8px;
+      }
+      .comment .crx {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .comment .chip {
+        height: 26px;
+        padding: 0 8px;
+        background: var(--canvas);
+      }
+      .comment .chip .emo {
+        font-size: 13px;
+      }
+      .comment .chip.add {
+        opacity: 0;
+        transition: opacity 0.12s;
+      }
+      .comment:hover .chip.add {
+        opacity: 1;
+      }
+
+      /* 작성창 */
+      .composer {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        align-items: flex-start;
+      }
+      .composer .field {
+        flex: 1;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-md);
+        background: var(--canvas);
+        padding: 10px 14px;
+      }
+      .composer .field .ph {
+        font-size: 14px;
+        color: var(--muted-soft);
+        min-height: 22px;
+      }
+      .composer .field .actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
+      }
+      .btn-primary {
+        height: 32px;
+        padding: 0 16px;
+        border-radius: var(--r-md);
+        background: var(--primary);
+        color: var(--on-primary);
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-primary:hover {
+        background: var(--primary-active);
+      }
+
+      .empty {
+        font-size: 13px;
+        color: var(--muted-soft);
+        font-style: normal;
+      }
+
+      .note {
+        display: inline-block;
+        font-size: 12px;
+        color: var(--muted);
+        background: var(--surface-card);
+        border-radius: var(--r-sm);
+        padding: 2px 8px;
+        margin-top: 14px;
+      }
+
+      .flex-row {
+        display: flex;
+        gap: 40px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .state-col > .lbl {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted-soft);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="page-head">
+        <h1>반응 · 댓글 UI 프리뷰</h1>
+        <p>
+          이슈 #50 · 회고 글·댓글 반응 기능 — 실제 토큰(DESIGN.md /
+          index.css)으로 렌더
+        </p>
+        <div class="meta">
+          기본 이모지 세트: 👍 👏🏻 🥹 😂 😄 &nbsp;·&nbsp; 한 사람 여러 개 / 같은
+          이모지 스택 / 숫자보다 얼굴
+        </div>
+      </div>
+
+      <!-- 1. 칩 표시 방식 비교 -->
+      <div class="section">
+        <h2>결정 포인트 · 반응 칩 표시 방식 3종</h2>
+        <p class="lead">
+          "숫자보다 아바타"라는 방향을 어떤 밀도로 구현할지가 갈림길이야. 같은
+          데이터(👍 3명 · 🥹 2명)를 세 가지로 그렸어.
+        </p>
+        <div class="compare">
+          <!-- A -->
+          <div class="variant pick">
+            <div class="vhead">
+              <span class="vname">A. 칩 안에 얼굴</span>
+              <span class="vtag">추천</span>
+            </div>
+            <p class="vdesc">
+              칩 = 이모지 + 누른 사람 미니 아바타. 숫자를 아예 안 쓰고 얼굴로
+              대체. "숫자보다 아바타" 원칙에 가장 직접적. 컴팩트.
+            </p>
+            <div class="vstage">
+              <div class="rxrow">
+                <span class="chip mine">
+                  <span class="emo">👍</span>
+                  <span class="stack">
+                    <span class="ava a1">지</span>
+                    <span class="ava a2">현</span>
+                    <span class="ava a3">우</span>
+                  </span>
+                </span>
+                <span class="chip">
+                  <span class="emo">🥹</span>
+                  <span class="stack">
+                    <span class="ava a4">민</span>
+                    <span class="ava a5">서</span>
+                  </span>
+                </span>
+                <span class="chip add">＋</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- B -->
+          <div class="variant">
+            <div class="vhead">
+              <span class="vname">B. 슬랙식 (이모지+숫자)</span>
+            </div>
+            <p class="vdesc">
+              칩 = 이모지 + 숫자. 얼굴은 호버 툴팁으로. 가장 익숙하고 밀도 낮음.
+              다만 작은 모임에서 숫자 비교가 살짝 드러남.
+            </p>
+            <div class="vstage">
+              <div class="rxrow">
+                <span class="chip mine"
+                  ><span class="emo">👍</span><span class="cnt">3</span></span
+                >
+                <span class="chip"
+                  ><span class="emo">🥹</span><span class="cnt">2</span></span
+                >
+                <span class="chip add">＋</span>
+              </div>
+              <div class="namerow" style="margin-top: 12px">
+                <span class="empty">호버 시: "지우, 현우, 도영님이 👍"</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- C -->
+          <div class="variant">
+            <div class="vhead">
+              <span class="vname">C. 이모지 + 이름줄</span>
+            </div>
+            <p class="vdesc">
+              칩은 이모지만, 아래에 "누가 반응했는지"를 문장으로. 가장 따뜻하고
+              안부 자리 온도에 맞음. 세로 공간을 더 씀.
+            </p>
+            <div class="vstage">
+              <div class="rxrow">
+                <span class="chip mine"><span class="emo">👍</span></span>
+                <span class="chip"><span class="emo">🥹</span></span>
+                <span class="chip add">＋</span>
+              </div>
+              <div class="namerow">
+                <b>지우</b>, <b>현우</b> 님 외 3명이 반응했어요
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 상태 -->
+      <div class="section">
+        <h2>반응 칩 · 상태</h2>
+        <p class="lead">
+          추천안(A) 기준. 내가 누른 반응은 잉크 보더 + 옅은 틴트로 구분.
+        </p>
+        <div class="flex-row">
+          <div class="state-col">
+            <div class="lbl">기본</div>
+            <span class="chip"
+              ><span class="emo">👍</span
+              ><span class="stack"
+                ><span class="ava a1">지</span
+                ><span class="ava a2">현</span></span
+              ></span
+            >
+          </div>
+          <div class="state-col">
+            <div class="lbl">내가 누름 (toggle on)</div>
+            <span class="chip mine"
+              ><span class="emo">👍</span
+              ><span class="stack"
+                ><span class="ava a1">지</span><span class="ava a2">현</span
+                ><span class="ava a5">나</span></span
+              ></span
+            >
+          </div>
+          <div class="state-col">
+            <div class="lbl">많을 때 (+N)</div>
+            <span class="chip"
+              ><span class="emo">😂</span
+              ><span class="stack"
+                ><span class="ava a1">지</span><span class="ava a2">현</span
+                ><span class="ava a3">우</span></span
+              ><span class="more">+4</span></span
+            >
+          </div>
+          <div class="state-col">
+            <div class="lbl">아직 반응 없음</div>
+            <span class="chip add">＋ 반응</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 이모지 피커 -->
+      <div class="section">
+        <h2>이모지 피커 · ＋ 눌렀을 때</h2>
+        <p class="lead">
+          기본 5개는 원탭, 그 아래 전체 이모지 검색·선택(슬랙/팀즈 방식). 한
+          사람이 여러 개 남길 수 있음.
+        </p>
+        <div class="picker">
+          <div class="plabel">자주 쓰는</div>
+          <div class="quick">
+            <button class="qbtn">👍</button>
+            <button class="qbtn">👏🏻</button>
+            <button class="qbtn">🥹</button>
+            <button class="qbtn">😂</button>
+            <button class="qbtn">😄</button>
+          </div>
+          <div class="search">🔍&nbsp; 이모지 검색</div>
+          <div class="grid">
+            <span>❤️</span><span>🔥</span><span>🎉</span><span>👀</span
+            ><span>🙌</span><span>💪</span><span>✨</span> <span>🥲</span
+            ><span>😭</span><span>🤔</span><span>👏</span><span>🫶</span
+            ><span>🙏</span><span>💯</span> <span>😮</span><span>🥳</span
+            ><span>☕️</span><span>🌙</span><span>📚</span><span>🔖</span
+            ><span>🫡</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 풀 맥락 목업 -->
+      <div class="section">
+        <h2>맥락 · 상세 페이지 하단 (ArticleReader)</h2>
+        <p class="lead">
+          글 본문 끝 → 글 반응 바 → 댓글 스레드(댓글마다 반응) → 작성창.
+          목록/App.tsx는 안 건드리고 이 라우트 안에서만 fetch.
+        </p>
+
+        <div class="reader">
+          <div class="body">
+            <h1 class="title">7월은 좀 느리게 흘러갔다</h1>
+            <div class="metaline">
+              <b>도영</b><span>·</span><span>2026-07</span><span>·</span
+              ><span>2026년 7월 28일</span>
+            </div>
+            <div class="content">
+              <p>
+                이번 달은 새 프로젝트 세팅하느라 정신없었는데, 그 와중에 동네에
+                새로 생긴 카페를 하나 발견했다. 라이트 로스팅 게이샤를
+                내려주는데…
+              </p>
+              <p class="fade">
+                저장만 해두고 못 본 영상이 스무 개쯤 쌓였다. 다음 달엔 좀 비우고
+                싶다.
+              </p>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- 글 반응 바 -->
+            <div class="postrx">
+              <span class="chip mine">
+                <span class="emo">🥹</span>
+                <span class="stack"
+                  ><span class="ava a2">현</span
+                  ><span class="ava a5">나</span></span
+                >
+              </span>
+              <span class="chip">
+                <span class="emo">👍</span>
+                <span class="stack"
+                  ><span class="ava a1">지</span><span class="ava a3">우</span
+                  ><span class="ava a4">민</span></span
+                >
+              </span>
+              <span class="chip add">＋</span>
+            </div>
+          </div>
+
+          <!-- 댓글 -->
+          <div class="comments">
+            <div class="chead">댓글 <span class="num">2</span></div>
+
+            <div class="comment">
+              <span class="ava lg a1">지</span>
+              <div class="cbody">
+                <div class="cmeta">
+                  <span class="cname">지우</span
+                  ><span class="ctime">2일 전</span>
+                </div>
+                <p class="ctext">
+                  게이샤 카페 어디에요?? 나도 가보고 싶다 ☕️ 다음 모임 때 좌표
+                  공유 부탁해요
+                </p>
+                <div class="crx">
+                  <span class="chip mine"
+                    ><span class="emo">👍</span
+                    ><span class="stack"
+                      ><span class="ava a5">나</span></span
+                    ></span
+                  >
+                  <span class="chip add">＋</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="comment">
+              <span class="ava lg a4">민</span>
+              <div class="cbody">
+                <div class="cmeta">
+                  <span class="cname">민서</span
+                  ><span class="ctime">1일 전</span>
+                </div>
+                <p class="ctext">
+                  저도 저장만 하고 못 본 게 산더미라 완전 공감… 🥲 우리 "안 본
+                  영상 비우기" 같이 해요
+                </p>
+                <div class="crx">
+                  <span class="chip"
+                    ><span class="emo">😂</span
+                    ><span class="stack"
+                      ><span class="ava a1">지</span
+                      ><span class="ava a3">우</span></span
+                    ></span
+                  >
+                  <span class="chip add">＋</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 작성창 -->
+            <div class="composer">
+              <span class="ava lg a5">나</span>
+              <div class="field">
+                <div class="ph">따뜻한 한마디 남기기…</div>
+                <div class="actions">
+                  <button class="btn-primary">남기기</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note">
+          빈 상태: 댓글이 없으면 "첫 댓글을 남겨보세요" · 반응이 없으면 ＋
+          하나만 노출
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
