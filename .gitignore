@@ -31,3 +31,6 @@ dist-ssr
 local/
 .mcp.json
 TODO.md
+
+# 갈피 레터 생성 데이터 (Supabase에서 재생성 가능 · 이메일 등 PII 포함)
+letters/**/data.json

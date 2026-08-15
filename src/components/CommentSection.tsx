@@ -81,6 +81,23 @@ export default function CommentSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retrospectiveId]);
 
+  // 레터 등에서 특정 댓글로 딥링크(#comment-<id>)될 때: 스크롤 + 잠깐 강조
+  useEffect(() => {
+    if (comments.length === 0) return;
+    const hash = window.location.hash;
+    if (!hash.startsWith("#comment-")) return;
+    const el = document.getElementById(hash.slice(1));
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.style.transition = "background-color 0.6s ease";
+      el.style.backgroundColor = "rgba(217, 106, 80, 0.12)";
+      window.setTimeout(() => {
+        el.style.backgroundColor = "";
+      }, 1800);
+    });
+  }, [comments]);
+
   const handleToggle = async (
     targetType: ReactionTargetType,
     targetId: string,
@@ -157,7 +174,11 @@ export default function CommentSection({
                 currentMemberId,
               );
               return (
-                <li key={c.id} className="group flex gap-3">
+                <li
+                  key={c.id}
+                  id={`comment-${c.id}`}
+                  className="group flex scroll-mt-24 gap-3 rounded-lg"
+                >
                   <Avatar
                     url={c.checkin_members?.avatar_url ?? null}
                     name={name}

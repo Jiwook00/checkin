@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
+    <title>지난 회고, 다들 이렇게 지냈어요</title>
+    <!--[if mso]>
+      <style>
+        body,
+        table,
+        td,
+        a {
+          font-family: Georgia, "Malgun Gothic", serif !important;
+        }
+      </style>
+    <![endif]-->
+    <style>
+      @media only screen and (max-width: 620px) {
+        .px {
+          padding-left: 22px !important;
+          padding-right: 22px !important;
+        }
+        .h1 {
+          font-size: 26px !important;
+        }
+        .quote {
+          font-size: 19px !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #ebe0cd;
+      color: #3a3330;
+      -webkit-text-size-adjust: 100%;
+    "
+  >
+    <!-- ┌───────────────────────────────────────────────────────────────┐
+     │  갈피 다이제스트 레터 — 회고가 끝난 다음 주 발송 (월 1통)      │
+     │  이 파일이 템플릿이다. 매달 이 구조를 복사해 본문 텍스트만 교체.│
+     │  비주얼 껍데기(색·폰트·마스트헤드·점선보더·갈피)는 고정.        │
+     │  변경 지점은 아래 <!-- SLOT: ... -->
+    주석으로 표시. │
+    └───────────────────────────────────────────────────────────────┘ -->
+
+    <!-- SLOT: preheader — 받은편지함 미리보기 한 줄 (갈피 목소리) -->
+    <span
+      style="
+        display: none;
+        font-size: 1px;
+        color: #ebe0cd;
+        line-height: 1px;
+        max-height: 0;
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+      "
+      >지난 회고에 다섯 분이 글을 남겨주셨어요. 한자리에 꺼내뒀으니 천천히
+      둘러보세요. — 갈피</span
+    >
+
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="background-color: #ebe0cd"
+    >
+      <tbody>
+        <tr>
+          <td align="center" style="padding: 28px 12px 40px 12px">
+            <table
+              role="presentation"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              width="600"
+              style="
+                width: 600px;
+                max-width: 600px;
+                background-color: #faf3e6;
+                border: 1px solid #d9c9ac;
+              "
+            >
+              <tbody>
+                <tr>
+                  <td style="padding: 6px">
+                    <table
+                      role="presentation"
+                      cellpadding="0"
+                      cellspacing="0"
+                      border="0"
+                      width="100%"
+                      style="border: 1px dashed #2b4a6f"
+                    >
+                      <tbody>
+                        <!-- ── 마스트헤드 ── SLOT: No.NN / 년.월 -->
+                        <tr>
+                          <td
+                            class="px"
+                            style="padding: 34px 44px 8px 44px"
+                            align="center"
+                          >
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    align="left"
+                                    style="
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 11px;
+                                      letter-spacing: 2px;
+                                      text-transform: uppercase;
+                                      color: #b4462f;
+                                      mso-line-height-rule: exactly;
+                                      line-height: 16px;
+                                    "
+                                  >
+                                    체크인 · 월간 회고 편지
+                                  </td>
+                                  <td
+                                    align="right"
+                                    style="
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 11px;
+                                      letter-spacing: 2px;
+                                      color: #8c7f6b;
+                                      mso-line-height-rule: exactly;
+                                      line-height: 16px;
+                                    "
+                                  >
+                                    No.02 &nbsp;/&nbsp; 2026. 07
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- ── 갈피 캐릭터 ── SLOT: 매달 포즈 변주 (offering-letter / waving-hello / peeking-out / holding-pencil) -->
+                        <tr>
+                          <td align="center" style="padding: 18px 44px 0 44px">
+                            <img
+                              src="https://monthly-checkin.vercel.app/galpi/offering-letter.png"
+                              width="150"
+                              alt="편지를 든 사서 캐릭터 갈피"
+                              style="
+                                display: block;
+                                width: 150px;
+                                max-width: 150px;
+                                height: auto;
+                                border: 0;
+                                outline: none;
+                                text-decoration: none;
+                              "
+                            />
+                          </td>
+                        </tr>
+
+                        <!-- ── 제목 ── SLOT: 이번 달 다이제스트 제목 (변주 가능) -->
+                        <tr>
+                          <td
+                            class="px"
+                            align="center"
+                            style="padding: 14px 44px 0 44px"
+                          >
+                            <h1
+                              class="h1"
+                              style="
+                                margin: 0;
+                                font-family:
+                                  Georgia, &quot;Apple SD Gothic Neo&quot;,
+                                  &quot;Malgun Gothic&quot;, serif;
+                                font-size: 30px;
+                                font-weight: 400;
+                                line-height: 42px;
+                                mso-line-height-rule: exactly;
+                                color: #3a3330;
+                              "
+                            >
+                              지난 회고, 다들 이렇게 지냈어요
+                            </h1>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td align="center" style="padding: 20px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="70"
+                              style="width: 70px"
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      border-top: 1px solid #d96a50;
+                                      font-size: 0;
+                                      line-height: 0;
+                                    "
+                                  >
+                                    &nbsp;
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- ── 오프닝 멘트 ── SLOT: 3줄 내외, 계절·요즘 분위기, 갈피 목소리 -->
+                        <tr>
+                          <td
+                            class="px"
+                            style="
+                              padding: 26px 44px 0 44px;
+                              font-family:
+                                Georgia, &quot;Apple SD Gothic Neo&quot;,
+                                &quot;Malgun Gothic&quot;, serif;
+                              font-size: 16px;
+                              line-height: 32px;
+                              mso-line-height-rule: exactly;
+                              color: #4a423c;
+                            "
+                          >
+                            팔월의 한가운데예요. 매미 소리가 저녁까지 이어지는
+                            날들이네요.<br />
+                            지난 회고에 남겨주신 글들을 한 장씩 꺼내 읽었어요.
+                            각자의 여름이 참 다르더라고요.
+                          </td>
+                        </tr>
+
+                        <!-- ── 인트로 ── SLOT: 몇 분이 썼는지 안부 -->
+                        <tr>
+                          <td
+                            class="px"
+                            style="
+                              padding: 22px 44px 0 44px;
+                              font-family:
+                                Georgia, &quot;Apple SD Gothic Neo&quot;,
+                                &quot;Malgun Gothic&quot;, serif;
+                              font-size: 16px;
+                              line-height: 32px;
+                              mso-line-height-rule: exactly;
+                              color: #4a423c;
+                            "
+                          >
+                            이번엔 다섯 분이 글을 남겨주셨어요. 못 오셨던 분도,
+                            아직 못 읽으신 분도 여기서 한눈에 보실 수 있게 짧게
+                            간추려 뒀어요. 마음이 가는 글은 들어가서 마저 읽고,
+                            한 마디 남겨주셔도 좋아요. 🔖
+                          </td>
+                        </tr>
+
+                        <!-- ═══════════════════════════════════════════════════════════
+         SECTION: 멤버별 회고 요약
+         · 아래 하나의 <tr>이 "멤버 카드 1개" = 반복 단위.
+         · 멤버 수만큼 이 블록을 복제.
+         · 요약은 중립 톤 불렛 2~3줄, 갈피 코멘트 없음.
+         · 링크는 각 글의 articleUrl (data.json).
+         ═══════════════════════════════════════════════════════════ -->
+                        <tr>
+                          <td
+                            class="px"
+                            style="
+                              padding: 34px 44px 4px 44px;
+                              font-family:
+                                Georgia, &quot;Apple SD Gothic Neo&quot;,
+                                &quot;Malgun Gothic&quot;, serif;
+                              font-size: 11px;
+                              letter-spacing: 2px;
+                              text-transform: uppercase;
+                              color: #b4462f;
+                              mso-line-height-rule: exactly;
+                              line-height: 16px;
+                            "
+                          >
+                            이번 달 회고
+                          </td>
+                        </tr>
+
+                        <!-- CARD: 멤버 1 -->
+                        <tr>
+                          <td class="px" style="padding: 16px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                              style="
+                                border: 1px solid #dccdb2;
+                                background-color: #fcf7ec;
+                              "
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 18px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 12px;
+                                      letter-spacing: 1px;
+                                      color: #8c7f6b;
+                                    "
+                                  >
+                                    대니
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 2px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 18px;
+                                      line-height: 26px;
+                                      color: #3a3330;
+                                    "
+                                  >
+                                    여름 휴가 중입니다
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 10px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 14px;
+                                      line-height: 26px;
+                                      color: #4a423c;
+                                    "
+                                  >
+                                    · 이 글을 읽을 즈음이면 통영에 가 있을
+                                    거라는 여름 휴가 인사.<br />
+                                    · “참여 못 해도 글은 쓰자”고 말해버린 탓에
+                                    결국 쓰게 됐다는 고백.<br />
+                                    · 다 쓰고 나니 역시 쓰길 잘했다 — 매달 잊고
+                                    매달 다시 깨닫는 것.
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 12px 22px 18px 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://monthly-checkin.vercel.app/articles/8a03ac18-6e9c-49d0-8464-e4cf721d6827"
+                                      style="
+                                        color: #b4462f;
+                                        text-decoration: none;
+                                      "
+                                      >더 보기 →</a
+                                    >
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- CARD: 멤버 2 -->
+                        <tr>
+                          <td class="px" style="padding: 12px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                              style="
+                                border: 1px solid #dccdb2;
+                                background-color: #fcf7ec;
+                              "
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 18px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 12px;
+                                      letter-spacing: 1px;
+                                      color: #8c7f6b;
+                                    "
+                                  >
+                                    벨라
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 2px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 18px;
+                                      line-height: 26px;
+                                      color: #3a3330;
+                                    "
+                                  >
+                                    2026년 7월 회고
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 10px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 14px;
+                                      line-height: 26px;
+                                      color: #4a423c;
+                                    "
+                                  >
+                                    · 더운 날씨에 회사에서 배민으로 점심 정주행,
+                                    배민클럽까지 가입한 이야기.<br />
+                                    · 몇 년 만에 집에서 디저트 배달도 시켜
+                                    먹었다는 소소한 여름 기록.<br />
+                                    · 회사에서는 프로젝트 하나를 완료.
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 12px 22px 18px 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://monthly-checkin.vercel.app/articles/7bc798ad-9aeb-4b95-adf5-ceeaddc8d395"
+                                      style="
+                                        color: #b4462f;
+                                        text-decoration: none;
+                                      "
+                                      >더 보기 →</a
+                                    >
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- CARD: 멤버 3 -->
+                        <tr>
+                          <td class="px" style="padding: 12px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                              style="
+                                border: 1px solid #dccdb2;
+                                background-color: #fcf7ec;
+                              "
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 18px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 12px;
+                                      letter-spacing: 1px;
+                                      color: #8c7f6b;
+                                    "
+                                  >
+                                    원
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 2px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 18px;
+                                      line-height: 26px;
+                                      color: #3a3330;
+                                    "
+                                  >
+                                    나도 녹고 시간도 녹고
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 10px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 14px;
+                                      line-height: 26px;
+                                      color: #4a423c;
+                                    "
+                                  >
+                                    · 회사-집-헬스장을 오가는 평일의 반복.
+                                    더위에 녹아내리는 일상.<br />
+                                    · 여름 한복판을 지나며 시간도 함께 녹아가는
+                                    감각.
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 12px 22px 18px 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://monthly-checkin.vercel.app/articles/08c4eff8-d3db-4970-982d-d54ed07f6f10"
+                                      style="
+                                        color: #b4462f;
+                                        text-decoration: none;
+                                      "
+                                      >더 보기 →</a
+                                    >
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- CARD: 멤버 4 -->
+                        <tr>
+                          <td class="px" style="padding: 12px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                              style="
+                                border: 1px solid #dccdb2;
+                                background-color: #fcf7ec;
+                              "
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 18px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 12px;
+                                      letter-spacing: 1px;
+                                      color: #8c7f6b;
+                                    "
+                                  >
+                                    아이리스
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 2px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 18px;
+                                      line-height: 26px;
+                                      color: #3a3330;
+                                    "
+                                  >
+                                    내 인생 짧은 봄이 가고
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 10px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 14px;
+                                      line-height: 26px;
+                                      color: #4a423c;
+                                    "
+                                  >
+                                    · 예기치 못한 한 달간의 휴업이 끝나고 회사로
+                                    복귀한 이야기.<br />
+                                    · 오랜 취준 끝에 얻은 일이 1년도 안 돼
+                                    멈췄던 억울함과 허탈함.<br />
+                                    · 그 시간을 카페 공부와 집안일로 지나온
+                                    기록.
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 12px 22px 18px 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://monthly-checkin.vercel.app/articles/6a42c94e-5b0b-47e6-909d-f2773f1fd36c"
+                                      style="
+                                        color: #b4462f;
+                                        text-decoration: none;
+                                      "
+                                      >더 보기 →</a
+                                    >
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- CARD: 멤버 5 -->
+                        <tr>
+                          <td class="px" style="padding: 12px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                              style="
+                                border: 1px solid #dccdb2;
+                                background-color: #fcf7ec;
+                              "
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 18px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 12px;
+                                      letter-spacing: 1px;
+                                      color: #8c7f6b;
+                                    "
+                                  >
+                                    두도
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 2px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 18px;
+                                      line-height: 26px;
+                                      color: #3a3330;
+                                    "
+                                  >
+                                    워크트리 그는 신이야
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 10px 22px 0 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 14px;
+                                      line-height: 26px;
+                                      color: #4a423c;
+                                    "
+                                  >
+                                    · 커밋·PR·티켓은 줄었지만, 남은 건 결과물이
+                                    아니라 ‘일하는 방식’이었던 달.<br />
+                                    · 워크트리로 여러 작업을 동시에 굴리고, 전용
+                                    라벨로 데이터를 쌓기 시작.<br />
+                                    · 앱 하나를 바닥부터 세워본 경험.
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 12px 22px 18px 22px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://monthly-checkin.vercel.app/articles/28b19588-fce7-45f3-ba0b-8d244c5e422a"
+                                      style="
+                                        color: #b4462f;
+                                        text-decoration: none;
+                                      "
+                                      >더 보기 →</a
+                                    >
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                        <!-- /SECTION: 멤버별 회고 요약 -->
+
+                        <!-- ═══════════════════════════════════════════════════════════
+         SECTION: 이번 회고에 오간 댓글
+         · 이번 회고 글들에 달린 댓글을 보여준다 (data.json comments[]).
+         · 각 항목 클릭 → 해당 댓글로 딥링크: {articleUrl}#comment-{commentId}
+         · 댓글이 하나도 없으면 이 섹션 통째로 생략.
+         · 아래 하나의 <tr>이 "댓글 1개" = 반복 단위.
+         ═══════════════════════════════════════════════════════════ -->
+                        <tr>
+                          <td
+                            class="px"
+                            style="
+                              padding: 36px 44px 4px 44px;
+                              font-family:
+                                Georgia, &quot;Apple SD Gothic Neo&quot;,
+                                &quot;Malgun Gothic&quot;, serif;
+                              font-size: 11px;
+                              letter-spacing: 2px;
+                              text-transform: uppercase;
+                              color: #b4462f;
+                              mso-line-height-rule: exactly;
+                              line-height: 16px;
+                            "
+                          >
+                            이번 회고에 오간 이야기
+                          </td>
+                        </tr>
+
+                        <!-- COMMENT: 1 -->
+                        <tr>
+                          <td class="px" style="padding: 14px 44px 0 44px">
+                            <a
+                              href="https://monthly-checkin.vercel.app/articles/8a03ac18-6e9c-49d0-8464-e4cf721d6827#comment-01b2396b-b958-4978-a482-273d86a8f6a4"
+                              style="text-decoration: none"
+                            >
+                              <table
+                                role="presentation"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                width="100%"
+                                style="
+                                  border: 1px solid #dccdb2;
+                                  background-color: #f7efe0;
+                                "
+                              >
+                                <tbody>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 14px 20px 4px 20px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 12px;
+                                        line-height: 18px;
+                                        color: #8c7f6b;
+                                      "
+                                    >
+                                      <strong style="color: #6b6055"
+                                        >대니</strong
+                                      >
+                                      &nbsp;→&nbsp;
+                                      <span style="color: #b4462f">대니</span
+                                      >님의 글에
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 0 20px 14px 20px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 14px;
+                                        line-height: 24px;
+                                        color: #4a423c;
+                                      "
+                                    >
+                                      “댓글 테스트 1111”
+                                      <span style="color: #b4462f">›</span>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+
+                        <!-- COMMENT: 2 -->
+                        <tr>
+                          <td class="px" style="padding: 10px 44px 0 44px">
+                            <a
+                              href="https://monthly-checkin.vercel.app/articles/8a03ac18-6e9c-49d0-8464-e4cf721d6827#comment-9d46efa3-c352-424b-9f8a-01e507ca919f"
+                              style="text-decoration: none"
+                            >
+                              <table
+                                role="presentation"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                width="100%"
+                                style="
+                                  border: 1px solid #dccdb2;
+                                  background-color: #f7efe0;
+                                "
+                              >
+                                <tbody>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 14px 20px 4px 20px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 12px;
+                                        line-height: 18px;
+                                        color: #8c7f6b;
+                                      "
+                                    >
+                                      <strong style="color: #6b6055"
+                                        >대니</strong
+                                      >
+                                      &nbsp;→&nbsp;
+                                      <span style="color: #b4462f">대니</span
+                                      >님의 글에
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 0 20px 14px 20px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 14px;
+                                        line-height: 24px;
+                                        color: #4a423c;
+                                      "
+                                    >
+                                      “댓글 테스트 2222”
+                                      <span style="color: #b4462f">›</span>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+
+                        <!-- COMMENT: 3 -->
+                        <tr>
+                          <td class="px" style="padding: 10px 44px 0 44px">
+                            <a
+                              href="https://monthly-checkin.vercel.app/articles/7bc798ad-9aeb-4b95-adf5-ceeaddc8d395#comment-5366d2b8-ad0c-4732-bc59-08b1c2e6f34f"
+                              style="text-decoration: none"
+                            >
+                              <table
+                                role="presentation"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                width="100%"
+                                style="
+                                  border: 1px solid #dccdb2;
+                                  background-color: #f7efe0;
+                                "
+                              >
+                                <tbody>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 14px 20px 4px 20px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 12px;
+                                        line-height: 18px;
+                                        color: #8c7f6b;
+                                      "
+                                    >
+                                      <strong style="color: #6b6055"
+                                        >대니</strong
+                                      >
+                                      &nbsp;→&nbsp;
+                                      <span style="color: #b4462f">벨라</span
+                                      >님의 글에
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 0 20px 14px 20px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 14px;
+                                        line-height: 24px;
+                                        color: #4a423c;
+                                      "
+                                    >
+                                      “와 슈매파 재밌겠는데요. 규모가
+                                      상당한데요? 베트남 개발자고 있군요”
+                                      <span style="color: #b4462f">›</span>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </a>
+                          </td>
+                        </tr>
+                        <!-- /SECTION: 이번 회고에 오간 댓글 -->
+
+                        <!-- ═══════════════════════════════════════════════════════════
+         SECTION: 다음 달 공통 주제 예고
+         · 다음 회고 때 함께 답할 주제를 미리 흘려 답을 머릿속에 굴리게.
+         · 주제는 ledger의 topicsUsed에 없는 것으로 고른다(중복 방지).
+         · 예시 한 줄로 "이 정도면 되는구나"를 보여준다.
+         ═══════════════════════════════════════════════════════════ -->
+                        <tr>
+                          <td class="px" style="padding: 36px 44px 0 44px">
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              width="100%"
+                              style="background-color: #f3e7d1"
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    style="
+                                      border-top: 1px dashed #2b4a6f;
+                                      font-size: 0;
+                                      line-height: 0;
+                                    "
+                                  >
+                                    &nbsp;
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 22px 26px 4px 26px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 11px;
+                                      letter-spacing: 2px;
+                                      color: #b4462f;
+                                      mso-line-height-rule: exactly;
+                                      line-height: 16px;
+                                    "
+                                  >
+                                    다음 달 공통 주제
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    class="quote"
+                                    style="
+                                      padding: 0 26px 14px 26px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 20px;
+                                      line-height: 32px;
+                                      color: #3a3330;
+                                    "
+                                  >
+                                    “이번 달 산 것 중 최고(또는 최악)는?”
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 0 26px 6px 26px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 15px;
+                                      line-height: 30px;
+                                      color: #4a423c;
+                                    "
+                                  >
+                                    다음 회고 때 이 질문에 한 줄로 답해보실래요?
+                                    회고와 함께 쓰셔도, 이 한 줄만 남기셔도
+                                    좋아요. 미리 생각해두시라고 흘려둬요.
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      padding: 0 26px 22px 26px;
+                                      font-family:
+                                        Georgia,
+                                        &quot;Apple SD Gothic Neo&quot;,
+                                        &quot;Malgun Gothic&quot;, serif;
+                                      font-size: 14px;
+                                      line-height: 28px;
+                                      color: #6b6055;
+                                    "
+                                  >
+                                    예시 — “여름용 무선 선풍기요. 책상에 두니
+                                    생존템이 됐어요.”
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td
+                                    style="
+                                      border-top: 1px dashed #2b4a6f;
+                                      font-size: 0;
+                                      line-height: 0;
+                                    "
+                                  >
+                                    &nbsp;
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <!-- ── 다음 회고 일정 투표 CTA ── 링크 고정: /vote -->
+                        <tr>
+                          <td
+                            class="px"
+                            style="
+                              padding: 36px 44px 0 44px;
+                              font-family:
+                                Georgia, &quot;Apple SD Gothic Neo&quot;,
+                                &quot;Malgun Gothic&quot;, serif;
+                              font-size: 16px;
+                              line-height: 32px;
+                              mso-line-height-rule: exactly;
+                              color: #4a423c;
+                            "
+                          >
+                            그리고 다음 만남 이야기예요. 지금 다음 회고 일정을
+                            정하고 있어요. 언제가 좋을지 한 표 남겨주시면, 제가
+                            모아서 자리를 잡아둘게요.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td
+                            class="px"
+                            align="center"
+                            style="padding: 22px 44px 0 44px"
+                          >
+                            <table
+                              role="presentation"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                            >
+                              <tbody>
+                                <tr>
+                                  <td
+                                    align="center"
+                                    bgcolor="#D96A50"
+                                    style="
+                                      background-color: #d96a50;
+                                      border-radius: 2px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://monthly-checkin.vercel.app/vote"
+                                      style="
+                                        display: block;
+                                        padding: 16px 34px;
+                                        font-family:
+                                          Georgia,
+                                          &quot;Apple SD Gothic Neo&quot;,
+                                          &quot;Malgun Gothic&quot;, serif;
+                                        font-size: 16px;
+                                        line-height: 20px;
+                                        mso-line-height-rule: exactly;
+                                        color: #fff7ec;
+                                        text-decoration: none;
+                                        font-weight: bold;
+                                      "
+                                      >다음 회고 일정 투표하러 가기</a
+                                    >
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td
+                            class="px"
+                            align="right"
+                            style="padding: 32px 44px 36px 44px"
+                          >
+                            <img
+                              src="https://monthly-checkin.vercel.app/galpi/peeking-out.png"
+                              width="72"
+                              alt="책 위에 앉은 갈피"
+                              style="
+                                display: block;
+                                width: 72px;
+                                max-width: 72px;
+                                height: auto;
+                                border: 0;
+                                outline: none;
+                                text-decoration: none;
+                              "
+                            />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- ── 푸터 ── -->
+            <table
+              role="presentation"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              width="600"
+              style="width: 600px; max-width: 600px"
+            >
+              <tbody>
+                <tr>
+                  <td
+                    align="center"
+                    style="
+                      padding: 20px 24px 0 24px;
+                      font-family:
+                        Georgia, &quot;Apple SD Gothic Neo&quot;,
+                        &quot;Malgun Gothic&quot;, serif;
+                      font-size: 11px;
+                      line-height: 20px;
+                      mso-line-height-rule: exactly;
+                      color: #8c7f6b;
+                    "
+                  >
+                    개발자 월간 회고 모임
+                    <strong style="color: #6b6055">체크인</strong> ·
+                    <a
+                      href="https://github.com/Jiwook00/checkin"
+                      style="color: #8c7f6b; text-decoration: underline"
+                      >github.com/Jiwook00/checkin</a
+                    ><br />
+                    받기 싫어지시면 갈피한테 살짝 귀띔해주세요.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
