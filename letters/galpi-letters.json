@@ -1,0 +1,18 @@
+{
+  "nextNumber": 2,
+  "topicsUsed": [
+    "요즘 제일 자주 여는 앱(또는 사이트)은?",
+    "이번 달 산 것 중 최고(또는 최악)는?"
+  ],
+  "nextTopic": "이번 달 산 것 중 최고(또는 최악)는?",
+  "sent": [
+    {
+      "number": 1,
+      "session": "2026-07",
+      "genre": "reminder",
+      "round": null,
+      "sentAt": null,
+      "topic": "요즘 제일 자주 여는 앱(또는 사이트)은?"
+    }
+  ]
+}
