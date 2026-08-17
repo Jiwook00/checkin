@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-08-17)
+
+
+### Features
+
+* checkin 회고 조회용 MCP 서버 추가 ([3ddae72](https://github.com/Jiwook00/checkin/commit/3ddae727045e47812846d5e784f12bbcab1a81cc))
+* Jina Reader 통합 및 노션 파싱 폴백 추가 ([2b67d8b](https://github.com/Jiwook00/checkin/commit/2b67d8b293f8b77d04a1aaffbed7f8662ade13a8))
+* Tiptap 인앱 에디터 기반 작업 — DB 마이그레이션 및 타입 업데이트 ([01f27f3](https://github.com/Jiwook00/checkin/commit/01f27f3aad608dfac5ab5494501febd444afb3e2))
+* Tiptap 인앱 에디터 기반 직접 작성 기능 추가 ([f888c2b](https://github.com/Jiwook00/checkin/commit/f888c2ba94989f493c01abde02207b16f5d02a4d))
+* written 회고 카드 미리보기, 수정 분기, 에디터 스크롤 수정 ([a29f43b](https://github.com/Jiwook00/checkin/commit/a29f43b0498cf72021a9131619f8abb66effbce7))
+* 갈피 레터 2차 발송 자동화 ([b50c86d](https://github.com/Jiwook00/checkin/commit/b50c86d8a35cd67e0034c299a843139674b981bf))
+* 갈피 회고 다이제스트 레터 자동화 ([c6915b4](https://github.com/Jiwook00/checkin/commit/c6915b445a93850ef9fa8d50b9aa062898e743cb))
+* 갈피 회고 다이제스트 레터 자동화 (1차·2차) ([c184b58](https://github.com/Jiwook00/checkin/commit/c184b580d20b309574f225cd830ab5049579fbd1))
+* 감정 블롭 아바타 선택 기능 추가 ([31468b1](https://github.com/Jiwook00/checkin/commit/31468b1a825f0079b975f86774ce6a65f321a5c4))
+* 감정 아바타 선택 기능 추가 ([9692c3f](https://github.com/Jiwook00/checkin/commit/9692c3f6e22216e6d501f47db41bf5eed5ef083a))
+* 감정 아바타 파츠 에셋 대폭 확장 ([f693084](https://github.com/Jiwook00/checkin/commit/f6930844eb3da985c4c174dc124f57acccba7997))
+* 글 등록 시 presentation_order 랜덤 설정 ([0860024](https://github.com/Jiwook00/checkin/commit/086002406519e73cc78dc3a966600c52b7d4f285))
+* 목록·상세에 반응·댓글 참여 신호 노출 ([3db4d13](https://github.com/Jiwook00/checkin/commit/3db4d132a97561c7ee8e5753ba3c442b31668a9f)), closes [#50](https://github.com/Jiwook00/checkin/issues/50)
+* 사진첩 Pinterest 스타일 상세 뷰 구현 ([2664e23](https://github.com/Jiwook00/checkin/commit/2664e233a3319a7bfdd328c1d715706f9890b2b9))
+* 상세 페이지에서 내 written 글 수정하기 버튼 노출 ([0db96c3](https://github.com/Jiwook00/checkin/commit/0db96c395dd1219813c3164efd9a50622f1dd665))
+* 에디터 이미지 클립보드 붙여넣기 지원 ([335ed14](https://github.com/Jiwook00/checkin/commit/335ed14c36d9f9c2a7faf550fcf4e7d409c15e99))
+* 일정 조율에 특정 날짜 선택 모드 추가 ([f32a1b2](https://github.com/Jiwook00/checkin/commit/f32a1b2ebf31b47972db364379bda829b6a4202e))
+* 회고 글·댓글 반응 기능 + 참여 신호 ([3c037c3](https://github.com/Jiwook00/checkin/commit/3c037c33613f6e995c85c4c2534456217918d3df))
+* 회고 글·댓글 반응 기능 추가 ([4bc44ff](https://github.com/Jiwook00/checkin/commit/4bc44ff47ebee58885dc3ddf87c3093f2868b22b)), closes [#50](https://github.com/Jiwook00/checkin/issues/50)
+
+
+### Bug Fixes
+
+* app.notion.com 도메인 노션 링크 파싱 실패 수정 ([a74183a](https://github.com/Jiwook00/checkin/commit/a74183a6a9876d81591c0dc066ef213bd686eb3d))
+* notion api 응답 구조 변경에 따른 블록 파싱 수정 ([a34a98e](https://github.com/Jiwook00/checkin/commit/a34a98e4c96297e7f01c9a29dd0f0cc4763d6655))
+* 메인 세션 필터를 지난 3개월치만 표시하도록 수정 ([cb16385](https://github.com/Jiwook00/checkin/commit/cb16385df0526caa7554e058397c4f3d23e4b2df))
+
 ## [1.0.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.4.0...checkin-v1.0.0) (2026-04-01)
 
 ### Features
