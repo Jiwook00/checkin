@@ -36,3 +36,6 @@ TODO.md
 letters/**/data.json
 # 렌더된 레터 (멤버 개인 회고·댓글 포함 · data.json+ledger로 재생성 가능)
 letters/**/digest*.html
+
+# Supabase CLI 로컬 상태 (자동 생성)
+supabase/.temp/
