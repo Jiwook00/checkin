@@ -10,6 +10,8 @@
       "number": 1,
       "session": "2026-07",
       "genre": "reminder",
+      "round": null,
+      "sentAt": null,
       "topic": "요즘 제일 자주 여는 앱(또는 사이트)은?"
     }
   ]
