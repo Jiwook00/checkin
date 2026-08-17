@@ -34,3 +34,5 @@ TODO.md
 
 # 갈피 레터 생성 데이터 (Supabase에서 재생성 가능 · 이메일 등 PII 포함)
 letters/**/data.json
+# 렌더된 레터 (멤버 개인 회고·댓글 포함 · data.json+ledger로 재생성 가능)
+letters/**/digest*.html
