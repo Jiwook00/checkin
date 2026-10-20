@@ -51,11 +51,12 @@ function toUuid(id: string): string {
  */
 async function resolveAttachmentUrls(
   items: Array<{ attachmentUrl: string; blockId: string }>,
+  fetchFn: typeof fetch,
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   if (items.length === 0) return result;
 
-  const response = await fetch(
+  const response = await fetchFn(
     "https://www.notion.so/api/v3/getSignedFileUrls",
     {
       method: "POST",
@@ -84,10 +85,13 @@ async function resolveAttachmentUrls(
  * 노션 공개 페이지에서 콘텐츠를 파싱한다.
  * Notion 비공개 API(/api/v3/loadPageChunk)에 직접 fetch → 블록 데이터 JSON → 마크다운 변환
  */
-export async function parseNotion(pageId: string): Promise<ParsedContent> {
+export async function parseNotion(
+  pageId: string,
+  fetchFn: typeof fetch,
+): Promise<ParsedContent> {
   const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
 
-  const response = await fetch("https://www.notion.so/api/v3/loadPageChunk", {
+  const response = await fetchFn("https://www.notion.so/api/v3/loadPageChunk", {
     method: "POST",
     headers: NOTION_HEADERS,
     body: JSON.stringify({
@@ -145,7 +149,7 @@ export async function parseNotion(pageId: string): Promise<ParsedContent> {
   }
 
   // attachment: URL을 실제 다운로드 URL로 일괄 변환
-  const signedUrlMap = await resolveAttachmentUrls(attachmentItems);
+  const signedUrlMap = await resolveAttachmentUrls(attachmentItems, fetchFn);
 
   // 블록들을 마크다운으로 변환
   const markdownLines: string[] = [];
