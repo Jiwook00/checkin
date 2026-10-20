@@ -29,6 +29,8 @@ const REQUEST_TIMEOUT_MS = 30_000;
 // 설계 문서의 보일러플레이트 키워드. 서로 다른 키워드 2개 이상이 보이면 오염으로 본다
 const BOILERPLATE_KEYWORDS = ["구독하기", "카테고리", "댓글", "Powered by"];
 const BOILERPLATE_MIN_HITS = 2;
+// 성공으로 저장됐지만 본문이 이보다 짧으면 조용한 실패로 의심한다 (설계 문서의 품질 플래그 기준)
+const SHORT_CONTENT_CHARS = 200;
 const CHAR_TOLERANCE = 0.2;
 
 interface GoldenLabel {
@@ -36,6 +38,8 @@ interface GoldenLabel {
   first_sentence: string;
   last_sentence: string;
   approx_chars: number;
+  // 본문을 얻을 수 없는 페이지(비밀글, JS 렌더링 등). 파이프라인이 실패해야 합격
+  expect_failure?: boolean;
 }
 
 interface SetItem {
@@ -57,7 +61,9 @@ interface RunRecord {
   ok: boolean;
   stage?: string;
   error?: string;
+  // 파이프라인 소요 시간에서 하네스의 호스트 간격 대기를 뺀 값
   duration_ms: number;
+  throttle_ms: number;
   fetch_count: number;
   title?: string;
   content_chars: number;
@@ -110,11 +116,13 @@ function platformOf(url: string): string {
 
 const nextSlot = new Map<string, number>();
 
-async function throttle(host: string) {
+/** 호스트별 간격을 지키고, 기다린 시간(ms)을 돌려준다 */
+async function throttle(host: string): Promise<number> {
   const now = Date.now();
   const at = Math.max(now, nextSlot.get(host) ?? 0);
   nextSlot.set(host, at + HOST_INTERVAL_MS);
   if (at > now) await new Promise((r) => setTimeout(r, at - now));
+  return at - now;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -150,7 +158,7 @@ async function snapshotPath(req: {
   return `${SNAPSHOT_DIR}/${key}.json`;
 }
 
-function makeFetch(counter: { n: number }): typeof fetch {
+function makeFetch(counter: { n: number; wait_ms: number }): typeof fetch {
   return async (input, init) => {
     counter.n++;
     const req = describeRequest(input, init);
@@ -169,7 +177,7 @@ function makeFetch(counter: { n: number }): typeof fetch {
       });
     }
 
-    await throttle(new URL(req.url).hostname);
+    counter.wait_ms += await throttle(new URL(req.url).hostname);
     const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
     let res: Response;
     try {
@@ -222,8 +230,11 @@ function toPlain(md: string): string {
     .trim();
 }
 
+/** 문장 포함 비교용. 공백과 강조 기호(_, *)까지 지워 마크다운 변환 차이를 흡수한다 */
 function normalizeForMatch(s: string): string {
-  return toPlain(s).replace(/\s+/g, "").toLowerCase();
+  return toPlain(s)
+    .replace(/[\s_*]/g, "")
+    .toLowerCase();
 }
 
 function boilerplateHits(md: string): string[] {
@@ -239,6 +250,16 @@ interface GoldenVerdict {
 }
 
 function judgeGolden(rec: RunRecord, label: GoldenLabel): GoldenVerdict {
+  if (label.expect_failure) {
+    const failed = !rec.ok;
+    return {
+      pass: failed,
+      first: failed,
+      last: failed,
+      chars: failed,
+      clean: failed,
+    };
+  }
   if (!rec.ok || !rec.content_markdown) {
     return {
       pass: false,
@@ -261,12 +282,13 @@ function judgeGolden(rec: RunRecord, label: GoldenLabel): GoldenVerdict {
 // --- 실행 ------------------------------------------------------------------
 
 async function runOne(url: string): Promise<RunRecord> {
-  const counter = { n: 0 };
+  const counter = { n: 0, wait_ms: 0 };
   const result = await runPipeline(url, { fetch: makeFetch(counter) });
   const base = {
     url,
     platform: platformOf(url),
-    duration_ms: result.duration_ms,
+    duration_ms: result.duration_ms - counter.wait_ms,
+    throttle_ms: counter.wait_ms,
     fetch_count: counter.n,
   };
   if (!result.ok) {
@@ -352,22 +374,30 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   out.push("");
 
   out.push("### 하드 실패율 (플랫폼별)");
-  out.push("| 플랫폼 | 실패율 | 보일러플레이트 의심 |");
-  out.push("| --- | --- | --- |");
+  out.push(
+    `조용한 실패 신호(성공 건 기준): 본문 ${SHORT_CONTENT_CHARS}자 미만, 보일러플레이트 키워드 ${BOILERPLATE_MIN_HITS}종 이상`,
+  );
+  out.push("");
+  out.push("| 플랫폼 | 실패율 | 짧은 본문 | 보일러플레이트 의심 |");
+  out.push("| --- | --- | --- | --- |");
   const byPlatform = groupBy(recs, (r) => r.platform);
+  const silent = (rs: RunRecord[]) => {
+    const ok = rs.filter((r) => r.ok);
+    const short = ok.filter((r) => r.content_chars < SHORT_CONTENT_CHARS);
+    const dirty = ok.filter(
+      (r) => r.boilerplate_hits.length >= BOILERPLATE_MIN_HITS,
+    );
+    return `${pct(short.length, ok.length)} | ${pct(dirty.length, ok.length)}`;
+  };
   for (const [platform, rs] of [...byPlatform].sort(
     (a, b) => b[1].length - a[1].length,
   )) {
-    const ok = rs.filter((r) => r.ok);
-    out.push(
-      `| ${platform} | ${pct(rs.length - ok.length, rs.length)} | ${pct(
-        ok.filter((r) => r.boilerplate_hits.length >= BOILERPLATE_MIN_HITS)
-          .length,
-        ok.length,
-      )} |`,
-    );
+    const nFailed = rs.filter((r) => !r.ok).length;
+    out.push(`| ${platform} | ${pct(nFailed, rs.length)} | ${silent(rs)} |`);
   }
-  out.push(`| **전체** | **${pct(failed.length, recs.length)}** | |`);
+  out.push(
+    `| **전체** | **${pct(failed.length, recs.length)}** | ${silent(recs)} |`,
+  );
   out.push("");
 
   if (failed.length > 0) {
@@ -405,7 +435,7 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
     }));
     out.push("### 골든셋 추출 정확도");
     out.push(
-      `기준: 첫 문장 포함 + 마지막 문장 포함 + 글자 수 ±${CHAR_TOLERANCE * 100}% + 보일러플레이트 키워드 ${BOILERPLATE_MIN_HITS}종 미만`,
+      `기준: 첫 문장 포함 + 마지막 문장 포함 + 글자 수 ±${CHAR_TOLERANCE * 100}% + 보일러플레이트 키워드 ${BOILERPLATE_MIN_HITS}종 미만. expect_failure 라벨은 파이프라인이 실패해야 합격`,
     );
     out.push("");
     out.push("| 플랫폼 | 정확도 | 첫 문장 | 마지막 문장 | 글자 수 | 깨끗함 |");
@@ -431,16 +461,19 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
       out.push("| --- | --- | --- |");
       for (const { it, v } of misses) {
         const rec = results.get(it.url)!;
-        const why = !rec.ok
-          ? `실패: ${errorBucket(rec.error)}`
-          : [
-              !v.first && "첫 문장 없음",
-              !v.last && "마지막 문장 없음",
-              !v.chars && "글자 수 벗어남",
-              !v.clean && `보일러플레이트(${rec.boilerplate_hits.join(", ")})`,
-            ]
-              .filter(Boolean)
-              .join(", ");
+        const why = it.label!.expect_failure
+          ? "실패해야 하는데 성공으로 저장됨"
+          : !rec.ok
+            ? `실패: ${errorBucket(rec.error)}`
+            : [
+                !v.first && "첫 문장 없음",
+                !v.last && "마지막 문장 없음",
+                !v.chars && "글자 수 벗어남",
+                !v.clean &&
+                  `보일러플레이트(${rec.boilerplate_hits.join(", ")})`,
+              ]
+                .filter(Boolean)
+                .join(", ");
         out.push(
           `| ${it.url} | ${why} | ${rec.content_chars} / ${it.label!.approx_chars} |`,
         );
@@ -456,7 +489,7 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   out.push(
     mode === "replay"
       ? "replay 모드라 네트워크 시간이 빠져 있다. 지연 비교는 record/live 실행끼리만 한다."
-      : `호스트당 ${HOST_INTERVAL_MS}ms 간격 대기가 포함될 수 있다(같은 호스트 연속 요청).`,
+      : `하네스의 호스트당 ${HOST_INTERVAL_MS}ms 간격 대기는 빼고 잰다.`,
   );
   out.push("");
   out.push("| 플랫폼 | p50 | p95 |");
