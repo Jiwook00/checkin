@@ -33,6 +33,7 @@ import { ParseError } from "../supabase/functions/parse-content/errors.ts";
 import {
   createAnthropicLlm,
   LLM_MODEL,
+  pageText,
   prepareDocument,
   PRICE_INPUT_PER_MTOK,
   PRICE_OUTPUT_PER_MTOK,
@@ -618,10 +619,15 @@ async function checkSubstring(
     const html = await fetchBlogHtml(url, snapshotOnlyFetch);
     const doc = prepareDocument(html);
     if (!doc) return { url, source, lines: null, missing: [] };
-    const text = normalizeForMatch(doc.body?.textContent ?? "");
+    // DOM 쪽은 toPlain을 쓰지 않는다: 마크다운 문법 제거 정규식이 줄 머리의 "1. "을
+    // 목록 표시로 지워 비교가 어긋난다. script·style 텍스트도 뺀다.
+    // 꺾쇠는 양쪽에서 똑같이 뺀다: 원문의 "A <-> B"를 toPlain이 HTML 태그로 보고 지우기 때문
+    const text = pageText(doc)
+      .replace(/[<>\s_*]/g, "")
+      .toLowerCase();
     const lines = markdown
       .split("\n")
-      .map((l) => normalizeForMatch(l))
+      .map((l) => normalizeForMatch(l.replace(/[<>]/g, "")))
       .filter((l) => l.length >= 5);
     return {
       url,

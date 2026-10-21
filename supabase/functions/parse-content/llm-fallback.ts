@@ -87,10 +87,15 @@ function visibleText(node: Node): string {
   return out;
 }
 
-/** 페이지 전체의 보이는 텍스트 글자 수. LLM 호출 전 사전 필터에 쓴다 */
-export function pageTextLength(doc: HTMLDocument): number {
+/** 페이지 전체의 보이는 텍스트 (script·style 등 제외, 공백은 하나로 접음) */
+export function pageText(doc: HTMLDocument): string {
   const root = doc.body ?? doc.documentElement;
-  return root ? collapse(visibleText(root)).length : 0;
+  return root ? collapse(visibleText(root)) : "";
+}
+
+/** 보이는 텍스트 글자 수. LLM 호출 전 사전 필터에 쓴다 */
+export function pageTextLength(doc: HTMLDocument): number {
+  return pageText(doc).length;
 }
 
 function renderNode(
