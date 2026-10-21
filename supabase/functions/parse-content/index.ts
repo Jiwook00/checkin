@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { detectSourceType, validateSourceUrl } from "./url-utils.ts";
-import { runPipeline } from "./pipeline.ts";
+import { llmNote, runPipeline } from "./pipeline.ts";
+import { createAnthropicLlm } from "./llm-fallback.ts";
 import { recordAttempt } from "./attempts.ts";
 import { ParseError } from "./errors.ts";
 import { DEGRADED_BELOW } from "./quality.ts";
@@ -134,8 +135,14 @@ Deno.serve(async (req) => {
       return failure(error);
     }
 
-    // 콘텐츠 파싱
-    const parsed = await runPipeline(source_url, { fetch });
+    // 콘텐츠 파싱. 키가 등록돼 있을 때만 LLM 셀렉터 폴백을 켠다
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const parsed = await runPipeline(source_url, {
+      fetch,
+      llm: anthropicKey
+        ? createAnthropicLlm({ apiKey: anthropicKey, fetch })
+        : undefined,
+    });
     if (!parsed.ok) {
       // 최종 실패 → 원본 링크만 저장
       const { data: linkRow, error: linkError } = await supabaseAdmin
@@ -182,6 +189,7 @@ Deno.serve(async (req) => {
         retrospective_id: linkRow.id,
         error: parsed.error,
         fetch_attempts: parsed.fetch_attempts,
+        llm: parsed.llm?.usage,
         duration_ms: parsed.duration_ms,
       });
       return failure(parsed.error, linkRow.id);
@@ -247,7 +255,8 @@ Deno.serve(async (req) => {
               "LOW_QUALITY",
               "structural",
               "추출 품질이 낮습니다",
-              `score=${parsed.quality_score} (<${DEGRADED_BELOW}) flags=${(parsed.quality_flags ?? []).join(",")}`,
+              `score=${parsed.quality_score} (<${DEGRADED_BELOW}) flags=${(parsed.quality_flags ?? []).join(",")}` +
+                (parsed.llm ? `; ${llmNote(parsed.llm)}` : ""),
             )
           : undefined,
       content_chars: parsed.content_chars,
@@ -255,6 +264,7 @@ Deno.serve(async (req) => {
       tier: parsed.tier,
       quality_score: parsed.quality_score,
       quality_flags: parsed.quality_flags,
+      llm: parsed.llm?.usage,
       duration_ms: parsed.duration_ms,
     });
 

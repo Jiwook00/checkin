@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ParseError } from "./errors.ts";
+import type { LlmUsage } from "./llm-fallback.ts";
 import type { ParseTier, QualityFlag } from "./types.ts";
 
 export type AttemptTrigger = "user" | "backfill" | "benchmark";
@@ -17,6 +18,8 @@ export interface AttemptInput {
   tier?: ParseTier;
   quality_score?: number;
   quality_flags?: QualityFlag[];
+  // LLM 폴백을 호출했을 때만 (재요청 포함 합산)
+  llm?: LlmUsage | null;
   duration_ms: number;
 }
 
@@ -51,6 +54,10 @@ export async function recordAttempt(
     quality_score: input.quality_score ?? null,
     quality_flags: input.quality_flags ?? null,
     content_chars: input.content_chars ?? null,
+    llm_model: input.llm?.model ?? null,
+    llm_input_tokens: input.llm?.input_tokens ?? null,
+    llm_output_tokens: input.llm?.output_tokens ?? null,
+    llm_cost_usd: input.llm?.cost_usd ?? null,
     duration_ms: input.duration_ms,
   });
   if (error) {

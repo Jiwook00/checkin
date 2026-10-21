@@ -12,11 +12,36 @@
 // - 여러 세트에 같은 URL이 있으면 한 번만 실행하고 세트별로 집계한다
 // - 결과: local/bench/<날짜>-<커밋>[-라벨].json + .md
 //
+// LLM 폴백 (#58): --llm off|dry|record|replay|live  (기본 off)
+//   off     LLM 없이 실행 (기준선과 비교할 때)
+//   dry     호출 없이 대상 판정·사전 필터·프롬프트 크기·예상 비용만 계산
+//   replay  local/bench/snapshots-llm/의 응답을 재생 (스냅샷이 없으면 llm_missing_snapshot)
+//   record  스냅샷이 있으면 재사용하고, 없을 때만 실제 호출해 저장 (ANTHROPIC_API_KEY 필요)
+//   live    항상 실제 호출, 저장 안 함 (ANTHROPIC_API_KEY 필요)
+//   --llm-max-calls N   실제 API 호출 상한 (기본 20). 넘으면 이후 호출은 llm_max_calls 오류로 기록
+//   --llm-force         규칙 결과와 무관하게 라벨 있는 블로그 글에 LLM을 돌려 골든 정확도를 잰다
+//
 // 세트 파일 형식: { "name": "A", "items": [{ "url": "...", "had_content"?: bool, "label"?: GoldenLabel }] }
 
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { runPipeline } from "../supabase/functions/parse-content/pipeline.ts";
 import {
+  extractBlog,
+  fetchBlogHtml,
+} from "../supabase/functions/parse-content/blog-parser.ts";
+import { ParseError } from "../supabase/functions/parse-content/errors.ts";
+import {
+  createAnthropicLlm,
+  LLM_MODEL,
+  pageText,
+  prepareDocument,
+  PRICE_INPUT_PER_MTOK,
+  PRICE_OUTPUT_PER_MTOK,
+  runLlmFallback,
+  type LlmClient,
+} from "../supabase/functions/parse-content/llm-fallback.ts";
+import {
+  assessQuality,
   DEGRADED_BELOW,
   MIN_TEXT_CHARS,
   toPlain,
@@ -25,6 +50,7 @@ import {
 const ROOT = new URL("..", import.meta.url).pathname;
 const BENCH_DIR = `${ROOT}local/bench`;
 const SNAPSHOT_DIR = `${BENCH_DIR}/snapshots`;
+const LLM_SNAPSHOT_DIR = `${BENCH_DIR}/snapshots-llm`;
 
 const CONCURRENCY = 4;
 const HOST_INTERVAL_MS = 1000;
@@ -76,6 +102,23 @@ interface RunRecord {
   quality_flags: string[];
   content_chars: number;
   content_markdown?: string;
+  // LLM 폴백이 개입한 경우(대상이었던 경우 포함)
+  llm?: LlmRecord;
+}
+
+interface LlmRecord {
+  // 폴백 직전 규칙 단계의 결과 (에러 코드 또는 degraded)
+  rule: string;
+  outcome: string;
+  calls: number;
+  selector?: string;
+  reasons: string[];
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  ms: number;
+  // dry 모드에서 프롬프트 글자 수 합 (예상 토큰 계산용)
+  prompt_chars: number;
 }
 
 interface Snapshot {
@@ -94,11 +137,33 @@ const mode: "live" | "record" | "replay" = args.includes("--record")
   : args.includes("--replay")
     ? "replay"
     : "live";
-const labelIdx = args.indexOf("--label");
-const runLabel = labelIdx >= 0 ? args[labelIdx + 1] : "";
+const VALUE_FLAGS = ["--label", "--llm", "--llm-max-calls"];
+function flagValue(name: string): string | undefined {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+}
+const runLabel = flagValue("--label") ?? "";
 const setFiles = args.filter(
-  (a, i) => !a.startsWith("--") && !(labelIdx >= 0 && i === labelIdx + 1),
+  (a, i) =>
+    !a.startsWith("--") && !(i > 0 && VALUE_FLAGS.includes(args[i - 1])),
 );
+type LlmMode = "off" | "dry" | "record" | "replay" | "live";
+const llmMode = (flagValue("--llm") ?? "off") as LlmMode;
+if (!["off", "dry", "record", "replay", "live"].includes(llmMode)) {
+  console.error(`--llm 값이 올바르지 않아요: ${llmMode}`);
+  Deno.exit(1);
+}
+const llmMaxCalls = Number(flagValue("--llm-max-calls") ?? 20);
+const llmForce = args.includes("--llm-force");
+const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+if ((llmMode === "record" || llmMode === "live") && !anthropicKey) {
+  console.error("--llm record/live는 ANTHROPIC_API_KEY 환경변수가 필요해요");
+  Deno.exit(1);
+}
+if (llmForce && llmMode === "off") {
+  console.error("--llm-force는 --llm off 이외의 모드와 함께 써야 해요");
+  Deno.exit(1);
+}
 if (setFiles.length === 0) {
   console.error("세트 파일을 하나 이상 주세요. 사용법은 파일 상단 주석 참고");
   Deno.exit(1);
@@ -156,13 +221,12 @@ function describeRequest(input: RequestInfo | URL, init?: RequestInit) {
   return { url, method, body };
 }
 
-async function snapshotPath(req: {
-  method: string;
-  url: string;
-  body: string | null;
-}) {
+async function snapshotPath(
+  req: { method: string; url: string; body: string | null },
+  dir = SNAPSHOT_DIR,
+) {
   const key = await sha256Hex(`${req.method} ${req.url}\n${req.body ?? ""}`);
-  return `${SNAPSHOT_DIR}/${key}.json`;
+  return `${dir}/${key}.json`;
 }
 
 function makeFetch(counter: { n: number; wait_ms: number }): typeof fetch {
@@ -271,11 +335,106 @@ function judgeGolden(rec: RunRecord, label: GoldenLabel): GoldenVerdict {
   return { pass: first && last && chars && clean, first, last, chars, clean };
 }
 
+// --- LLM 폴백: fetch·클라이언트 -------------------------------------------
+
+const llmStats = { live_calls: 0, cached: 0, blocked: 0 };
+
+/**
+ * Anthropic 호출용 fetch. 스냅샷 키는 페이지 fetch와 같은 방식(메서드+URL+본문 해시)이고
+ * 헤더(API 키)는 저장하지 않는다. 프롬프트가 바뀌면 키가 달라져 스냅샷이 맞지 않는다.
+ */
+function makeLlmFetch(): typeof fetch {
+  return async (input, init) => {
+    const req = describeRequest(input, init);
+    const path = await snapshotPath(req, LLM_SNAPSHOT_DIR);
+
+    // replay, record: 스냅샷이 있으면 재사용한다 (record는 같은 요청에 두 번 과금하지 않는다)
+    if (llmMode === "replay" || llmMode === "record") {
+      try {
+        const snap: Snapshot = JSON.parse(await Deno.readTextFile(path));
+        llmStats.cached++;
+        return new Response(decodeBase64(snap.body_base64 ?? ""), {
+          status: snap.status,
+        });
+      } catch {
+        // 스냅샷 없음
+      }
+      if (llmMode === "replay") throw new Error("llm_missing_snapshot");
+    }
+
+    // 실제 호출. 검사와 증가 사이에 await가 없어 동시 실행에서도 상한이 지켜진다
+    if (llmStats.live_calls >= llmMaxCalls) {
+      llmStats.blocked++;
+      throw new Error("llm_max_calls");
+    }
+    llmStats.live_calls++;
+    const res = await fetch(input, init);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (llmMode === "record" && res.ok) {
+      await Deno.mkdir(LLM_SNAPSHOT_DIR, { recursive: true });
+      await Deno.writeTextFile(
+        path,
+        JSON.stringify({
+          request: req,
+          status: res.status,
+          content_type: res.headers.get("content-type"),
+          body_base64: encodeBase64(bytes),
+        } satisfies Snapshot),
+      );
+    }
+    return new Response(bytes, { status: res.status });
+  };
+}
+
+const llmFetch = makeLlmFetch();
+
+/** dry 모드: 호출하지 않고 프롬프트 크기만 기록한다 */
+function makeDryClient(sink: { chars: number }): LlmClient {
+  return {
+    select(system, user) {
+      sink.chars += system.length + user.length;
+      return Promise.resolve({
+        selection: null,
+        input_tokens: 0,
+        output_tokens: 0,
+        error: "dry",
+      });
+    },
+  };
+}
+
+function makeLlmClient(sink: { chars: number }): LlmClient | undefined {
+  if (llmMode === "off") return undefined;
+  if (llmMode === "dry") return makeDryClient(sink);
+  return createAnthropicLlm({
+    apiKey: anthropicKey ?? "replay",
+    fetch: llmFetch,
+  });
+}
+
 // --- 실행 ------------------------------------------------------------------
 
 async function runOne(url: string): Promise<RunRecord> {
   const counter = { n: 0, wait_ms: 0 };
-  const result = await runPipeline(url, { fetch: makeFetch(counter) });
+  const sink = { chars: 0 };
+  const result = await runPipeline(url, {
+    fetch: makeFetch(counter),
+    llm: makeLlmClient(sink),
+  });
+  const llm: LlmRecord | undefined = result.llm
+    ? {
+        rule: result.llm.rule,
+        outcome: result.llm.outcome,
+        calls: result.llm.calls,
+        selector: result.llm.selector,
+        reasons: result.llm.reasons,
+        input_tokens: result.llm.usage?.input_tokens ?? 0,
+        output_tokens: result.llm.usage?.output_tokens ?? 0,
+        cost_usd: result.llm.usage?.cost_usd ?? 0,
+        ms: result.llm.ms,
+        prompt_chars: sink.chars,
+      }
+    : undefined;
   const base = {
     url,
     platform: platformOf(url),
@@ -292,10 +451,12 @@ async function runOne(url: string): Promise<RunRecord> {
       error: result.error.message,
       quality_flags: [],
       content_chars: 0,
+      ...(llm ? { llm } : {}),
     };
   }
   return {
     ...base,
+    ...(llm ? { llm } : {}),
     ok: true,
     title: result.title,
     tier: result.tier,
@@ -325,6 +486,164 @@ async function runAll(urls: string[]): Promise<Map<string, RunRecord>> {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   return results;
+}
+
+// --- LLM 강제 평가 · 부분 문자열 검사 ----------------------------------------
+
+const FORCE_RULE_REASON = "평가 모드: 규칙 결과와 무관하게 본문 위치를 평가";
+
+interface ForceRecord {
+  url: string;
+  platform: string;
+  // runLlmFallback의 outcome, 또는 평가에서 뺀 경우 excluded
+  outcome: string;
+  selector?: string;
+  reasons: string[];
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  ms: number;
+  prompt_chars: number;
+  content_markdown?: string;
+  excluded?: string;
+}
+
+/** 라벨이 있는 블로그 글. 노션은 HTML이 클라이언트 렌더링이라 LLM 대상이 아니다 */
+function forceTargets(sets: BenchSet[]): string[] {
+  const urls = new Set<string>();
+  for (const set of sets) {
+    for (const it of set.items) {
+      if (it.label && platformOf(it.url) !== "notion") urls.add(it.url);
+    }
+  }
+  return [...urls];
+}
+
+async function runForceOne(url: string): Promise<ForceRecord> {
+  const counter = { n: 0, wait_ms: 0 };
+  const base = {
+    url,
+    platform: platformOf(url),
+    reasons: [] as string[],
+    calls: 0,
+    input_tokens: 0,
+    output_tokens: 0,
+    cost_usd: 0,
+    ms: 0,
+    prompt_chars: 0,
+  };
+  let html: string;
+  try {
+    html = await fetchBlogHtml(url, makeFetch(counter));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      ...base,
+      outcome: "excluded",
+      excluded: `html 없음: ${message.slice(0, 80)}`,
+    };
+  }
+  // 파이프라인도 보호글에는 LLM을 부르지 않는다
+  try {
+    extractBlog(html);
+  } catch (err) {
+    if (err instanceof ParseError && err.code === "PROTECTED_POST") {
+      return { ...base, outcome: "excluded", excluded: "PROTECTED_POST" };
+    }
+  }
+  const sink = { chars: 0 };
+  const startedAt = performance.now();
+  const r = await runLlmFallback(html, FORCE_RULE_REASON, makeLlmClient(sink)!);
+  return {
+    ...base,
+    outcome: r.outcome,
+    selector: r.selector,
+    reasons: r.reasons,
+    calls: r.calls,
+    input_tokens: r.usage?.input_tokens ?? 0,
+    output_tokens: r.usage?.output_tokens ?? 0,
+    cost_usd: r.usage?.cost_usd ?? 0,
+    ms: Math.round(performance.now() - startedAt),
+    prompt_chars: sink.chars,
+    content_markdown: r.parsed?.content_markdown,
+  };
+}
+
+async function runPool<T>(
+  items: string[],
+  fn: (item: string) => Promise<T>,
+): Promise<Map<string, T>> {
+  const out = new Map<string, T>();
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const item = items[cursor++];
+      out.set(item, await fn(item));
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  return out;
+}
+
+interface SubstringResult {
+  url: string;
+  source: "pipeline" | "force";
+  // null이면 원문 HTML을 읽지 못해 검사하지 못함
+  lines: number | null;
+  missing: string[];
+}
+
+/** 스냅샷에 있는 원문 HTML만 읽는 fetch. 없으면 던진다 */
+const snapshotOnlyFetch: typeof fetch = async (input, init) => {
+  const snap: Snapshot = JSON.parse(
+    await Deno.readTextFile(await snapshotPath(describeRequest(input, init))),
+  );
+  if (snap.error) throw new TypeError(snap.error);
+  return new Response(decodeBase64(snap.body_base64 ?? ""), {
+    status: snap.status,
+    headers: snap.content_type ? { "content-type": snap.content_type } : {},
+  });
+};
+
+/**
+ * LLM 경로로 만든 본문의 5자 이상 줄이 모두 원문 DOM(template을 펼친 문서)의 보이는 텍스트에
+ * 들어 있는지 확인한다. 셀렉터 방식이라 항상 참이어야 한다.
+ */
+async function checkSubstring(
+  url: string,
+  source: "pipeline" | "force",
+  markdown: string,
+): Promise<SubstringResult> {
+  try {
+    const html = await fetchBlogHtml(url, snapshotOnlyFetch);
+    const doc = prepareDocument(html);
+    if (!doc) return { url, source, lines: null, missing: [] };
+    // 문자·숫자만 남겨 비교한다. 줄 단위 toPlain은 링크 텍스트의 \[ \] 이스케이프, 쪼개진 링크
+    // 카드, 원문에 실제로 있는 ~~·백틱·백슬래시를 문법으로 오인해 지워 거짓 불일치를 만든다.
+    // 마크다운 쪽은 텍스트가 아닌 부분(이미지, 링크 목적지, 줄 머리의 목록·제목 표시)만 먼저 뺀다
+    const alnum = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+    const text = alnum(pageText(doc));
+    const lines = markdown
+      .split("\n")
+      .map((l) =>
+        alnum(
+          l
+            .replace(/!\[[^\]]*\]\((?:[^()]|\([^)]*\))*\)/g, "")
+            .replace(/\]\((?:[^()]|\([^)]*\))*\)/g, "")
+            .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/, ""),
+        ),
+      )
+      .filter((l) => l.length >= 5);
+    return {
+      url,
+      source,
+      lines: lines.length,
+      missing: lines.filter((l) => !text.includes(l)),
+    };
+  } catch {
+    return { url, source, lines: null, missing: [] };
+  }
 }
 
 // --- 리포트 ------------------------------------------------------------------
@@ -542,6 +861,8 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
     }
   }
 
+  if (llmMode !== "off") out.push(...renderLlmSet(recs));
+
   const ds = recs.map((r) => r.duration_ms);
   out.push("### 소요 시간");
   out.push(
@@ -562,6 +883,298 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
     `| **전체** (${ds.length}) | **${percentile(ds, 50)}ms** | **${percentile(ds, 95)}ms** |`,
   );
   out.push("");
+  return out.join("\n");
+}
+
+// --- LLM 리포트 ---------------------------------------------------------------
+
+function won(usd: number): string {
+  return `$${usd.toFixed(5)}`;
+}
+
+/** dry 모드의 예상 비용. 출력은 thinking 포함 400토큰, 입력은 글자 ÷ 2(한글 기준 보수적)로 가정한다 */
+const DRY_OUTPUT_TOKENS = 400;
+const DRY_CHARS_PER_TOKEN = 2;
+function dryEstimate(promptChars: number, calls: number) {
+  const input = Math.ceil(promptChars / DRY_CHARS_PER_TOKEN);
+  const usd =
+    (input * PRICE_INPUT_PER_MTOK +
+      DRY_OUTPUT_TOKENS * calls * PRICE_OUTPUT_PER_MTOK) /
+    1_000_000;
+  return { input, usd };
+}
+
+function renderLlmSet(recs: RunRecord[]): string[] {
+  const n = recs.length;
+  const targets = recs.filter((r) => r.llm);
+  const skipped = targets.filter((r) => r.llm!.outcome === "skipped");
+  const called = targets.filter((r) => r.llm!.calls > 0);
+  const recovered = targets.filter((r) => r.llm!.outcome === "recovered");
+  const retried = called.filter((r) => r.llm!.calls > 1);
+  const cost = targets.reduce((sum, r) => sum + r.llm!.cost_usd, 0);
+  const out: string[] = [];
+  out.push("### LLM 폴백");
+  out.push(
+    llmMode === "dry"
+      ? "dry 모드: 호출하지 않았다. 호출 URL은 '호출될 URL', 비용은 추정이다."
+      : `모드 ${llmMode} · 모델 ${LLM_MODEL}`,
+  );
+  out.push("");
+  out.push("| 항목 | 값 |");
+  out.push("| --- | --- |");
+  out.push(
+    `| 대상 (블로그 규칙 실패·빈 본문·degraded) | ${pct(targets.length, n)} |`,
+  );
+  out.push(
+    `| 사전 필터로 건너뜀 (보이는 텍스트 ${MIN_TEXT_CHARS}자 미만) | ${pct(skipped.length, targets.length)} |`,
+  );
+  out.push(`| 호출률 (호출된 URL / 세트 전체) | ${pct(called.length, n)} |`);
+  if (llmMode !== "dry") {
+    out.push(`| 복구 / 호출 | ${pct(recovered.length, called.length)} |`);
+    out.push(`| 복구 / 대상 | ${pct(recovered.length, targets.length)} |`);
+    out.push(
+      `| 재요청 (호출 중 2회 호출) | ${pct(retried.length, called.length)} |`,
+    );
+    const outcomes = [...groupBy(targets, (r) => r.llm!.outcome)]
+      .map(([k, v]) => `${k} ${v.length}`)
+      .join(" · ");
+    out.push(`| 결과 분포 | ${outcomes || "—"} |`);
+    const errs = [
+      ...groupBy(
+        targets.flatMap((r) =>
+          r.llm!.reasons.filter((x) => x.startsWith("llm_error=")),
+        ),
+        (x) => x,
+      ),
+    ]
+      .map(([k, v]) => `${k} ${v.length}`)
+      .join(" · ");
+    out.push(`| 호출 오류 | ${errs || "—"} |`);
+    out.push(
+      `| 호출 1건당 평균 비용 | ${called.length ? won(cost / called.length) : "—"} |`,
+    );
+    out.push(`| 파싱 100건당 비용 | ${n ? won((cost / n) * 100) : "—"} |`);
+    const tokIn = called.reduce((a, r) => a + r.llm!.input_tokens, 0);
+    const tokOut = called.reduce((a, r) => a + r.llm!.output_tokens, 0);
+    out.push(
+      `| 호출 1건당 평균 토큰 (입력/출력) | ${called.length ? `${Math.round(tokIn / called.length)} / ${Math.round(tokOut / called.length)}` : "—"} |`,
+    );
+    if (llmMode === "live" && called.length > 0) {
+      const ms = called.map((r) => r.llm!.ms);
+      out.push(
+        `| LLM 단계 추가 지연 p50 / p95 | ${percentile(ms, 50)}ms / ${percentile(ms, 95)}ms |`,
+      );
+    }
+  } else {
+    const chars = called.reduce((a, r) => a + r.llm!.prompt_chars, 0);
+    const e = dryEstimate(chars, called.length);
+    out.push(
+      `| 호출될 URL | ${called.length}건 (재요청까지 최대 ${called.length * 2}회) |`,
+    );
+    out.push(`| 예상 입력 토큰 (글자 ÷ 2) | 약 ${e.input} |`);
+    out.push(
+      `| 예상 비용 (1회씩 / 재요청 포함 상한) | ${won(e.usd)} / ${won(e.usd * 2)} |`,
+    );
+  }
+  out.push("");
+  if (targets.length > 0) {
+    out.push(
+      "| URL | 규칙 결과 | LLM | 셀렉터 | 호출 | 글자 수 | 비용 | 사유 |",
+    );
+    out.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+    for (const r of targets) {
+      const l = r.llm!;
+      const what = llmMode === "dry" && l.calls > 0 ? "호출될 URL" : l.outcome;
+      out.push(
+        `| ${r.url} | ${l.rule} | ${what} | ${l.selector ? `\`${l.selector.replace(/\|/g, "\\|")}\`` : "—"} | ${l.calls} | ${r.ok ? r.content_chars : "—"} | ${l.cost_usd ? won(l.cost_usd) : "—"} | ${l.reasons.join("; ").replace(/\|/g, "\\|").slice(0, 100)} |`,
+      );
+    }
+    out.push("");
+  }
+  return out;
+}
+
+function renderLlmGlobal(
+  sets: BenchSet[],
+  results: Map<string, RunRecord>,
+  force: Map<string, ForceRecord>,
+  subs: SubstringResult[],
+): string {
+  const out: string[] = [];
+  out.push("## LLM 폴백 요약");
+  out.push("");
+  const natural = [...results.values()].filter((r) => r.llm);
+  const naturalCost = natural.reduce((a, r) => a + r.llm!.cost_usd, 0);
+  const forceCost = [...force.values()].reduce((a, r) => a + r.cost_usd, 0);
+  out.push("| 항목 | 값 |");
+  out.push("| --- | --- |");
+  out.push(`| 모드 / 모델 | ${llmMode} / ${LLM_MODEL} |`);
+  out.push(
+    `| 단가 (프롬프트 10만 토큰 이하) | 입력 $${PRICE_INPUT_PER_MTOK} · 출력 $${PRICE_OUTPUT_PER_MTOK} / MTok |`,
+  );
+  out.push(
+    `| 실제 API 호출 (상한 ${llmMaxCalls}) | ${llmStats.live_calls}회 · 스냅샷 재사용 ${llmStats.cached}회 · 상한으로 막힘 ${llmStats.blocked}회 |`,
+  );
+  if (llmMode !== "dry") {
+    out.push(
+      `| 계산상 비용 (토큰 × 단가, 재사용 포함) | 일반 경로 ${won(naturalCost)} · 강제 평가 ${won(forceCost)} |`,
+    );
+  }
+  out.push("");
+
+  if (llmForce) {
+    const recs = [...force.values()];
+    const evaluated = recs.filter((r) => r.outcome !== "excluded");
+    out.push("## LLM tier 골든 정확도 (강제 평가)");
+    out.push(
+      "규칙 결과와 무관하게 라벨 있는 블로그 글(노션·보호글 제외)에 LLM을 돌려 골든 기준(첫 문장·마지막 문장·글자 수 ±20%·boilerplate 없음)으로 채점한다. expect_failure 라벨은 LLM이 복구하지 않아야 합격.",
+    );
+    out.push("");
+    if (llmMode === "dry") {
+      const chars = evaluated.reduce((a, r) => a + r.prompt_chars, 0);
+      const calls = evaluated.filter((r) => r.calls > 0).length;
+      const e = dryEstimate(chars, calls);
+      out.push(
+        `dry: 호출될 URL ${calls}건 (최대 ${calls * 2}회) · 예상 입력 토큰 약 ${e.input} · 예상 비용 ${won(e.usd)} / 재요청 포함 상한 ${won(e.usd * 2)}`,
+      );
+      out.push("");
+    } else {
+      const labelOf = new Map<string, GoldenLabel>();
+      const setOf = new Map<string, string>();
+      for (const set of sets) {
+        for (const it of set.items) {
+          if (it.label && !labelOf.has(it.url)) {
+            labelOf.set(it.url, it.label);
+            setOf.set(it.url, set.name);
+          }
+        }
+      }
+      const rows = evaluated.map((r) => {
+        const label = labelOf.get(r.url)!;
+        const rec: RunRecord = {
+          url: r.url,
+          platform: r.platform,
+          ok: r.outcome === "recovered",
+          duration_ms: r.ms,
+          throttle_ms: 0,
+          fetch_count: 1,
+          quality_flags: [],
+          content_chars: 0,
+          content_markdown: r.content_markdown,
+        };
+        if (r.content_markdown) {
+          const q = assessQuality({
+            markdown: r.content_markdown,
+            tier: "llm",
+          });
+          rec.quality_flags = q.flags;
+          rec.content_chars = q.plain_chars;
+        }
+        return { r, label, rec, v: judgeGolden(rec, label) };
+      });
+      const normal = rows.filter((x) => !x.label.expect_failure);
+      const mustFail = rows.filter((x) => x.label.expect_failure);
+      out.push(
+        `- 정확도 (정상 글 전체): **${pct(normal.filter((x) => x.v.pass).length, normal.length)}**`,
+      );
+      for (const [name, xs] of groupBy(
+        normal,
+        (x) => setOf.get(x.r.url) ?? "?",
+      )) {
+        out.push(
+          `  - 세트 ${name}: ${pct(xs.filter((x) => x.v.pass).length, xs.length)}`,
+        );
+      }
+      // 불합격을 사유별로 나눈다. boilerplate 플래그는 줄 전체가 패턴과 같을 때만 잡히므로,
+      // 푸터·관련 글이 섞인 오염은 글자 수 초과로도 드러난다 (골든 허용 범위 ±20%)
+      const failed = normal.filter((x) => !x.v.pass);
+      const chars = (x: (typeof rows)[number]) =>
+        `${x.rec.content_chars}/${x.label.approx_chars}자 (${(
+          (x.rec.content_chars / x.label.approx_chars - 1) *
+          100
+        ).toFixed(1)}%)`;
+      const reasonOf = (x: (typeof rows)[number]) =>
+        [
+          !x.rec.ok && "복구 실패",
+          x.rec.ok && !x.v.first && "첫 문장 없음(앞부분 누락)",
+          x.rec.ok && !x.v.last && "마지막 문장 없음(뒷부분 누락)",
+          x.rec.ok &&
+            !x.v.chars &&
+            `글자 수 ${x.rec.content_chars > x.label.approx_chars ? "초과(오염 의심)" : "미달(누락 의심)"} ${chars(x)}`,
+          x.rec.ok && !x.v.clean && "boilerplate",
+        ]
+          .filter(Boolean)
+          .join(", ");
+      out.push(
+        `- 오염 의심 (boilerplate 플래그 ${normal.filter((x) => x.rec.ok && !x.v.clean).length}건 · 글자 수 초과 ${normal.filter((x) => x.rec.ok && !x.v.chars && x.rec.content_chars > x.label.approx_chars).length}건) / 누락 의심 (첫·마지막 문장 없음 ${normal.filter((x) => x.rec.ok && (!x.v.first || !x.v.last)).length}건 · 글자 수 미달 ${normal.filter((x) => x.rec.ok && !x.v.chars && x.rec.content_chars < x.label.approx_chars).length}건)`,
+      );
+      for (const x of failed) {
+        out.push(`  - 불합격 ${x.r.url}: ${reasonOf(x)}`);
+      }
+      if (llmMode === "live") {
+        const ms = evaluated.filter((r) => r.calls > 0).map((r) => r.ms);
+        out.push(
+          `- LLM 단계 지연 (호출한 ${ms.length}건, 재요청 포함) p50 ${percentile(ms, 50)}ms · p95 ${percentile(ms, 95)}ms · 최대 ${Math.max(0, ...ms)}ms`,
+        );
+      }
+      out.push(
+        `- 복구하면 안 되는 글(expect_failure)을 잘못 복구한 건: ${mustFail.filter((x) => x.rec.ok).length} / ${mustFail.length}건`,
+      );
+      out.push(
+        `- 평가에서 뺀 글: ${recs.length - evaluated.length}건 (${
+          recs
+            .filter((r) => r.excluded)
+            .map((r) => `${r.url} ${r.excluded}`)
+            .join(", ") || "—"
+        })`,
+      );
+      out.push(
+        `- 재요청한 글: ${evaluated.filter((r) => r.calls > 1).length}건 · 총 비용 ${won(forceCost)} · 호출 1건당 평균 ${won(
+          forceCost /
+            Math.max(
+              1,
+              evaluated.reduce((a, r) => a + r.calls, 0),
+            ),
+        )}`,
+      );
+      out.push("");
+      out.push(
+        "| URL | 결과 | 셀렉터 | 첫 문장 | 마지막 문장 | 글자 수 | 깨끗함 | 합격 | 호출 | 사유 |",
+      );
+      out.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+      const tick = (b: boolean) => (b ? "✓" : "✗");
+      for (const { r, label, v } of rows) {
+        out.push(
+          `| ${r.url}${label.expect_failure ? " (실패해야 함)" : ""} | ${r.outcome} | ${r.selector ? `\`${r.selector.replace(/\|/g, "\\|")}\`` : "—"} | ${tick(v.first)} | ${tick(v.last)} | ${tick(v.chars)} | ${tick(v.clean)} | ${tick(v.pass)} | ${r.calls} | ${r.reasons.join("; ").replace(/\|/g, "\\|").slice(0, 100)} |`,
+        );
+      }
+      out.push("");
+    }
+  }
+
+  if (subs.length > 0) {
+    const checked = subs.filter((x) => x.lines !== null);
+    const clean = checked.filter((x) => x.missing.length === 0);
+    const totalLines = checked.reduce((a, x) => a + (x.lines ?? 0), 0);
+    const missingLines = checked.reduce((a, x) => a + x.missing.length, 0);
+    out.push("## LLM 경로 본문의 원문 DOM 부분 문자열 검사");
+    out.push(
+      "LLM 경로(tier=llm)로 만든 본문의 5자 이상 줄이 모두 원문 DOM(template 펼침)의 보이는 텍스트에 들어 있는지 확인한다. 완료 기준: 전부 참.",
+    );
+    out.push("");
+    out.push(
+      `- 결과 **${clean.length}/${checked.length}** 통과 · 줄 **${totalLines - missingLines}/${totalLines}**${checked.length < subs.length ? ` · 원문 HTML을 읽지 못해 검사 못 한 결과 ${subs.length - checked.length}건` : ""}`,
+    );
+    for (const x of checked.filter((c) => c.missing.length > 0)) {
+      out.push(
+        `- ✗ ${x.url} (${x.source}): 빠진 줄 ${x.missing.length}개 — ${x.missing
+          .slice(0, 3)
+          .map((m) => m.slice(0, 40))
+          .join(" | ")}`,
+      );
+    }
+    out.push("");
+  }
   return out.join("\n");
 }
 
@@ -597,6 +1210,28 @@ console.error(
 
 const startedAt = new Date();
 const results = await runAll(urls);
+
+// LLM 강제 평가와 부분 문자열 검사 (--llm 이 off가 아닐 때만)
+const forceResults = llmForce
+  ? await runPool(forceTargets(sets), runForceOne)
+  : new Map<string, ForceRecord>();
+const substringResults: SubstringResult[] = [];
+if (llmMode !== "off" && llmMode !== "dry") {
+  for (const r of results.values()) {
+    if (r.ok && r.content_markdown && r.tier === "llm") {
+      substringResults.push(
+        await checkSubstring(r.url, "pipeline", r.content_markdown),
+      );
+    }
+  }
+  for (const r of forceResults.values()) {
+    if (r.content_markdown) {
+      substringResults.push(
+        await checkSubstring(r.url, "force", r.content_markdown),
+      );
+    }
+  }
+}
 const commit = await gitCommit();
 const date = startedAt.toISOString().slice(0, 10);
 const stem = `${BENCH_DIR}/${date}-${commit}${runLabel ? `-${runLabel}` : ""}`;
@@ -614,8 +1249,17 @@ await Deno.writeTextFile(
           file: s.file,
           count: s.items.length,
         })),
+        llm: {
+          mode: llmMode,
+          model: LLM_MODEL,
+          max_calls: llmMaxCalls,
+          force: llmForce,
+          stats: llmStats,
+        },
       },
       results: [...results.values()],
+      force: [...forceResults.values()],
+      substring: substringResults,
     },
     null,
     2,
@@ -628,6 +1272,9 @@ const report = [
   `모드: ${mode} · 동시성 ${CONCURRENCY} · 고유 URL ${urls.length}개 · 요청 타임아웃(하네스) ${REQUEST_TIMEOUT_MS / 1000}초`,
   "",
   ...sets.map((s) => renderSet(s, results)),
+  ...(llmMode === "off"
+    ? []
+    : [renderLlmGlobal(sets, results, forceResults, substringResults)]),
 ].join("\n");
 await Deno.writeTextFile(`${stem}.md`, report);
 console.error(`\n리포트: ${stem}.md`);
