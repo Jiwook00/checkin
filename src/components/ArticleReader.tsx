@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Retrospective } from "../types";
 import CommentSection from "./CommentSection";
+import DegradedBanner from "./DegradedBanner";
 
 interface ArticleReaderProps {
   articles: Retrospective[];
@@ -98,6 +99,10 @@ export default function ArticleReader({
             )}
           </div>
         </header>
+
+        {article.parse_status === "degraded" && (
+          <DegradedBanner sourceUrl={article.source_url} />
+        )}
 
         {/* 내용 렌더링 */}
         {article.content_type === "written" && article.content_html ? (
