@@ -131,14 +131,26 @@ export async function parseNotion(
       err instanceof Error ? err.message : String(err),
     );
   }
-  const recordMap = data.recordMap;
+  const recordMap = data?.recordMap;
 
-  if (!recordMap || !recordMap.block) {
+  if (!recordMap || typeof recordMap !== "object") {
     throw new ParseError(
       "extract",
       "NOTION_SCHEMA",
       "structural",
       "노션 페이지 데이터가 올바르지 않습니다",
+      `응답 키: ${Object.keys(data ?? {}).join(",")}`,
+    );
+  }
+
+  // 비공개 페이지는 200 + recordMap에 block 없이(__version__만) 내려온다
+  if (!recordMap.block) {
+    throw new ParseError(
+      "extract",
+      "NOTION_PRIVATE",
+      "user_action",
+      "노션 페이지를 가져오지 못했습니다. 페이지가 공개 상태인지 확인해주세요.",
+      `recordMap 키: ${Object.keys(recordMap).join(",")}`,
     );
   }
 
