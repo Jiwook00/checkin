@@ -1,4 +1,5 @@
-import { httpError, ParseError, toParseError } from "./errors.ts";
+import { ParseError } from "./errors.ts";
+import { fetchWithPolicy } from "./fetch-policy.ts";
 
 interface ParsedContent {
   title: string;
@@ -58,23 +59,28 @@ async function resolveAttachmentUrls(
   const result = new Map<string, string>();
   if (items.length === 0) return result;
 
-  const response = await fetchFn(
-    "https://www.notion.so/api/v3/getSignedFileUrls",
-    {
-      method: "POST",
-      headers: NOTION_HEADERS,
-      body: JSON.stringify({
-        urls: items.map(({ attachmentUrl, blockId }) => ({
-          url: attachmentUrl,
-          permissionRecord: { table: "block", id: blockId },
-        })),
-      }),
-    },
-  );
+  // 서명 URL은 부가 정보라 실패해도 이미지 없이 진행한다
+  let data: { signedUrls?: string[] };
+  try {
+    const { body } = await fetchWithPolicy(
+      fetchFn,
+      "https://www.notion.so/api/v3/getSignedFileUrls",
+      {
+        method: "POST",
+        headers: NOTION_HEADERS,
+        body: JSON.stringify({
+          urls: items.map(({ attachmentUrl, blockId }) => ({
+            url: attachmentUrl,
+            permissionRecord: { table: "block", id: blockId },
+          })),
+        }),
+      },
+    );
+    data = JSON.parse(body);
+  } catch {
+    return result;
+  }
 
-  if (!response.ok) return result;
-
-  const data = (await response.json()) as { signedUrls: string[] };
   items.forEach(({ attachmentUrl }, i) => {
     const signed = data.signedUrls?.[i];
     if (signed) result.set(attachmentUrl, signed);
@@ -93,9 +99,10 @@ export async function parseNotion(
 ): Promise<ParsedContent> {
   const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
 
-  let response: Response;
-  try {
-    response = await fetchFn("https://www.notion.so/api/v3/loadPageChunk", {
+  const { body: responseBody } = await fetchWithPolicy(
+    fetchFn,
+    "https://www.notion.so/api/v3/loadPageChunk",
+    {
       method: "POST",
       headers: NOTION_HEADERS,
       body: JSON.stringify({
@@ -105,23 +112,12 @@ export async function parseNotion(
         chunkNumber: 0,
         verticalColumns: false,
       }),
-    });
-  } catch (err) {
-    throw toParseError(err, "fetch");
-  }
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw httpError(
-      response.status,
-      `노션 페이지를 가져올 수 없습니다: ${response.status} ${body}`,
-      body,
-    );
-  }
+    },
+  );
 
   let data: { recordMap: RecordMap };
   try {
-    data = (await response.json()) as { recordMap: RecordMap };
+    data = JSON.parse(responseBody) as { recordMap: RecordMap };
   } catch (err) {
     throw new ParseError(
       "extract",
