@@ -1,5 +1,5 @@
 import TurndownService from "turndown";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
+import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { ParseError } from "./errors.ts";
 import { fetchWithPolicy } from "./fetch-policy.ts";
 
