@@ -4,7 +4,7 @@ import {
   type SourceType,
 } from "./url-utils.ts";
 import { ParseError, toParseError } from "./errors.ts";
-import { parseBlog } from "./blog-parser.ts";
+import { extractBlog, fetchBlogHtml } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
 import { assessQuality, isDegraded, isEmptyContent } from "./quality.ts";
 import type { ParsedContent, ParseTier, QualityFlag } from "./types.ts";
@@ -81,7 +81,8 @@ export async function runPipeline(
       }
       parsed = await parseNotion(pageId, countingFetch);
     } else {
-      parsed = await parseBlog(url, countingFetch);
+      const html = await fetchBlogHtml(url, countingFetch);
+      parsed = extractBlog(html);
     }
 
     // 텍스트도 이미지도 없으면 성공으로 저장하지 않는다 (조용한 실패)

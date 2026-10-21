@@ -67,22 +67,43 @@ function extractWithReadability(
 }
 
 /**
- * 블로그(티스토리 등) URL에서 콘텐츠를 파싱한다.
- * fetch → DOM 파싱 → 본문 추출 → 마크다운 변환
+ * HTML → 마크다운 변환기. 규칙 경로와 LLM 폴백 경로가 같은 설정을 쓴다.
+ * DOM 노드를 직접 넘기면 TurndownService 내부의 HTML 재파싱(createDocument)을 우회한다.
  */
-export async function parseBlog(
+export function createTurndown() {
+  const turndown = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+  });
+  // 불필요한 태그 제거 규칙
+  turndown.remove(["script", "style", "nav"]);
+  return turndown;
+}
+
+/**
+ * 블로그(티스토리 등) URL의 HTML을 가져온다.
+ * 타임아웃·재시도·인코딩은 fetchWithPolicy가 처리한다.
+ * 이 함수가 성공해야만 HTML이 있는 것이므로 LLM 폴백은 그 뒤에만 붙는다.
+ */
+export async function fetchBlogHtml(
   url: string,
   fetchFn: typeof fetch,
-): Promise<ParsedContent> {
-  // 1. HTML 가져오기 (타임아웃·재시도·인코딩은 fetchWithPolicy가 처리)
-  const { body: html } = await fetchWithPolicy(fetchFn, url, {
+): Promise<string> {
+  const { body } = await fetchWithPolicy(fetchFn, url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (compatible; RetroReader/1.0; +https://retro-reader.app)",
     },
   });
+  return body;
+}
 
-  // 2. DOM 파싱
+/**
+ * 가져온 HTML에서 본문을 추출한다.
+ * DOM 파싱 → 본문 추출 → 마크다운 변환
+ */
+export function extractBlog(html: string): ParsedContent {
+  // 1. DOM 파싱
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) {
     throw new ParseError(
@@ -112,7 +133,7 @@ export async function parseBlog(
     );
   }
 
-  // 3. 본문 추출 (사이트별 셀렉터 시도 후 폴백)
+  // 2. 본문 추출 (사이트별 셀렉터 시도 후 폴백)
   let title = "";
   let contentHtml = "";
   // deno_dom Element — TurndownService에 직접 전달해 내부 HTML 재파싱을 건너뜀
@@ -177,17 +198,8 @@ export async function parseBlog(
     );
   }
 
-  // 4. HTML → 마크다운 변환
-  // DOM 노드를 직접 전달해 TurndownService 내부의 HTML 재파싱(createDocument)을 우회
-  const turndown = new TurndownService({
-    headingStyle: "atx",
-    codeBlockStyle: "fenced",
-  });
-
-  // 불필요한 태그 제거 규칙
-  turndown.remove(["script", "style", "nav"]);
-
-  const markdown = turndown.turndown(contentNode);
+  // 3. HTML → 마크다운 변환
+  const markdown = createTurndown().turndown(contentNode);
 
   return {
     title,
