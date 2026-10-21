@@ -22,11 +22,13 @@ export type PipelineResult =
       content_markdown: string;
       source_type: SourceType;
       duration_ms: number;
+      fetch_attempts: number;
     }
   | {
       ok: false;
       source_type: SourceType;
       duration_ms: number;
+      fetch_attempts: number;
       error: ParseError;
     };
 
@@ -42,6 +44,13 @@ export async function runPipeline(
   const sourceType = detectSourceType(url);
   const elapsed = () => Math.round(performance.now() - startedAt);
 
+  // 재시도까지 포함한 실제 HTTP 요청 횟수를 센다 (파서는 이 래퍼를 fetch로 받는다)
+  let fetchAttempts = 0;
+  const countingFetch: typeof fetch = (input, init) => {
+    fetchAttempts++;
+    return deps.fetch(input, init);
+  };
+
   try {
     let parsed: {
       title: string;
@@ -56,6 +65,7 @@ export async function runPipeline(
           ok: false,
           source_type: sourceType,
           duration_ms: elapsed(),
+          fetch_attempts: fetchAttempts,
           error: new ParseError(
             "validate",
             "INVALID_URL",
@@ -64,9 +74,9 @@ export async function runPipeline(
           ),
         };
       }
-      parsed = await parseNotion(pageId, deps.fetch);
+      parsed = await parseNotion(pageId, countingFetch);
     } else {
-      parsed = await parseBlog(url, deps.fetch);
+      parsed = await parseBlog(url, countingFetch);
     }
 
     return {
@@ -74,12 +84,14 @@ export async function runPipeline(
       ...parsed,
       source_type: sourceType,
       duration_ms: elapsed(),
+      fetch_attempts: fetchAttempts,
     };
   } catch (err) {
     return {
       ok: false,
       source_type: sourceType,
       duration_ms: elapsed(),
+      fetch_attempts: fetchAttempts,
       error: toParseError(err),
     };
   }

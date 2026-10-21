@@ -12,6 +12,7 @@ export interface AttemptInput {
   retrospective_id?: string | null;
   error?: ParseError;
   content_chars?: number;
+  fetch_attempts?: number;
   duration_ms: number;
 }
 
@@ -41,6 +42,7 @@ export async function recordAttempt(
     error_code: input.error?.code ?? null,
     error_kind: input.error?.kind ?? null,
     error_detail: input.error?.detail || null,
+    fetch_attempts: input.fetch_attempts ?? null,
     content_chars: input.content_chars ?? null,
     duration_ms: input.duration_ms,
   });
