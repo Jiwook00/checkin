@@ -1,8 +1,43 @@
 import TurndownService from "turndown";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
+import { Readability } from "@mozilla/readability";
+import {
+  DOMParser,
+  type Element,
+} from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { ParseError } from "./errors.ts";
 import { fetchWithPolicy } from "./fetch-policy.ts";
-import type { ParsedContent } from "./types.ts";
+import type { ParsedContent, ParseTier } from "./types.ts";
+
+// 셀렉터·Readability 결과가 이보다 짧으면 본문을 못 찾은 것으로 본다
+const MIN_CONTENT_CHARS = 100;
+
+/**
+ * 셀렉터가 모두 실패했을 때 Readability로 본문을 고른다.
+ * Readability는 문서를 변경하므로 원본 doc이 아니라 새로 파싱한 문서에 돌린다.
+ */
+function extractWithReadability(
+  html: string,
+): { node: Element; html: string } | null {
+  const fresh = new DOMParser().parseFromString(html, "text/html");
+  if (!fresh) return null;
+
+  const article = new Readability(
+    fresh as unknown as ConstructorParameters<typeof Readability>[0],
+  ).parse();
+  if (
+    !article?.content ||
+    (article.textContent ?? "").trim().length < MIN_CONTENT_CHARS
+  ) {
+    return null;
+  }
+
+  // turndown에 노드로 넘기기 위해 결과 HTML을 다시 파싱한다
+  const node = new DOMParser().parseFromString(
+    article.content,
+    "text/html",
+  )?.body;
+  return node ? { node, html: article.content } : null;
+}
 
 /**
  * 블로그(티스토리 등) URL에서 콘텐츠를 파싱한다.
@@ -66,16 +101,27 @@ export async function parseBlog(
 
   const allSelectors = [...tistorySelectors, ...genericSelectors];
 
+  let tier: ParseTier = "selector";
   for (const selector of allSelectors) {
     const el = doc.querySelector(selector);
-    if (el && el.innerHTML.trim().length > 100) {
+    if (el && el.innerHTML.trim().length > MIN_CONTENT_CHARS) {
       contentNode = el;
       contentHtml = el.innerHTML;
       break;
     }
   }
 
-  // body 통째 폴백은 하지 않는다. 사이드바·댓글이 섞인 결과가 성공으로 저장되는 조용한 실패였다
+  // 셀렉터가 모두 실패하면 Readability. body 통째 폴백은 하지 않는다
+  // (사이드바·댓글이 섞인 결과가 성공으로 저장되는 조용한 실패였다)
+  if (!contentNode) {
+    const article = extractWithReadability(html);
+    if (article) {
+      contentNode = article.node;
+      contentHtml = article.html;
+      tier = "readability";
+    }
+  }
+
   if (!contentNode) {
     throw new ParseError(
       "extract",
@@ -101,6 +147,6 @@ export async function parseBlog(
     title,
     content_html: contentHtml,
     content_markdown: markdown,
-    tier: "selector",
+    tier,
   };
 }
