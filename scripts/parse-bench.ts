@@ -23,7 +23,7 @@ const SNAPSHOT_DIR = `${BENCH_DIR}/snapshots`;
 
 const CONCURRENCY = 4;
 const HOST_INTERVAL_MS = 1000;
-// 하네스 보호용. 현재 파서에는 타임아웃이 없어서, 이게 없으면 응답 없는 서버 하나가 실행 전체를 멈춘다
+// 하네스 보호용 상한. 파서의 fetchWithPolicy 타임아웃(10초)과 별개로 요청 하나가 실행 전체를 멈추지 않게 한다
 const REQUEST_TIMEOUT_MS = 30_000;
 
 // 설계 문서의 보일러플레이트 키워드. 서로 다른 키워드 2개 이상이 보이면 오염으로 본다
@@ -179,7 +179,11 @@ function makeFetch(counter: { n: number; wait_ms: number }): typeof fetch {
     }
 
     counter.wait_ms += await throttle(new URL(req.url).hostname);
-    const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    // 파서가 넘긴 타임아웃 signal을 덮어쓰지 않고 합친다
+    const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    const signal = init?.signal
+      ? AbortSignal.any([init.signal, timeout])
+      : timeout;
     let res: Response;
     try {
       res = await fetch(input, { ...init, signal });
