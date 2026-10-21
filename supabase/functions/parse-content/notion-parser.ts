@@ -5,6 +5,8 @@ interface ParsedContent {
   title: string;
   content_html: string;
   content_markdown: string;
+  // 본문이 끝까지 수집되지 못했을 때만 채운다 (예: NOTION_TRUNCATED)
+  quality_flags?: string[];
 }
 
 interface NotionBlockValue {
@@ -23,6 +25,23 @@ interface NotionBlock {
 interface RecordMap {
   block: Record<string, NotionBlock>;
 }
+
+interface PageChunkCursor {
+  stack: unknown[][];
+}
+
+interface PageChunkResponse {
+  recordMap: RecordMap;
+  cursor?: PageChunkCursor;
+}
+
+// 한 페이지에서 받아 오는 블록 상한. 넘으면 중단하고 NOTION_TRUNCATED로 표시한다
+const MAX_BLOCKS = 1000;
+// 커서가 끝나지 않는 비정상 응답에 대한 안전장치
+const MAX_CHUNKS = 30;
+// syncRecordValues 한 번에 요청하는 블록 수와 보충 라운드 상한
+const SYNC_BATCH = 100;
+const SYNC_ROUNDS = 3;
 
 // 구 API: block.value = NotionBlockValue
 // 신 API: block.value = { value: NotionBlockValue }
@@ -90,34 +109,33 @@ async function resolveAttachmentUrls(
 }
 
 /**
- * 노션 공개 페이지에서 콘텐츠를 파싱한다.
- * Notion 비공개 API(/api/v3/loadPageChunk)에 직접 fetch → 블록 데이터 JSON → 마크다운 변환
+ * loadPageChunk 한 청크를 가져온다. 청크 0의 요청 본문은 벤치 스냅샷 키와 같아야 하므로
+ * 필드 순서와 값을 바꾸지 않는다.
  */
-export async function parseNotion(
+async function loadPageChunk(
   pageId: string,
+  cursor: PageChunkCursor,
+  chunkNumber: number,
   fetchFn: typeof fetch,
-): Promise<ParsedContent> {
-  const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
-
-  const { body: responseBody } = await fetchWithPolicy(
+): Promise<PageChunkResponse> {
+  const { body } = await fetchWithPolicy(
     fetchFn,
     "https://www.notion.so/api/v3/loadPageChunk",
     {
       method: "POST",
       headers: NOTION_HEADERS,
       body: JSON.stringify({
-        pageId: uuidPageId,
+        pageId,
         limit: 100,
-        cursor: { stack: [] },
-        chunkNumber: 0,
+        cursor,
+        chunkNumber,
         verticalColumns: false,
       }),
     },
   );
 
-  let data: { recordMap: RecordMap };
   try {
-    data = JSON.parse(responseBody) as { recordMap: RecordMap };
+    return JSON.parse(body) as PageChunkResponse;
   } catch (err) {
     throw new ParseError(
       "extract",
@@ -127,6 +145,92 @@ export async function parseNotion(
       err instanceof Error ? err.message : String(err),
     );
   }
+}
+
+/**
+ * 페이지 블록의 content 트리를 따라가며 맵에 없는 자식 id를 모은다.
+ * 하위 페이지는 제목만 쓰므로 그 안으로 내려가지 않는다.
+ */
+function collectMissingIds(
+  blocks: Record<string, NotionBlock>,
+  rootId: string,
+): string[] {
+  const missing: string[] = [];
+  const visited = new Set<string>();
+  const stack = [rootId];
+
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+
+    const block = unwrapBlock(blocks[id]);
+    if (!block) {
+      missing.push(id);
+      continue;
+    }
+    if (block.type === "page" && id !== rootId) continue;
+    for (const childId of block.content ?? []) stack.push(childId);
+  }
+  return missing;
+}
+
+/**
+ * loadPageChunk가 내려주지 않는 블록(토글 자식 등)을 syncRecordValues로 보충한다.
+ * 보충은 부가 정보라 요청이나 응답 파싱이 실패하면 빠진 채로 진행한다.
+ */
+async function fillMissingBlocks(
+  blocks: Record<string, NotionBlock>,
+  rootId: string,
+  fetchFn: typeof fetch,
+): Promise<void> {
+  const requested = new Set<string>();
+
+  for (let round = 0; round < SYNC_ROUNDS; round++) {
+    const missing = collectMissingIds(blocks, rootId).filter(
+      (id) => !requested.has(id),
+    );
+    if (missing.length === 0) return;
+
+    for (let i = 0; i < missing.length; i += SYNC_BATCH) {
+      const batch = missing.slice(i, i + SYNC_BATCH);
+      for (const id of batch) requested.add(id);
+
+      try {
+        const { body } = await fetchWithPolicy(
+          fetchFn,
+          "https://www.notion.so/api/v3/syncRecordValues",
+          {
+            method: "POST",
+            headers: NOTION_HEADERS,
+            body: JSON.stringify({
+              requests: batch.map((id) => ({
+                pointer: { table: "block", id },
+                version: -1,
+              })),
+            }),
+          },
+        );
+        const data = JSON.parse(body) as { recordMap?: Partial<RecordMap> };
+        Object.assign(blocks, data.recordMap?.block ?? {});
+      } catch {
+        return;
+      }
+    }
+  }
+}
+
+/**
+ * 노션 공개 페이지에서 콘텐츠를 파싱한다.
+ * Notion 비공개 API(/api/v3/loadPageChunk)에 직접 fetch → 블록 데이터 JSON → 마크다운 변환
+ */
+export async function parseNotion(
+  pageId: string,
+  fetchFn: typeof fetch,
+): Promise<ParsedContent> {
+  const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
+
+  const data = await loadPageChunk(uuidPageId, { stack: [] }, 0, fetchFn);
   const recordMap = data?.recordMap;
 
   if (!recordMap || typeof recordMap !== "object") {
@@ -150,10 +254,7 @@ export async function parseNotion(
     );
   }
 
-  const blocks = recordMap.block;
-  const blockIds = Object.keys(blocks);
-
-  if (blockIds.length === 0) {
+  if (Object.keys(recordMap.block).length === 0) {
     throw new ParseError(
       "extract",
       "NOTION_PRIVATE",
@@ -162,8 +263,40 @@ export async function parseNotion(
     );
   }
 
-  // 페이지 타이틀 추출
-  const pageBlock = unwrapBlock(blocks[blockIds[0]]);
+  // 커서가 남아 있으면 끝까지 이어 받는다. 청크 0은 위에서 검증했으므로
+  // 이후 청크가 실패하면 받은 데까지만 쓰고 잘림으로 표시한다
+  const blocks: Record<string, NotionBlock> = { ...recordMap.block };
+  let truncated = false;
+  let cursor = data.cursor;
+  let chunkNumber = 1;
+  while (cursor?.stack?.length) {
+    if (Object.keys(blocks).length >= MAX_BLOCKS || chunkNumber >= MAX_CHUNKS) {
+      truncated = true;
+      break;
+    }
+    try {
+      const next = await loadPageChunk(
+        uuidPageId,
+        cursor,
+        chunkNumber,
+        fetchFn,
+      );
+      Object.assign(blocks, next.recordMap?.block ?? {});
+      cursor = next.cursor;
+      chunkNumber++;
+    } catch {
+      truncated = true;
+      break;
+    }
+  }
+
+  // 응답에 없는 자식 블록(토글 안쪽 등) 보충
+  await fillMissingBlocks(blocks, uuidPageId, fetchFn);
+
+  const blockIds = Object.keys(blocks);
+
+  // 페이지 타이틀 추출 (키 순서가 아니라 페이지 id로 찾는다)
+  const pageBlock = unwrapBlock(blocks[uuidPageId] ?? blocks[blockIds[0]]);
   let title = "제목 없음";
   if (pageBlock?.properties?.title) {
     title = extractText(pageBlock.properties.title);
@@ -202,12 +335,14 @@ export async function parseNotion(
   }
 
   const markdown = markdownLines.join("\n\n");
-  const contentHtml = JSON.stringify(recordMap); // 원본 보존용
+  // 원본 보존용. 페이지네이션·보충으로 합친 블록 전체를 담는다
+  const contentHtml = JSON.stringify({ ...recordMap, block: blocks });
 
   return {
     title,
     content_html: contentHtml,
     content_markdown: markdown,
+    ...(truncated ? { quality_flags: ["NOTION_TRUNCATED"] } : {}),
   };
 }
 
