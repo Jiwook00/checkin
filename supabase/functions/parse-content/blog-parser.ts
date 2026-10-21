@@ -66,6 +66,15 @@ function extractWithReadability(
   return node ? { node, html: article.content } : null;
 }
 
+/** 글 제목: og:title → <title> → 기본값. LLM 폴백 경로도 같은 규칙을 쓴다 */
+export function pickTitle(doc: HTMLDocument): string {
+  const ogTitle = doc.querySelector('meta[property="og:title"]');
+  const titleEl = doc.querySelector("title");
+  return (
+    ogTitle?.getAttribute("content") || titleEl?.textContent || "제목 없음"
+  );
+}
+
 /**
  * HTML → 마크다운 변환기. 규칙 경로와 LLM 폴백 경로가 같은 설정을 쓴다.
  * DOM 노드를 직접 넘기면 TurndownService 내부의 HTML 재파싱(createDocument)을 우회한다.
@@ -140,11 +149,7 @@ export function extractBlog(html: string): ParsedContent {
   // deno-lint-ignore no-explicit-any
   let contentNode: any = null;
 
-  // 타이틀 추출
-  const ogTitle = doc.querySelector('meta[property="og:title"]');
-  const titleEl = doc.querySelector("title");
-  title =
-    ogTitle?.getAttribute("content") || titleEl?.textContent || "제목 없음";
+  title = pickTitle(doc);
 
   // 티스토리 본문 셀렉터
   const tistorySelectors = [
