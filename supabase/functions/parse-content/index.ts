@@ -3,6 +3,7 @@ import { detectSourceType, validateSourceUrl } from "./url-utils.ts";
 import { runPipeline } from "./pipeline.ts";
 import { recordAttempt } from "./attempts.ts";
 import { ParseError } from "./errors.ts";
+import { DEGRADED_BELOW } from "./quality.ts";
 import { extractUrls } from "./image-processor.ts";
 
 const corsHeaders = {
@@ -205,7 +206,7 @@ Deno.serve(async (req) => {
         source_type: parsed.source_type,
         content_html: parsed.content_html,
         content_markdown: parsed.content_markdown,
-        parse_status: "ok",
+        parse_status: parsed.status,
         session,
         presentation_order: Math.floor(Math.random() * 1000) + 1,
       })
@@ -236,11 +237,23 @@ Deno.serve(async (req) => {
       trigger: "user",
       source_url,
       source_type: parsed.source_type,
-      status: "ok",
+      status: parsed.status,
       retrospective_id: data.id,
-      content_chars: parsed.content_markdown.length,
+      // 본문은 저장했지만 품질이 낮다는 기록. 사용자 응답은 성공 그대로다
+      error:
+        parsed.status === "degraded"
+          ? new ParseError(
+              "quality",
+              "LOW_QUALITY",
+              "structural",
+              "추출 품질이 낮습니다",
+              `score=${parsed.quality_score} (<${DEGRADED_BELOW}) flags=${(parsed.quality_flags ?? []).join(",")}`,
+            )
+          : undefined,
+      content_chars: parsed.content_chars,
       fetch_attempts: parsed.fetch_attempts,
       tier: parsed.tier,
+      quality_score: parsed.quality_score,
       quality_flags: parsed.quality_flags,
       duration_ms: parsed.duration_ms,
     });

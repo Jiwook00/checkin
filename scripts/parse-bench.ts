@@ -16,6 +16,11 @@
 
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { runPipeline } from "../supabase/functions/parse-content/pipeline.ts";
+import {
+  DEGRADED_BELOW,
+  MIN_TEXT_CHARS,
+  toPlain,
+} from "../supabase/functions/parse-content/quality.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const BENCH_DIR = `${ROOT}local/bench`;
@@ -26,11 +31,7 @@ const HOST_INTERVAL_MS = 1000;
 // 하네스 보호용 상한. 파서의 fetchWithPolicy 타임아웃(10초)과 별개로 요청 하나가 실행 전체를 멈추지 않게 한다
 const REQUEST_TIMEOUT_MS = 30_000;
 
-// 설계 문서의 보일러플레이트 키워드. 서로 다른 키워드 2개 이상이 보이면 오염으로 본다
-const BOILERPLATE_KEYWORDS = ["구독하기", "카테고리", "댓글", "Powered by"];
-const BOILERPLATE_MIN_HITS = 2;
-// 성공으로 저장됐지만 본문이 이보다 짧으면 조용한 실패로 의심한다 (설계 문서의 품질 플래그 기준)
-const SHORT_CONTENT_CHARS = 200;
+// 조용한 실패 판정 기준(글자 수·보일러플레이트 패턴)은 quality.ts가 단일 정의한다
 const CHAR_TOLERANCE = 0.2;
 
 interface GoldenLabel {
@@ -68,10 +69,13 @@ interface RunRecord {
   fetch_count: number;
   title?: string;
   tier?: string;
-  quality_flags?: string[];
+  // 파이프라인이 판정한 결과. 성공이면 ok 또는 degraded
+  status?: "ok" | "degraded";
+  quality_score?: number;
+  // 파서가 붙인 플래그(예: notion_truncated)와 quality.ts가 계산한 플래그를 합친 값
+  quality_flags: string[];
   content_chars: number;
   content_markdown?: string;
-  boilerplate_hits: string[];
 }
 
 interface Snapshot {
@@ -222,30 +226,11 @@ async function saveSnapshot(snap: Snapshot) {
 
 // --- 텍스트 정규화와 판정 ---------------------------------------------------
 
-/** 마크다운 문법을 걷어내고 공백을 하나로 접은 평문. 글자 수와 문장 포함 비교에 쓴다 */
-function toPlain(md: string): string {
-  return md
-    .replace(/```[^\n]*\n/g, "")
-    .replace(/```/g, "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/<[^>]+>/g, "")
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
-    .replace(/\\([\\`*_{}[\]()#+\-.!>~|])/g, "$1")
-    .replace(/(\*\*|__|~~|\*|`)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** 문장 포함 비교용. 공백과 강조 기호(_, *)까지 지워 마크다운 변환 차이를 흡수한다 */
 function normalizeForMatch(s: string): string {
   return toPlain(s)
     .replace(/[\s_*]/g, "")
     .toLowerCase();
-}
-
-function boilerplateHits(md: string): string[] {
-  return BOILERPLATE_KEYWORDS.filter((k) => md.includes(k));
 }
 
 interface GoldenVerdict {
@@ -282,7 +267,7 @@ function judgeGolden(rec: RunRecord, label: GoldenLabel): GoldenVerdict {
   const chars =
     Math.abs(rec.content_chars - label.approx_chars) <=
     label.approx_chars * CHAR_TOLERANCE;
-  const clean = rec.boilerplate_hits.length < BOILERPLATE_MIN_HITS;
+  const clean = !rec.quality_flags.includes("boilerplate");
   return { pass: first && last && chars && clean, first, last, chars, clean };
 }
 
@@ -305,8 +290,8 @@ async function runOne(url: string): Promise<RunRecord> {
       stage: result.error.stage,
       error_code: result.error.code,
       error: result.error.message,
+      quality_flags: [],
       content_chars: 0,
-      boilerplate_hits: [],
     };
   }
   return {
@@ -314,10 +299,11 @@ async function runOne(url: string): Promise<RunRecord> {
     ok: true,
     title: result.title,
     tier: result.tier,
-    quality_flags: result.quality_flags,
-    content_chars: toPlain(result.content_markdown).length,
+    status: result.status,
+    quality_score: result.quality_score,
+    quality_flags: result.quality_flags ?? [],
+    content_chars: result.content_chars,
     content_markdown: result.content_markdown,
-    boilerplate_hits: boilerplateHits(result.content_markdown),
   };
 }
 
@@ -385,18 +371,16 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
 
   out.push("### 하드 실패율 (플랫폼별)");
   out.push(
-    `조용한 실패 신호(성공 건 기준): 본문 ${SHORT_CONTENT_CHARS}자 미만, 보일러플레이트 키워드 ${BOILERPLATE_MIN_HITS}종 이상`,
+    `조용한 실패 신호(성공 건 기준): 본문 ${MIN_TEXT_CHARS}자 미만에 이미지 없음(low_text), 보일러플레이트 줄 2줄 이상(boilerplate) — 기준은 quality.ts`,
   );
   out.push("");
-  out.push("| 플랫폼 | 실패율 | 짧은 본문 | 보일러플레이트 의심 |");
+  out.push("| 플랫폼 | 실패율 | low_text | boilerplate |");
   out.push("| --- | --- | --- | --- |");
   const byPlatform = groupBy(recs, (r) => r.platform);
   const silent = (rs: RunRecord[]) => {
     const ok = rs.filter((r) => r.ok);
-    const short = ok.filter((r) => r.content_chars < SHORT_CONTENT_CHARS);
-    const dirty = ok.filter(
-      (r) => r.boilerplate_hits.length >= BOILERPLATE_MIN_HITS,
-    );
+    const short = ok.filter((r) => r.quality_flags.includes("low_text"));
+    const dirty = ok.filter((r) => r.quality_flags.includes("boilerplate"));
     return `${pct(short.length, ok.length)} | ${pct(dirty.length, ok.length)}`;
   };
   for (const [platform, rs] of [...byPlatform].sort(
@@ -416,12 +400,64 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   for (const [tier, rs] of [
     ...groupBy(recs, (r) => (r.ok ? (r.tier ?? "—") : "실패")),
   ].sort((a, b) => b[1].length - a[1].length)) {
-    const flagged = rs.filter((r) => r.quality_flags?.length).length;
+    const flagged = rs.filter((r) => r.quality_flags.length).length;
     out.push(
       `| ${tier} | ${pct(rs.length, recs.length)} | ${flagged > 0 ? flagged : "—"} |`,
     );
   }
   out.push("");
+
+  // 저장 결과 분포: 파이프라인 status. 실패는 링크만 저장된다
+  const degraded = recs.filter((r) => r.ok && r.status === "degraded");
+  out.push("### 저장 상태 분포");
+  out.push(`degraded 기준: 품질 점수 ${DEGRADED_BELOW} 미만 (본문은 저장)`);
+  out.push("");
+  out.push("| 플랫폼 | ok | degraded | failed |");
+  out.push("| --- | --- | --- | --- |");
+  const statusRow = (rs: RunRecord[]) => {
+    const n = rs.length;
+    const d = rs.filter((r) => r.ok && r.status === "degraded").length;
+    const f = rs.filter((r) => !r.ok).length;
+    return `${pct(n - d - f, n)} | ${pct(d, n)} | ${pct(f, n)}`;
+  };
+  for (const [platform, rs] of [...byPlatform].sort(
+    (a, b) => b[1].length - a[1].length,
+  )) {
+    out.push(`| ${platform} | ${statusRow(rs)} |`);
+  }
+  out.push(`| **전체** | ${statusRow(recs)} |`);
+  out.push("");
+  const flagCounts = groupBy(
+    recs
+      .filter((r) => r.ok)
+      .flatMap((r) => r.quality_flags.map((f) => ({ f }))),
+    (x) => x.f,
+  );
+  if (flagCounts.size > 0) {
+    out.push(
+      `플래그 분포(성공 ${recs.filter((r) => r.ok).length}건 기준): ${[
+        ...flagCounts,
+      ]
+        .sort((a, b) => b[1].length - a[1].length)
+        .map(([f, xs]) => `${f} ${xs.length}`)
+        .join(" · ")}`,
+    );
+    out.push("");
+  }
+  if (degraded.length > 0) {
+    out.push("<details><summary>degraded 목록</summary>");
+    out.push("");
+    out.push("| URL | tier | score | 플래그 | 글자 수 |");
+    out.push("| --- | --- | --- | --- | --- |");
+    for (const r of degraded) {
+      out.push(
+        `| ${r.url} | ${r.tier} | ${r.quality_score} | ${r.quality_flags.join(", ")} | ${r.content_chars} |`,
+      );
+    }
+    out.push("");
+    out.push("</details>");
+    out.push("");
+  }
 
   if (failed.length > 0) {
     out.push("### 실패 원인");
@@ -458,7 +494,7 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
     }));
     out.push("### 골든셋 추출 정확도");
     out.push(
-      `기준: 첫 문장 포함 + 마지막 문장 포함 + 글자 수 ±${CHAR_TOLERANCE * 100}% + 보일러플레이트 키워드 ${BOILERPLATE_MIN_HITS}종 미만. expect_failure 라벨은 파이프라인이 실패해야 합격`,
+      `기준: 첫 문장 포함 + 마지막 문장 포함 + 글자 수 ±${CHAR_TOLERANCE * 100}% + boilerplate 플래그 없음. expect_failure 라벨은 파이프라인이 실패해야 합격`,
     );
     out.push("");
     out.push("| 플랫폼 | 정확도 | 첫 문장 | 마지막 문장 | 글자 수 | 깨끗함 |");
@@ -492,8 +528,7 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
                 !v.first && "첫 문장 없음",
                 !v.last && "마지막 문장 없음",
                 !v.chars && "글자 수 벗어남",
-                !v.clean &&
-                  `보일러플레이트(${rec.boilerplate_hits.join(", ")})`,
+                !v.clean && "보일러플레이트",
               ]
                 .filter(Boolean)
                 .join(", ");

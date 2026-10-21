@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Retrospective } from "../types";
+import DegradedBanner from "./DegradedBanner";
 
 interface ArticlePanelProps {
   article: Retrospective;
@@ -57,6 +58,10 @@ export default function ArticlePanel({ article, onClose }: ArticlePanelProps) {
             </span>
           </div>
         </header>
+
+        {article.parse_status === "degraded" && (
+          <DegradedBanner sourceUrl={article.source_url} />
+        )}
 
         {/* 내용 렌더링 */}
         {article.content_type === "written" && article.content_html ? (

@@ -28,7 +28,7 @@ interface PageChunkResponse {
   cursor?: PageChunkCursor;
 }
 
-// 한 페이지에서 받아 오는 블록 상한. 넘으면 중단하고 NOTION_TRUNCATED로 표시한다
+// 한 페이지에서 받아 오는 블록 상한. 넘으면 중단하고 notion_truncated로 표시한다
 const MAX_BLOCKS = 1000;
 // 커서가 끝나지 않는 비정상 응답에 대한 안전장치
 const MAX_CHUNKS = 30;
@@ -339,7 +339,7 @@ export async function parseNotion(
     content_html: contentHtml,
     content_markdown: markdown,
     tier: "notion",
-    ...(truncated ? { quality_flags: ["NOTION_TRUNCATED"] } : {}),
+    ...(truncated ? { quality_flags: ["notion_truncated"] } : {}),
   };
 }
 
