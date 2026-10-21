@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ParseError } from "./errors.ts";
-import type { ParseTier } from "./types.ts";
+import type { ParseTier, QualityFlag } from "./types.ts";
 
 export type AttemptTrigger = "user" | "backfill" | "benchmark";
 export type AttemptStatus = "ok" | "degraded" | "failed";
@@ -15,7 +15,8 @@ export interface AttemptInput {
   content_chars?: number;
   fetch_attempts?: number;
   tier?: ParseTier;
-  quality_flags?: string[];
+  quality_score?: number;
+  quality_flags?: QualityFlag[];
   duration_ms: number;
 }
 
@@ -47,6 +48,7 @@ export async function recordAttempt(
     error_detail: input.error?.detail || null,
     fetch_attempts: input.fetch_attempts ?? null,
     tier: input.tier ?? null,
+    quality_score: input.quality_score ?? null,
     quality_flags: input.quality_flags ?? null,
     content_chars: input.content_chars ?? null,
     duration_ms: input.duration_ms,

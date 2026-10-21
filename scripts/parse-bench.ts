@@ -17,7 +17,7 @@
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
 import { runPipeline } from "../supabase/functions/parse-content/pipeline.ts";
 import {
-  assessQuality,
+  DEGRADED_BELOW,
   MIN_TEXT_CHARS,
   toPlain,
 } from "../supabase/functions/parse-content/quality.ts";
@@ -69,11 +69,11 @@ interface RunRecord {
   fetch_count: number;
   title?: string;
   tier?: string;
-  // 파서가 붙인 플래그 (예: notion_truncated)
-  quality_flags?: string[];
-  // quality.ts의 assessQuality 결과 (파서 플래그 포함)
+  // 파이프라인이 판정한 결과. 성공이면 ok 또는 degraded
+  status?: "ok" | "degraded";
   quality_score?: number;
-  assessed_flags: string[];
+  // 파서가 붙인 플래그(예: notion_truncated)와 quality.ts가 계산한 플래그를 합친 값
+  quality_flags: string[];
   content_chars: number;
   content_markdown?: string;
 }
@@ -267,7 +267,7 @@ function judgeGolden(rec: RunRecord, label: GoldenLabel): GoldenVerdict {
   const chars =
     Math.abs(rec.content_chars - label.approx_chars) <=
     label.approx_chars * CHAR_TOLERANCE;
-  const clean = !rec.assessed_flags.includes("boilerplate");
+  const clean = !rec.quality_flags.includes("boilerplate");
   return { pass: first && last && chars && clean, first, last, chars, clean };
 }
 
@@ -290,24 +290,19 @@ async function runOne(url: string): Promise<RunRecord> {
       stage: result.error.stage,
       error_code: result.error.code,
       error: result.error.message,
-      assessed_flags: [],
+      quality_flags: [],
       content_chars: 0,
     };
   }
-  const quality = assessQuality({
-    markdown: result.content_markdown,
-    tier: result.tier,
-    flags: result.quality_flags,
-  });
   return {
     ...base,
     ok: true,
     title: result.title,
     tier: result.tier,
-    quality_flags: result.quality_flags,
-    quality_score: quality.score,
-    assessed_flags: quality.flags,
-    content_chars: quality.plain_chars,
+    status: result.status,
+    quality_score: result.quality_score,
+    quality_flags: result.quality_flags ?? [],
+    content_chars: result.content_chars,
     content_markdown: result.content_markdown,
   };
 }
@@ -384,8 +379,8 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   const byPlatform = groupBy(recs, (r) => r.platform);
   const silent = (rs: RunRecord[]) => {
     const ok = rs.filter((r) => r.ok);
-    const short = ok.filter((r) => r.assessed_flags.includes("low_text"));
-    const dirty = ok.filter((r) => r.assessed_flags.includes("boilerplate"));
+    const short = ok.filter((r) => r.quality_flags.includes("low_text"));
+    const dirty = ok.filter((r) => r.quality_flags.includes("boilerplate"));
     return `${pct(short.length, ok.length)} | ${pct(dirty.length, ok.length)}`;
   };
   for (const [platform, rs] of [...byPlatform].sort(
@@ -405,12 +400,60 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   for (const [tier, rs] of [
     ...groupBy(recs, (r) => (r.ok ? (r.tier ?? "—") : "실패")),
   ].sort((a, b) => b[1].length - a[1].length)) {
-    const flagged = rs.filter((r) => r.quality_flags?.length).length;
+    const flagged = rs.filter((r) => r.quality_flags.length).length;
     out.push(
       `| ${tier} | ${pct(rs.length, recs.length)} | ${flagged > 0 ? flagged : "—"} |`,
     );
   }
   out.push("");
+
+  // 저장 결과 분포: 파이프라인 status. 실패는 링크만 저장된다
+  const degraded = recs.filter((r) => r.ok && r.status === "degraded");
+  out.push("### 저장 상태 분포");
+  out.push(`degraded 기준: 품질 점수 ${DEGRADED_BELOW} 미만 (본문은 저장)`);
+  out.push("");
+  out.push("| 플랫폼 | ok | degraded | failed |");
+  out.push("| --- | --- | --- | --- |");
+  const statusRow = (rs: RunRecord[]) => {
+    const n = rs.length;
+    const d = rs.filter((r) => r.ok && r.status === "degraded").length;
+    const f = rs.filter((r) => !r.ok).length;
+    return `${pct(n - d - f, n)} | ${pct(d, n)} | ${pct(f, n)}`;
+  };
+  for (const [platform, rs] of [...byPlatform].sort(
+    (a, b) => b[1].length - a[1].length,
+  )) {
+    out.push(`| ${platform} | ${statusRow(rs)} |`);
+  }
+  out.push(`| **전체** | ${statusRow(recs)} |`);
+  out.push("");
+  const flagCounts = groupBy(
+    recs.filter((r) => r.ok).flatMap((r) => r.quality_flags.map((f) => ({ f }))),
+    (x) => x.f,
+  );
+  if (flagCounts.size > 0) {
+    out.push(
+      `플래그 분포(성공 ${recs.filter((r) => r.ok).length}건 기준): ${[...flagCounts]
+        .sort((a, b) => b[1].length - a[1].length)
+        .map(([f, xs]) => `${f} ${xs.length}`)
+        .join(" · ")}`,
+    );
+    out.push("");
+  }
+  if (degraded.length > 0) {
+    out.push("<details><summary>degraded 목록</summary>");
+    out.push("");
+    out.push("| URL | tier | score | 플래그 | 글자 수 |");
+    out.push("| --- | --- | --- | --- | --- |");
+    for (const r of degraded) {
+      out.push(
+        `| ${r.url} | ${r.tier} | ${r.quality_score} | ${r.quality_flags.join(", ")} | ${r.content_chars} |`,
+      );
+    }
+    out.push("");
+    out.push("</details>");
+    out.push("");
+  }
 
   if (failed.length > 0) {
     out.push("### 실패 원인");
