@@ -75,30 +75,7 @@ export async function parseBlog(
     }
   }
 
-  // 폴백: body 전체에서 스크립트/스타일/nav 제거
-  if (!contentNode) {
-    const body = doc.querySelector("body");
-    if (body) {
-      // 불필요한 요소 제거
-      const removeSelectors = [
-        "script",
-        "style",
-        "nav",
-        "header",
-        "footer",
-        ".sidebar",
-        "#sidebar",
-        ".comments",
-        "#comments",
-      ];
-      for (const sel of removeSelectors) {
-        body.querySelectorAll(sel).forEach((el: Element) => el.remove());
-      }
-      contentNode = body;
-      contentHtml = body.innerHTML;
-    }
-  }
-
+  // body 통째 폴백은 하지 않는다. 사이드바·댓글이 섞인 결과가 성공으로 저장되는 조용한 실패였다
   if (!contentNode) {
     throw new ParseError(
       "extract",
