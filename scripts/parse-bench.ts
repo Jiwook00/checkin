@@ -428,12 +428,16 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   out.push(`| **전체** | ${statusRow(recs)} |`);
   out.push("");
   const flagCounts = groupBy(
-    recs.filter((r) => r.ok).flatMap((r) => r.quality_flags.map((f) => ({ f }))),
+    recs
+      .filter((r) => r.ok)
+      .flatMap((r) => r.quality_flags.map((f) => ({ f }))),
     (x) => x.f,
   );
   if (flagCounts.size > 0) {
     out.push(
-      `플래그 분포(성공 ${recs.filter((r) => r.ok).length}건 기준): ${[...flagCounts]
+      `플래그 분포(성공 ${recs.filter((r) => r.ok).length}건 기준): ${[
+        ...flagCounts,
+      ]
         .sort((a, b) => b[1].length - a[1].length)
         .map(([f, xs]) => `${f} ${xs.length}`)
         .join(" · ")}`,
