@@ -69,11 +69,15 @@ export function httpError(
   if (status === 429) {
     return new ParseError("fetch", "HTTP_429", "transient", message, d);
   }
+  if (status === 408) {
+    return new ParseError("fetch", "HTTP_4XX", "transient", message, d);
+  }
   if (status >= 500) {
     return new ParseError("fetch", "HTTP_5XX", "transient", message, d);
   }
   if (status === 403) {
-    return new ParseError("fetch", "HTTP_403", "structural", message, d);
+    // HTML을 못 받았으므로 LLM 폴백 대상이 아니다
+    return new ParseError("fetch", "HTTP_403", "unsupported", message, d);
   }
   if (status === 404) {
     return new ParseError("fetch", "HTTP_404", "user_action", message, d);

@@ -1,6 +1,7 @@
 import TurndownService from "turndown";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
-import { httpError, ParseError, toParseError } from "./errors.ts";
+import { ParseError } from "./errors.ts";
+import { fetchWithPolicy } from "./fetch-policy.ts";
 
 interface ParsedContent {
   title: string;
@@ -16,32 +17,13 @@ export async function parseBlog(
   url: string,
   fetchFn: typeof fetch,
 ): Promise<ParsedContent> {
-  // 1. HTML 가져오기
-  let response: Response;
-  try {
-    response = await fetchFn(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; RetroReader/1.0; +https://retro-reader.app)",
-      },
-    });
-  } catch (err) {
-    throw toParseError(err, "fetch");
-  }
-
-  if (!response.ok) {
-    throw httpError(
-      response.status,
-      `페이지를 가져올 수 없습니다: ${response.status}`,
-    );
-  }
-
-  let html: string;
-  try {
-    html = await response.text();
-  } catch (err) {
-    throw toParseError(err, "fetch");
-  }
+  // 1. HTML 가져오기 (타임아웃·재시도·인코딩은 fetchWithPolicy가 처리)
+  const { body: html } = await fetchWithPolicy(fetchFn, url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (compatible; RetroReader/1.0; +https://retro-reader.app)",
+    },
+  });
 
   // 2. DOM 파싱
   const doc = new DOMParser().parseFromString(html, "text/html");

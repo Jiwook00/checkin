@@ -167,6 +167,7 @@ Deno.serve(async (req) => {
           source_type: parsed.source_type,
           status: "failed",
           error: storeError,
+          fetch_attempts: parsed.fetch_attempts,
           duration_ms: elapsed(),
         });
         return failure(storeError, undefined, 500);
@@ -179,6 +180,7 @@ Deno.serve(async (req) => {
         status: "failed",
         retrospective_id: linkRow.id,
         error: parsed.error,
+        fetch_attempts: parsed.fetch_attempts,
         duration_ms: parsed.duration_ms,
       });
       return failure(parsed.error, linkRow.id);
@@ -224,6 +226,7 @@ Deno.serve(async (req) => {
         source_type: parsed.source_type,
         status: "failed",
         error: storeError,
+        fetch_attempts: parsed.fetch_attempts,
         duration_ms: elapsed(),
       });
       return failure(storeError, undefined, 500);
@@ -236,6 +239,7 @@ Deno.serve(async (req) => {
       status: "ok",
       retrospective_id: data.id,
       content_chars: parsed.content_markdown.length,
+      fetch_attempts: parsed.fetch_attempts,
       duration_ms: parsed.duration_ms,
     });
 
