@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type {
   AddArticleForm,
+  AddArticleResult,
   Announcement,
   AvatarConfig,
   Retrospective,
@@ -11,6 +12,8 @@ import type {
 } from "./types";
 import EditArticleModal from "./components/EditArticleModal";
 import { getActivePoll } from "./lib/vote";
+import { parseErrorMessage } from "./lib/parse-errors";
+import { detectSourceType } from "./lib/source-type";
 import Layout from "./components/Layout";
 import SessionBanner from "./components/SessionBanner";
 import SessionFilter from "./components/SessionFilter";
@@ -188,7 +191,7 @@ export default function App() {
   const handleAddArticle = async (
     form: AddArticleForm,
     setStatus: (s: string) => void,
-  ): Promise<{ parseFailed: boolean; articleId: string }> => {
+  ): Promise<AddArticleResult> => {
     const { data: sessionData, error: refreshError } =
       await supabase.auth.refreshSession();
     if (refreshError || !sessionData.session) {
@@ -201,20 +204,10 @@ export default function App() {
       body: form,
     });
 
-    const parseSucceeded = !error && data?.success;
-
-    if (!parseSucceeded) {
-      // 파싱 실패 시 원본 링크만 저장
-      const detectSourceType = (
-        url: string,
-      ): "notion" | "tistory" | "other" => {
-        if (url.includes("notion.so") || url.includes("notion.site"))
-          return "notion";
-        if (url.includes("tistory.com")) return "tistory";
-        return "other";
-      };
-
-      const { data: insertData, error: insertError } = await supabase
+    // 서버에 닿지 못한 경우(401, 함수 다운 등)만 프론트가 링크를 저장한다.
+    // 서버가 응답했다면 파싱 실패 시 링크 저장은 서버가 이미 했다.
+    if (error) {
+      const { data: linkRow, error: linkError } = await supabase
         .from("checkin_retrospectives")
         .insert({
           member_id: memberId,
@@ -223,16 +216,21 @@ export default function App() {
           source_type: detectSourceType(form.source_url),
           content_markdown: "",
           content_html: null,
+          parse_status: "failed",
           session: form.session,
           presentation_order: Math.floor(Math.random() * 1000) + 1,
         })
         .select("id")
         .single();
-
-      if (insertError) throw new Error(insertError.message);
-
+      if (linkError) throw new Error(linkError.message);
       await fetchArticles();
-      return { parseFailed: true, articleId: insertData.id };
+      return { articleId: linkRow.id, parseError: "UNREACHABLE" };
+    }
+    if (!data?.success) {
+      if (!data?.article_id)
+        throw new Error(parseErrorMessage(data?.error_code));
+      await fetchArticles();
+      return { articleId: data.article_id, parseError: data.error_code };
     }
 
     // 이미지 처리
@@ -286,7 +284,7 @@ export default function App() {
 
     // 목록 갱신
     await fetchArticles();
-    return { parseFailed: false, articleId: data.data.id };
+    return { articleId: data.data.id, parseError: null };
   };
 
   // 감정 아바타 저장

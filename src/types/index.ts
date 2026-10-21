@@ -62,6 +62,8 @@ export interface AvatarConfig {
   mouth: AvatarMouth;
 }
 
+export type ParseStatus = "ok" | "degraded" | "failed";
+
 export interface Retrospective {
   id: string;
   member_id: string;
@@ -69,6 +71,8 @@ export interface Retrospective {
   source_url: string | null;
   source_type: "notion" | "tistory" | "other";
   content_type: "url" | "written";
+  // URL 글의 파싱 결과. 직접 쓴 글은 null
+  parse_status: ParseStatus | null;
   content_html: string | null;
   content_markdown: string;
   session: string;
@@ -130,6 +134,12 @@ export interface AddArticleForm {
   title: string;
   source_url: string;
   session: string;
+}
+
+export interface AddArticleResult {
+  articleId: string;
+  // 파싱이 실패해 링크만 저장된 경우 서버가 알려준 원인 코드
+  parseError: string | null;
 }
 
 export const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"] as const;

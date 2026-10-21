@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { AddArticleForm, AvatarConfig } from "../types";
+import type { AddArticleForm, AddArticleResult, AvatarConfig } from "../types";
+import { parseErrorMessage } from "../lib/parse-errors";
 import EmotionPicker, { DEFAULT_AVATAR } from "./EmotionPicker";
 import EmotionBlob from "./EmotionBlob";
 
@@ -10,7 +11,7 @@ interface AddArticleModalProps {
   onSubmit: (
     form: AddArticleForm,
     setStatus: (s: string) => void,
-  ) => Promise<{ parseFailed: boolean; articleId: string }>;
+  ) => Promise<AddArticleResult>;
   onSaveAvatar: (articleId: string, avatar: AvatarConfig) => Promise<void>;
   defaultSession?: string;
 }
@@ -36,14 +37,11 @@ export default function AddArticleModal({
   });
   const [status, setStatus] = useState("등록 중...");
   const [error, setError] = useState("");
-  const [parseFailed, setParseFailed] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
 
   const [phase, setPhase] = useState<"choose" | "form" | "game">("choose");
   const [avatar, setAvatar] = useState<AvatarConfig>(DEFAULT_AVATAR);
-  const [apiResult, setApiResult] = useState<{
-    parseFailed: boolean;
-    articleId: string;
-  } | null>(null);
+  const [apiResult, setApiResult] = useState<AddArticleResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [completed, setCompleted] = useState(false);
 
@@ -62,8 +60,8 @@ export default function AddArticleModal({
     setSaving(true);
     try {
       await onSaveAvatar(apiResult.articleId, avatar);
-      if (apiResult.parseFailed) {
-        setParseFailed(true);
+      if (apiResult.parseError) {
+        setParseError(apiResult.parseError);
         setPhase("form");
       } else {
         setCompleted(true);
@@ -87,7 +85,7 @@ export default function AddArticleModal({
 
   const handleClose = () => {
     generationRef.current++;
-    setParseFailed(false);
+    setParseError(null);
     setError("");
     setPhase("choose");
     resetState();
@@ -160,7 +158,7 @@ export default function AddArticleModal({
               </p>
             </button>
           </div>
-        ) : parseFailed ? (
+        ) : parseError ? (
           /* 파싱 실패 */
           <>
             <div className="mb-4 opacity-50 space-y-4">
@@ -180,8 +178,7 @@ export default function AddArticleModal({
                 파싱 실패 · 링크만 저장됨
               </p>
               <p className="mt-0.5 text-xs text-amber-600">
-                글 내용을 가져오지 못했지만, 링크는 저장되었어요. 회고
-                페이지에서 원본 링크를 통해 읽을 수 있습니다.
+                {parseErrorMessage(parseError)} 링크는 저장되었어요.
               </p>
             </div>
             <button

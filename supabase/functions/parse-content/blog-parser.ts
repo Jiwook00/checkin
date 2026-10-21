@@ -1,5 +1,6 @@
 import TurndownService from "turndown";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
+import { httpError, ParseError, toParseError } from "./errors.ts";
 
 interface ParsedContent {
   title: string;
@@ -16,23 +17,41 @@ export async function parseBlog(
   fetchFn: typeof fetch,
 ): Promise<ParsedContent> {
   // 1. HTML 가져오기
-  const response = await fetchFn(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (compatible; RetroReader/1.0; +https://retro-reader.app)",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`페이지를 가져올 수 없습니다: ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetchFn(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; RetroReader/1.0; +https://retro-reader.app)",
+      },
+    });
+  } catch (err) {
+    throw toParseError(err, "fetch");
   }
 
-  const html = await response.text();
+  if (!response.ok) {
+    throw httpError(
+      response.status,
+      `페이지를 가져올 수 없습니다: ${response.status}`,
+    );
+  }
+
+  let html: string;
+  try {
+    html = await response.text();
+  } catch (err) {
+    throw toParseError(err, "fetch");
+  }
 
   // 2. DOM 파싱
   const doc = new DOMParser().parseFromString(html, "text/html");
   if (!doc) {
-    throw new Error("HTML을 파싱할 수 없습니다");
+    throw new ParseError(
+      "extract",
+      "NO_CONTENT_NODE",
+      "structural",
+      "HTML을 파싱할 수 없습니다",
+    );
   }
 
   // 3. 본문 추출 (사이트별 셀렉터 시도 후 폴백)
@@ -104,7 +123,12 @@ export async function parseBlog(
   }
 
   if (!contentNode) {
-    throw new Error("본문 콘텐츠를 찾을 수 없습니다");
+    throw new ParseError(
+      "extract",
+      "NO_CONTENT_NODE",
+      "structural",
+      "본문 콘텐츠를 찾을 수 없습니다",
+    );
   }
 
   // 4. HTML → 마크다운 변환

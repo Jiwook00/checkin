@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import { validateSourceUrl } from "./url-utils.ts";
+import { detectSourceType, validateSourceUrl } from "./url-utils.ts";
 import { runPipeline } from "./pipeline.ts";
+import { recordAttempt } from "./attempts.ts";
+import { ParseError } from "./errors.ts";
 import { extractUrls } from "./image-processor.ts";
 
 const corsHeaders = {
@@ -91,28 +93,95 @@ Deno.serve(async (req) => {
       );
     }
 
-    // SSRF 방지: URL 검증
-    const urlValidation = validateSourceUrl(source_url);
-    if (!urlValidation.ok) {
-      return new Response(
-        JSON.stringify({ success: false, error: urlValidation.reason }),
+    const startedAt = performance.now();
+    const elapsed = () => Math.round(performance.now() - startedAt);
+    const sourceType = detectSourceType(source_url);
+
+    // 파싱 실패 응답. 링크가 저장됐으면 article_id를 함께 돌려준다.
+    // 파싱 결과라 HTTP 200으로 보내고, 프론트는 success/error_code로 분기한다.
+    const failure = (error: ParseError, articleId?: string, status = 200) =>
+      new Response(
+        JSON.stringify({
+          success: false,
+          error_code: error.code,
+          message: error.message,
+          article_id: articleId ?? null,
+        }),
         {
-          status: 400,
+          status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
+
+    // SSRF 방지: URL 검증 (실패 시 글은 저장하지 않는다)
+    const urlValidation = validateSourceUrl(source_url);
+    if (!urlValidation.ok) {
+      const error = new ParseError(
+        "validate",
+        "INVALID_URL",
+        "user_action",
+        urlValidation.reason,
+      );
+      await recordAttempt(supabaseAdmin, {
+        trigger: "user",
+        source_url,
+        source_type: sourceType,
+        status: "failed",
+        error,
+        duration_ms: elapsed(),
+      });
+      return failure(error);
     }
 
     // 콘텐츠 파싱
     const parsed = await runPipeline(source_url, { fetch });
     if (!parsed.ok) {
-      return new Response(
-        JSON.stringify({ success: false, error: parsed.error }),
-        {
-          status: parsed.stage === "input" ? 400 : 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      // 최종 실패 → 원본 링크만 저장
+      const { data: linkRow, error: linkError } = await supabaseAdmin
+        .from("checkin_retrospectives")
+        .insert({
+          title: title?.trim() || source_url,
+          member_id: user.id,
+          source_url,
+          source_type: parsed.source_type,
+          content_markdown: "",
+          content_html: null,
+          parse_status: "failed",
+          session,
+          presentation_order: Math.floor(Math.random() * 1000) + 1,
+        })
+        .select("id")
+        .single();
+
+      if (linkError) {
+        const storeError = new ParseError(
+          "store",
+          "STORE_FAILED",
+          "transient",
+          "글을 저장하지 못했어요",
+          linkError.message,
+        );
+        await recordAttempt(supabaseAdmin, {
+          trigger: "user",
+          source_url,
+          source_type: parsed.source_type,
+          status: "failed",
+          error: storeError,
+          duration_ms: elapsed(),
+        });
+        return failure(storeError, undefined, 500);
+      }
+
+      await recordAttempt(supabaseAdmin, {
+        trigger: "user",
+        source_url,
+        source_type: parsed.source_type,
+        status: "failed",
+        retrospective_id: linkRow.id,
+        error: parsed.error,
+        duration_ms: parsed.duration_ms,
+      });
+      return failure(parsed.error, linkRow.id);
     }
 
     // 제목: 사용자 입력 우선, 없으면 파싱된 제목 사용
@@ -134,6 +203,7 @@ Deno.serve(async (req) => {
         source_type: parsed.source_type,
         content_html: parsed.content_html,
         content_markdown: parsed.content_markdown,
+        parse_status: "ok",
         session,
         presentation_order: Math.floor(Math.random() * 1000) + 1,
       })
@@ -141,8 +211,33 @@ Deno.serve(async (req) => {
       .single();
 
     if (error) {
-      throw new Error(`DB 저장 실패: ${error.message}`);
+      const storeError = new ParseError(
+        "store",
+        "STORE_FAILED",
+        "transient",
+        "글을 저장하지 못했어요",
+        error.message,
+      );
+      await recordAttempt(supabaseAdmin, {
+        trigger: "user",
+        source_url,
+        source_type: parsed.source_type,
+        status: "failed",
+        error: storeError,
+        duration_ms: elapsed(),
+      });
+      return failure(storeError, undefined, 500);
     }
+
+    await recordAttempt(supabaseAdmin, {
+      trigger: "user",
+      source_url,
+      source_type: parsed.source_type,
+      status: "ok",
+      retrospective_id: data.id,
+      content_chars: parsed.content_markdown.length,
+      duration_ms: parsed.duration_ms,
+    });
 
     return new Response(JSON.stringify({ success: true, data, image_urls }), {
       status: 200,

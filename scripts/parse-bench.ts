@@ -60,6 +60,7 @@ interface RunRecord {
   platform: string;
   ok: boolean;
   stage?: string;
+  error_code?: string;
   error?: string;
   // 파이프라인 소요 시간에서 하네스의 호스트 간격 대기를 뺀 값
   duration_ms: number;
@@ -295,8 +296,9 @@ async function runOne(url: string): Promise<RunRecord> {
     return {
       ...base,
       ok: false,
-      stage: result.stage,
-      error: result.error,
+      stage: result.error.stage,
+      error_code: result.error.code,
+      error: result.error.message,
       content_chars: 0,
       boilerplate_hits: [],
     };

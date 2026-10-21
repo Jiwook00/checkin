@@ -3,6 +3,7 @@ import {
   extractNotionPageId,
   type SourceType,
 } from "./url-utils.ts";
+import { ParseError, toParseError } from "./errors.ts";
 import { parseBlog } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
 
@@ -26,9 +27,7 @@ export type PipelineResult =
       ok: false;
       source_type: SourceType;
       duration_ms: number;
-      error: string;
-      // input: 요청 자체가 잘못됨(400) / parse: 파싱 중 예외(500)
-      stage: "input" | "parse";
+      error: ParseError;
     };
 
 /**
@@ -57,8 +56,12 @@ export async function runPipeline(
           ok: false,
           source_type: sourceType,
           duration_ms: elapsed(),
-          error: "노션 페이지 ID를 추출할 수 없습니다",
-          stage: "input",
+          error: new ParseError(
+            "validate",
+            "INVALID_URL",
+            "user_action",
+            "노션 페이지 ID를 추출할 수 없습니다",
+          ),
         };
       }
       parsed = await parseNotion(pageId, deps.fetch);
@@ -77,8 +80,7 @@ export async function runPipeline(
       ok: false,
       source_type: sourceType,
       duration_ms: elapsed(),
-      error: err instanceof Error ? err.message : "알 수 없는 오류",
-      stage: "parse",
+      error: toParseError(err),
     };
   }
 }

@@ -1,3 +1,5 @@
+import { httpError, ParseError, toParseError } from "./errors.ts";
+
 interface ParsedContent {
   title: string;
   content_html: string;
@@ -91,36 +93,63 @@ export async function parseNotion(
 ): Promise<ParsedContent> {
   const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
 
-  const response = await fetchFn("https://www.notion.so/api/v3/loadPageChunk", {
-    method: "POST",
-    headers: NOTION_HEADERS,
-    body: JSON.stringify({
-      pageId: uuidPageId,
-      limit: 100,
-      cursor: { stack: [] },
-      chunkNumber: 0,
-      verticalColumns: false,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetchFn("https://www.notion.so/api/v3/loadPageChunk", {
+      method: "POST",
+      headers: NOTION_HEADERS,
+      body: JSON.stringify({
+        pageId: uuidPageId,
+        limit: 100,
+        cursor: { stack: [] },
+        chunkNumber: 0,
+        verticalColumns: false,
+      }),
+    });
+  } catch (err) {
+    throw toParseError(err, "fetch");
+  }
 
   if (!response.ok) {
-    throw new Error(
-      `노션 페이지를 가져올 수 없습니다: ${response.status} ${await response.text()}`,
+    const body = await response.text().catch(() => "");
+    throw httpError(
+      response.status,
+      `노션 페이지를 가져올 수 없습니다: ${response.status} ${body}`,
+      body,
     );
   }
 
-  const data = (await response.json()) as { recordMap: RecordMap };
+  let data: { recordMap: RecordMap };
+  try {
+    data = (await response.json()) as { recordMap: RecordMap };
+  } catch (err) {
+    throw new ParseError(
+      "extract",
+      "NOTION_SCHEMA",
+      "structural",
+      "노션 페이지 데이터가 올바르지 않습니다",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
   const recordMap = data.recordMap;
 
   if (!recordMap || !recordMap.block) {
-    throw new Error("노션 페이지 데이터가 올바르지 않습니다");
+    throw new ParseError(
+      "extract",
+      "NOTION_SCHEMA",
+      "structural",
+      "노션 페이지 데이터가 올바르지 않습니다",
+    );
   }
 
   const blocks = recordMap.block;
   const blockIds = Object.keys(blocks);
 
   if (blockIds.length === 0) {
-    throw new Error(
+    throw new ParseError(
+      "extract",
+      "NOTION_PRIVATE",
+      "user_action",
       "노션 페이지에서 블록을 가져오지 못했습니다. 페이지가 공개 상태인지 확인해주세요.",
     );
   }
