@@ -28,8 +28,14 @@ export interface PipelineDeps {
   llm?: LlmClient;
 }
 
-/** LLM 폴백을 시도했을 때의 기록. 본문(parsed)은 결과에 합쳐지므로 뺀다 */
-export type LlmReport = Omit<LlmFallbackResult, "parsed">;
+/**
+ * LLM 폴백을 시도했을 때의 기록. 본문(parsed)은 결과에 합쳐지므로 뺀다.
+ * rule은 폴백 직전 규칙 단계의 결과(에러 코드 또는 degraded), ms는 폴백에 쓴 시간
+ */
+export type LlmReport = Omit<LlmFallbackResult, "parsed"> & {
+  rule: string;
+  ms: number;
+};
 
 export type PipelineResult =
   | {
@@ -190,11 +196,18 @@ export async function runPipeline(
       ? isLlmTargetFailure(failure)
       : quality !== undefined && isDegraded(quality.score);
     if (blogHtml !== undefined && deps.llm && eligible) {
-      const { parsed: recovered, ...report } = await runLlmFallback(
+      const rule = failure?.code ?? "degraded";
+      const llmStartedAt = performance.now();
+      const { parsed: recovered, ...result } = await runLlmFallback(
         blogHtml,
         ruleReason(failure, quality),
         deps.llm,
       );
+      const report: LlmReport = {
+        ...result,
+        rule,
+        ms: Math.round(performance.now() - llmStartedAt),
+      };
       llm = report;
       if (recovered) {
         parsed = recovered;
