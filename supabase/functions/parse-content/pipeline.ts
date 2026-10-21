@@ -6,7 +6,7 @@ import {
 import { ParseError, toParseError } from "./errors.ts";
 import { parseBlog } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
-import type { ParsedContent, ParseTier } from "./types.ts";
+import type { ParsedContent, ParseTier, QualityFlag } from "./types.ts";
 
 /**
  * 파이프라인이 바깥 세계와 닿는 지점. 벤치마크에서는 스냅샷 리더로 교체한다.
@@ -22,7 +22,7 @@ export type PipelineResult =
       content_html: string;
       content_markdown: string;
       tier: ParseTier;
-      quality_flags?: string[];
+      quality_flags?: QualityFlag[];
       source_type: SourceType;
       duration_ms: number;
       fetch_attempts: number;
