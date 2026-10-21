@@ -200,9 +200,14 @@ export default function App() {
     const memberId = sessionData.session.user.id;
 
     setStatus("파싱 중...");
-    const { data, error } = await supabase.functions.invoke("parse-content", {
-      body: form,
-    });
+    // 보통 1초 안에 끝난다. 3초를 넘기면 서버가 본문 위치를 다시 찾는 중(LLM 폴백)일 가능성이 크다
+    const slowTimer = setTimeout(
+      () => setStatus("본문 위치를 찾는 중..."),
+      3000,
+    );
+    const { data, error } = await supabase.functions
+      .invoke("parse-content", { body: form })
+      .finally(() => clearTimeout(slowTimer));
 
     // 서버에 닿지 못한 경우(401, 함수 다운 등)만 프론트가 링크를 저장한다.
     // 서버가 응답했다면 파싱 실패 시 링크 저장은 서버가 이미 했다.

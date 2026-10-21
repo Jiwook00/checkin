@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   PROTECTED_POST:
     "비밀번호가 걸린 글이라 가져오지 못했어요. 원본 링크로 읽을 수 있어요.",
   LOW_QUALITY: "본문을 제대로 가져오지 못했어요. 원본 링크로 읽을 수 있어요.",
+  LLM_NO_SELECTOR: "본문 위치를 찾지 못했어요. 원본 링크로 읽을 수 있어요.",
   JS_RENDERED:
     "이 페이지는 화면에서 본문을 그리는 방식이라 가져오지 못했어요. 원본 링크로 읽을 수 있어요.",
   UNREACHABLE: "서버에 연결하지 못했어요. 잠시 뒤 다시 시도해주세요.",
