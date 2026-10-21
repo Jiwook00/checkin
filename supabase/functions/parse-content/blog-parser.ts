@@ -66,6 +66,23 @@ export async function parseBlog(
     );
   }
 
+  // 티스토리 보호글은 본문 없이 비밀번호 폼만 온다. 일반 셀렉터(main)가 스킨 전체를
+  // 본문으로 잡아 성공으로 저장되던 조용한 실패라 셀렉터보다 먼저 거른다
+  const description = doc
+    .querySelector('meta[name="description"]')
+    ?.getAttribute("content");
+  if (
+    doc.querySelector("form.protected_form") ||
+    description?.trim().startsWith("보호되어 있는 글입니다")
+  ) {
+    throw new ParseError(
+      "extract",
+      "PROTECTED_POST",
+      "user_action",
+      "비밀번호가 걸린 글이라 가져올 수 없습니다",
+    );
+  }
+
   // 3. 본문 추출 (사이트별 셀렉터 시도 후 폴백)
   let title = "";
   let contentHtml = "";
