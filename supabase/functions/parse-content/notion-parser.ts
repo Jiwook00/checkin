@@ -1,11 +1,6 @@
 import { ParseError } from "./errors.ts";
 import { fetchWithPolicy } from "./fetch-policy.ts";
-
-interface ParsedContent {
-  title: string;
-  content_html: string;
-  content_markdown: string;
-}
+import type { ParsedContent } from "./types.ts";
 
 interface NotionBlockValue {
   id: string;
@@ -23,6 +18,23 @@ interface NotionBlock {
 interface RecordMap {
   block: Record<string, NotionBlock>;
 }
+
+interface PageChunkCursor {
+  stack: unknown[][];
+}
+
+interface PageChunkResponse {
+  recordMap: RecordMap;
+  cursor?: PageChunkCursor;
+}
+
+// 한 페이지에서 받아 오는 블록 상한. 넘으면 중단하고 NOTION_TRUNCATED로 표시한다
+const MAX_BLOCKS = 1000;
+// 커서가 끝나지 않는 비정상 응답에 대한 안전장치
+const MAX_CHUNKS = 30;
+// syncRecordValues 한 번에 요청하는 블록 수와 보충 라운드 상한
+const SYNC_BATCH = 100;
+const SYNC_ROUNDS = 3;
 
 // 구 API: block.value = NotionBlockValue
 // 신 API: block.value = { value: NotionBlockValue }
@@ -90,34 +102,33 @@ async function resolveAttachmentUrls(
 }
 
 /**
- * 노션 공개 페이지에서 콘텐츠를 파싱한다.
- * Notion 비공개 API(/api/v3/loadPageChunk)에 직접 fetch → 블록 데이터 JSON → 마크다운 변환
+ * loadPageChunk 한 청크를 가져온다. 청크 0의 요청 본문은 벤치 스냅샷 키와 같아야 하므로
+ * 필드 순서와 값을 바꾸지 않는다.
  */
-export async function parseNotion(
+async function loadPageChunk(
   pageId: string,
+  cursor: PageChunkCursor,
+  chunkNumber: number,
   fetchFn: typeof fetch,
-): Promise<ParsedContent> {
-  const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
-
-  const { body: responseBody } = await fetchWithPolicy(
+): Promise<PageChunkResponse> {
+  const { body } = await fetchWithPolicy(
     fetchFn,
     "https://www.notion.so/api/v3/loadPageChunk",
     {
       method: "POST",
       headers: NOTION_HEADERS,
       body: JSON.stringify({
-        pageId: uuidPageId,
+        pageId,
         limit: 100,
-        cursor: { stack: [] },
-        chunkNumber: 0,
+        cursor,
+        chunkNumber,
         verticalColumns: false,
       }),
     },
   );
 
-  let data: { recordMap: RecordMap };
   try {
-    data = JSON.parse(responseBody) as { recordMap: RecordMap };
+    return JSON.parse(body) as PageChunkResponse;
   } catch (err) {
     throw new ParseError(
       "extract",
@@ -127,6 +138,97 @@ export async function parseNotion(
       err instanceof Error ? err.message : String(err),
     );
   }
+}
+
+/**
+ * 페이지 블록의 content 트리를 문서 순서(전위 순회)로 따라간다.
+ * ids: 맵에 있는 블록, missing: content에는 있지만 맵에 없는 블록.
+ * 하위 페이지는 제목만 쓰므로 그 안으로 내려가지 않는다.
+ */
+function walkTree(
+  blocks: Record<string, NotionBlock>,
+  rootId: string,
+): { ids: string[]; missing: string[] } {
+  const ids: string[] = [];
+  const missing: string[] = [];
+  const visited = new Set<string>();
+  const stack = [rootId];
+
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+
+    const block = unwrapBlock(blocks[id]);
+    if (!block) {
+      missing.push(id);
+      continue;
+    }
+    ids.push(id);
+    if (block.type === "page" && id !== rootId) continue;
+    const children = block.content ?? [];
+    for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+  }
+  return { ids, missing };
+}
+
+/**
+ * loadPageChunk가 내려주지 않는 블록(토글 자식 등)을 syncRecordValues로 보충한다.
+ * 보충은 부가 정보라 요청이나 응답 파싱이 실패하면 빠진 채로 진행한다.
+ */
+async function fillMissingBlocks(
+  blocks: Record<string, NotionBlock>,
+  rootId: string,
+  fetchFn: typeof fetch,
+): Promise<void> {
+  const requested = new Set<string>();
+
+  for (let round = 0; round < SYNC_ROUNDS; round++) {
+    // 정렬해 두면 순회 방식이 바뀌어도 요청 본문(=벤치 스냅샷 키)이 같다
+    const missing = walkTree(blocks, rootId)
+      .missing.filter((id) => !requested.has(id))
+      .sort();
+    if (missing.length === 0) return;
+
+    for (let i = 0; i < missing.length; i += SYNC_BATCH) {
+      const batch = missing.slice(i, i + SYNC_BATCH);
+      for (const id of batch) requested.add(id);
+
+      try {
+        const { body } = await fetchWithPolicy(
+          fetchFn,
+          "https://www.notion.so/api/v3/syncRecordValues",
+          {
+            method: "POST",
+            headers: NOTION_HEADERS,
+            body: JSON.stringify({
+              requests: batch.map((id) => ({
+                pointer: { table: "block", id },
+                version: -1,
+              })),
+            }),
+          },
+        );
+        const data = JSON.parse(body) as { recordMap?: Partial<RecordMap> };
+        Object.assign(blocks, data.recordMap?.block ?? {});
+      } catch {
+        return;
+      }
+    }
+  }
+}
+
+/**
+ * 노션 공개 페이지에서 콘텐츠를 파싱한다.
+ * Notion 비공개 API(/api/v3/loadPageChunk)에 직접 fetch → 블록 데이터 JSON → 마크다운 변환
+ */
+export async function parseNotion(
+  pageId: string,
+  fetchFn: typeof fetch,
+): Promise<ParsedContent> {
+  const uuidPageId = pageId.includes("-") ? pageId : toUuid(pageId);
+
+  const data = await loadPageChunk(uuidPageId, { stack: [] }, 0, fetchFn);
   const recordMap = data?.recordMap;
 
   if (!recordMap || typeof recordMap !== "object") {
@@ -150,10 +252,7 @@ export async function parseNotion(
     );
   }
 
-  const blocks = recordMap.block;
-  const blockIds = Object.keys(blocks);
-
-  if (blockIds.length === 0) {
+  if (Object.keys(recordMap.block).length === 0) {
     throw new ParseError(
       "extract",
       "NOTION_PRIVATE",
@@ -162,16 +261,52 @@ export async function parseNotion(
     );
   }
 
-  // 페이지 타이틀 추출
-  const pageBlock = unwrapBlock(blocks[blockIds[0]]);
+  // 커서가 남아 있으면 끝까지 이어 받는다. 청크 0은 위에서 검증했으므로
+  // 이후 청크가 실패하면 받은 데까지만 쓰고 잘림으로 표시한다
+  const blocks: Record<string, NotionBlock> = { ...recordMap.block };
+  let truncated = false;
+  let cursor = data.cursor;
+  let chunkNumber = 1;
+  while (cursor?.stack?.length) {
+    if (Object.keys(blocks).length >= MAX_BLOCKS || chunkNumber >= MAX_CHUNKS) {
+      truncated = true;
+      break;
+    }
+    try {
+      const next = await loadPageChunk(
+        uuidPageId,
+        cursor,
+        chunkNumber,
+        fetchFn,
+      );
+      Object.assign(blocks, next.recordMap?.block ?? {});
+      cursor = next.cursor;
+      chunkNumber++;
+    } catch {
+      truncated = true;
+      break;
+    }
+  }
+
+  // 응답에 없는 자식 블록(토글 안쪽 등) 보충
+  await fillMissingBlocks(blocks, uuidPageId, fetchFn);
+
+  const blockIds = Object.keys(blocks);
+
+  // 페이지 타이틀 추출 (키 순서가 아니라 페이지 id로 찾는다)
+  const pageBlock = unwrapBlock(blocks[uuidPageId] ?? blocks[blockIds[0]]);
   let title = "제목 없음";
   if (pageBlock?.properties?.title) {
     title = extractText(pageBlock.properties.title);
   }
 
+  // 본문은 recordMap 키 순서가 아니라 페이지 블록의 content 트리 순서를 따른다
+  const rootId = pageBlock?.id ?? uuidPageId;
+  const treeIds = walkTree(blocks, rootId).ids;
+
   // image 블록의 attachment: URL → blockId 매핑 수집
   const attachmentItems: Array<{ attachmentUrl: string; blockId: string }> = [];
-  for (const blockId of blockIds) {
+  for (const blockId of treeIds) {
     const block = unwrapBlock(blocks[blockId]);
     if (!block || block.type !== "image") continue;
 
@@ -189,25 +324,22 @@ export async function parseNotion(
   const signedUrlMap = await resolveAttachmentUrls(attachmentItems, fetchFn);
 
   // 블록들을 마크다운으로 변환
-  const markdownLines: string[] = [];
-
-  for (const blockId of blockIds) {
-    const block = unwrapBlock(blocks[blockId]);
-    if (!block) continue;
-
-    const line = blockToMarkdown(block, signedUrlMap);
-    if (line !== null) {
-      markdownLines.push(line);
-    }
-  }
-
-  const markdown = markdownLines.join("\n\n");
-  const contentHtml = JSON.stringify(recordMap); // 원본 보존용
+  const markdown = renderChildren(
+    blocks,
+    pageBlock?.content ?? [],
+    0,
+    new Set([rootId]),
+    signedUrlMap,
+  ).join("\n\n");
+  // 원본 보존용. 페이지네이션·보충으로 합친 블록 전체를 담는다
+  const contentHtml = JSON.stringify({ ...recordMap, block: blocks });
 
   return {
     title,
     content_html: contentHtml,
     content_markdown: markdown,
+    tier: "notion",
+    ...(truncated ? { quality_flags: ["NOTION_TRUNCATED"] } : {}),
   };
 }
 
@@ -240,6 +372,68 @@ function extractText(richTextArray: unknown[][]): string {
       return result;
     })
     .join("");
+}
+
+// 자식이 같은 들여쓰기로 이어지는 대신 한 단계 들여써야 하는 블록
+const LIST_TYPES = new Set(["bulleted_list", "numbered_list", "to_do"]);
+const LIST_INDENT = "    ";
+
+function indent(markdown: string, depth: number): string {
+  if (depth === 0) return markdown;
+  const pad = LIST_INDENT.repeat(depth);
+  return markdown
+    .split("\n")
+    .map((line) => (line ? pad + line : line))
+    .join("\n");
+}
+
+/**
+ * 블록 id 목록을 트리 순서대로 마크다운 조각 배열로 렌더링한다.
+ * - 리스트 자식은 한 단계 들여쓴다 (중첩 리스트)
+ * - 컬럼은 자기 줄 없이 자식을 순서대로 펼친다
+ * - 토글은 요약 줄 아래에 자식을 그대로 잇는다 (프론트가 raw HTML을 렌더링하지 않아 <details>를 쓰지 않는다)
+ * - 하위 페이지는 제목 한 줄만 쓰고 내려가지 않는다
+ */
+function renderChildren(
+  blocks: Record<string, NotionBlock>,
+  ids: string[],
+  depth: number,
+  visited: Set<string>,
+  signedUrlMap: Map<string, string>,
+): string[] {
+  const out: string[] = [];
+
+  for (const id of ids) {
+    if (visited.has(id)) continue;
+    visited.add(id);
+
+    const block = unwrapBlock(blocks[id]);
+    if (!block) continue;
+
+    if (block.type === "page") {
+      const pageTitle = block.properties?.title
+        ? extractText(block.properties.title)
+        : "";
+      if (pageTitle) out.push(indent(pageTitle, depth));
+      continue;
+    }
+
+    const line = blockToMarkdown(block, signedUrlMap);
+    if (line !== null) out.push(indent(line, depth));
+
+    const childDepth = LIST_TYPES.has(block.type) ? depth + 1 : depth;
+    out.push(
+      ...renderChildren(
+        blocks,
+        block.content ?? [],
+        childDepth,
+        visited,
+        signedUrlMap,
+      ),
+    );
+  }
+
+  return out;
 }
 
 /**
@@ -284,7 +478,10 @@ function blockToMarkdown(
     }
 
     case "toggle":
-      return `<details><summary>${text}</summary></details>`;
+      // 자식은 renderChildren이 바로 아래에 잇는다.
+      // 요약에 이미 굵게 표시가 있으면 겹치면 깨지므로 그대로 둔다
+      if (!text) return null;
+      return text.includes("**") ? text : `**${text}**`;
 
     case "quote":
       return `> ${text}`;

@@ -1,12 +1,42 @@
 import TurndownService from "turndown";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.48/deno-dom-wasm.ts";
+import { Readability } from "@mozilla/readability";
+import {
+  DOMParser,
+  type Element,
+} from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { ParseError } from "./errors.ts";
 import { fetchWithPolicy } from "./fetch-policy.ts";
+import type { ParsedContent, ParseTier } from "./types.ts";
 
-interface ParsedContent {
-  title: string;
-  content_html: string;
-  content_markdown: string;
+// 셀렉터·Readability 결과가 이보다 짧으면 본문을 못 찾은 것으로 본다
+const MIN_CONTENT_CHARS = 100;
+
+/**
+ * 셀렉터가 모두 실패했을 때 Readability로 본문을 고른다.
+ * Readability는 문서를 변경하므로 원본 doc이 아니라 새로 파싱한 문서에 돌린다.
+ */
+function extractWithReadability(
+  html: string,
+): { node: Element; html: string } | null {
+  const fresh = new DOMParser().parseFromString(html, "text/html");
+  if (!fresh) return null;
+
+  const article = new Readability(
+    fresh as unknown as ConstructorParameters<typeof Readability>[0],
+  ).parse();
+  if (
+    !article?.content ||
+    (article.textContent ?? "").trim().length < MIN_CONTENT_CHARS
+  ) {
+    return null;
+  }
+
+  // turndown에 노드로 넘기기 위해 결과 HTML을 다시 파싱한다
+  const node = new DOMParser().parseFromString(
+    article.content,
+    "text/html",
+  )?.body;
+  return node ? { node, html: article.content } : null;
 }
 
 /**
@@ -33,6 +63,23 @@ export async function parseBlog(
       "NO_CONTENT_NODE",
       "structural",
       "HTML을 파싱할 수 없습니다",
+    );
+  }
+
+  // 티스토리 보호글은 본문 없이 비밀번호 폼만 온다. 일반 셀렉터(main)가 스킨 전체를
+  // 본문으로 잡아 성공으로 저장되던 조용한 실패라 셀렉터보다 먼저 거른다
+  const description = doc
+    .querySelector('meta[name="description"]')
+    ?.getAttribute("content");
+  if (
+    doc.querySelector("form.protected_form") ||
+    description?.trim().startsWith("보호되어 있는 글입니다")
+  ) {
+    throw new ParseError(
+      "extract",
+      "PROTECTED_POST",
+      "user_action",
+      "비밀번호가 걸린 글이라 가져올 수 없습니다",
     );
   }
 
@@ -71,36 +118,24 @@ export async function parseBlog(
 
   const allSelectors = [...tistorySelectors, ...genericSelectors];
 
+  let tier: ParseTier = "selector";
   for (const selector of allSelectors) {
     const el = doc.querySelector(selector);
-    if (el && el.innerHTML.trim().length > 100) {
+    if (el && el.innerHTML.trim().length > MIN_CONTENT_CHARS) {
       contentNode = el;
       contentHtml = el.innerHTML;
       break;
     }
   }
 
-  // 폴백: body 전체에서 스크립트/스타일/nav 제거
+  // 셀렉터가 모두 실패하면 Readability. body 통째 폴백은 하지 않는다
+  // (사이드바·댓글이 섞인 결과가 성공으로 저장되는 조용한 실패였다)
   if (!contentNode) {
-    const body = doc.querySelector("body");
-    if (body) {
-      // 불필요한 요소 제거
-      const removeSelectors = [
-        "script",
-        "style",
-        "nav",
-        "header",
-        "footer",
-        ".sidebar",
-        "#sidebar",
-        ".comments",
-        "#comments",
-      ];
-      for (const sel of removeSelectors) {
-        body.querySelectorAll(sel).forEach((el: Element) => el.remove());
-      }
-      contentNode = body;
-      contentHtml = body.innerHTML;
+    const article = extractWithReadability(html);
+    if (article) {
+      contentNode = article.node;
+      contentHtml = article.html;
+      tier = "readability";
     }
   }
 
@@ -129,5 +164,6 @@ export async function parseBlog(
     title,
     content_html: contentHtml,
     content_markdown: markdown,
+    tier,
   };
 }

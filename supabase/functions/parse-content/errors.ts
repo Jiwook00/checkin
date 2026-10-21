@@ -28,6 +28,7 @@ export type ParseErrorCode =
   | "NOTION_PRIVATE"
   | "NOTION_SCHEMA"
   | "NO_CONTENT_NODE"
+  | "PROTECTED_POST"
   | "LOW_QUALITY"
   | "JS_RENDERED"
   | "LLM_NO_SELECTOR"

@@ -240,6 +240,8 @@ Deno.serve(async (req) => {
       retrospective_id: data.id,
       content_chars: parsed.content_markdown.length,
       fetch_attempts: parsed.fetch_attempts,
+      tier: parsed.tier,
+      quality_flags: parsed.quality_flags,
       duration_ms: parsed.duration_ms,
     });
 
