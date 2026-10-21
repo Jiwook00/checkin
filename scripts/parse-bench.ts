@@ -619,15 +619,21 @@ async function checkSubstring(
     const html = await fetchBlogHtml(url, snapshotOnlyFetch);
     const doc = prepareDocument(html);
     if (!doc) return { url, source, lines: null, missing: [] };
-    // DOM 쪽은 toPlain을 쓰지 않는다: 마크다운 문법 제거 정규식이 줄 머리의 "1. "을
-    // 목록 표시로 지워 비교가 어긋난다. script·style 텍스트도 뺀다.
-    // 꺾쇠는 양쪽에서 똑같이 뺀다: 원문의 "A <-> B"를 toPlain이 HTML 태그로 보고 지우기 때문
-    const text = pageText(doc)
-      .replace(/[<>\s_*]/g, "")
-      .toLowerCase();
+    // 문자·숫자만 남겨 비교한다. 줄 단위 toPlain은 링크 텍스트의 \[ \] 이스케이프, 쪼개진 링크
+    // 카드, 원문에 실제로 있는 ~~·백틱·백슬래시를 문법으로 오인해 지워 거짓 불일치를 만든다.
+    // 마크다운 쪽은 텍스트가 아닌 부분(이미지, 링크 목적지, 줄 머리의 목록·제목 표시)만 먼저 뺀다
+    const alnum = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+    const text = alnum(pageText(doc));
     const lines = markdown
       .split("\n")
-      .map((l) => normalizeForMatch(l.replace(/[<>]/g, "")))
+      .map((l) =>
+        alnum(
+          l
+            .replace(/!\[[^\]]*\]\((?:[^()]|\([^)]*\))*\)/g, "")
+            .replace(/\]\((?:[^()]|\([^)]*\))*\)/g, "")
+            .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/, ""),
+        ),
+      )
       .filter((l) => l.length >= 5);
     return {
       url,
@@ -1079,9 +1085,38 @@ function renderLlmGlobal(
           `  - 세트 ${name}: ${pct(xs.filter((x) => x.v.pass).length, xs.length)}`,
         );
       }
+      // 불합격을 사유별로 나눈다. boilerplate 플래그는 줄 전체가 패턴과 같을 때만 잡히므로,
+      // 푸터·관련 글이 섞인 오염은 글자 수 초과로도 드러난다 (골든 허용 범위 ±20%)
+      const failed = normal.filter((x) => !x.v.pass);
+      const chars = (x: (typeof rows)[number]) =>
+        `${x.rec.content_chars}/${x.label.approx_chars}자 (${(
+          (x.rec.content_chars / x.label.approx_chars - 1) *
+          100
+        ).toFixed(1)}%)`;
+      const reasonOf = (x: (typeof rows)[number]) =>
+        [
+          !x.rec.ok && "복구 실패",
+          x.rec.ok && !x.v.first && "첫 문장 없음(앞부분 누락)",
+          x.rec.ok && !x.v.last && "마지막 문장 없음(뒷부분 누락)",
+          x.rec.ok &&
+            !x.v.chars &&
+            `글자 수 ${x.rec.content_chars > x.label.approx_chars ? "초과(오염 의심)" : "미달(누락 의심)"} ${chars(x)}`,
+          x.rec.ok && !x.v.clean && "boilerplate",
+        ]
+          .filter(Boolean)
+          .join(", ");
       out.push(
-        `- 오염된 본문을 고른 건 (boilerplate 플래그): ${normal.filter((x) => x.rec.ok && !x.v.clean).length}건`,
+        `- 오염 의심 (boilerplate 플래그 ${normal.filter((x) => x.rec.ok && !x.v.clean).length}건 · 글자 수 초과 ${normal.filter((x) => x.rec.ok && !x.v.chars && x.rec.content_chars > x.label.approx_chars).length}건) / 누락 의심 (첫·마지막 문장 없음 ${normal.filter((x) => x.rec.ok && (!x.v.first || !x.v.last)).length}건 · 글자 수 미달 ${normal.filter((x) => x.rec.ok && !x.v.chars && x.rec.content_chars < x.label.approx_chars).length}건)`,
       );
+      for (const x of failed) {
+        out.push(`  - 불합격 ${x.r.url}: ${reasonOf(x)}`);
+      }
+      if (llmMode === "live") {
+        const ms = evaluated.filter((r) => r.calls > 0).map((r) => r.ms);
+        out.push(
+          `- LLM 단계 지연 (호출한 ${ms.length}건, 재요청 포함) p50 ${percentile(ms, 50)}ms · p95 ${percentile(ms, 95)}ms · 최대 ${Math.max(0, ...ms)}ms`,
+        );
+      }
       out.push(
         `- 복구하면 안 되는 글(expect_failure)을 잘못 복구한 건: ${mustFail.filter((x) => x.rec.ok).length} / ${mustFail.length}건`,
       );
