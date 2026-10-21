@@ -1,13 +1,6 @@
 import { ParseError } from "./errors.ts";
 import { fetchWithPolicy } from "./fetch-policy.ts";
-
-interface ParsedContent {
-  title: string;
-  content_html: string;
-  content_markdown: string;
-  // 본문이 끝까지 수집되지 못했을 때만 채운다 (예: NOTION_TRUNCATED)
-  quality_flags?: string[];
-}
+import type { ParsedContent } from "./types.ts";
 
 interface NotionBlockValue {
   id: string;
@@ -345,6 +338,7 @@ export async function parseNotion(
     title,
     content_html: contentHtml,
     content_markdown: markdown,
+    tier: "notion",
     ...(truncated ? { quality_flags: ["NOTION_TRUNCATED"] } : {}),
   };
 }

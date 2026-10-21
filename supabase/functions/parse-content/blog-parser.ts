@@ -2,12 +2,7 @@ import TurndownService from "turndown";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { ParseError } from "./errors.ts";
 import { fetchWithPolicy } from "./fetch-policy.ts";
-
-interface ParsedContent {
-  title: string;
-  content_html: string;
-  content_markdown: string;
-}
+import type { ParsedContent } from "./types.ts";
 
 /**
  * 블로그(티스토리 등) URL에서 콘텐츠를 파싱한다.
@@ -129,5 +124,6 @@ export async function parseBlog(
     title,
     content_html: contentHtml,
     content_markdown: markdown,
+    tier: "selector",
   };
 }

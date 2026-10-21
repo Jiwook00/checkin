@@ -6,6 +6,7 @@ import {
 import { ParseError, toParseError } from "./errors.ts";
 import { parseBlog } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
+import type { ParsedContent, ParseTier } from "./types.ts";
 
 /**
  * 파이프라인이 바깥 세계와 닿는 지점. 벤치마크에서는 스냅샷 리더로 교체한다.
@@ -20,6 +21,8 @@ export type PipelineResult =
       title: string;
       content_html: string;
       content_markdown: string;
+      tier: ParseTier;
+      quality_flags?: string[];
       source_type: SourceType;
       duration_ms: number;
       fetch_attempts: number;
@@ -52,11 +55,7 @@ export async function runPipeline(
   };
 
   try {
-    let parsed: {
-      title: string;
-      content_html: string;
-      content_markdown: string;
-    };
+    let parsed: ParsedContent;
 
     if (sourceType === "notion") {
       const pageId = extractNotionPageId(url);

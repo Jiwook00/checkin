@@ -67,6 +67,8 @@ interface RunRecord {
   throttle_ms: number;
   fetch_count: number;
   title?: string;
+  tier?: string;
+  quality_flags?: string[];
   content_chars: number;
   content_markdown?: string;
   boilerplate_hits: string[];
@@ -311,6 +313,8 @@ async function runOne(url: string): Promise<RunRecord> {
     ...base,
     ok: true,
     title: result.title,
+    tier: result.tier,
+    quality_flags: result.quality_flags,
     content_chars: toPlain(result.content_markdown).length,
     content_markdown: result.content_markdown,
     boilerplate_hits: boilerplateHits(result.content_markdown),
@@ -404,6 +408,19 @@ function renderSet(set: BenchSet, results: Map<string, RunRecord>): string {
   out.push(
     `| **전체** | **${pct(failed.length, recs.length)}** | ${silent(recs)} |`,
   );
+  out.push("");
+
+  out.push("### 추출 단계(tier) 분포");
+  out.push("| tier | 건수 | 품질 플래그 |");
+  out.push("| --- | --- | --- |");
+  for (const [tier, rs] of [
+    ...groupBy(recs, (r) => (r.ok ? (r.tier ?? "—") : "실패")),
+  ].sort((a, b) => b[1].length - a[1].length)) {
+    const flagged = rs.filter((r) => r.quality_flags?.length).length;
+    out.push(
+      `| ${tier} | ${pct(rs.length, recs.length)} | ${flagged > 0 ? flagged : "—"} |`,
+    );
+  }
   out.push("");
 
   if (failed.length > 0) {
