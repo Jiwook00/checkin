@@ -148,13 +148,15 @@ async function loadPageChunk(
 }
 
 /**
- * 페이지 블록의 content 트리를 따라가며 맵에 없는 자식 id를 모은다.
+ * 페이지 블록의 content 트리를 문서 순서(전위 순회)로 따라간다.
+ * ids: 맵에 있는 블록, missing: content에는 있지만 맵에 없는 블록.
  * 하위 페이지는 제목만 쓰므로 그 안으로 내려가지 않는다.
  */
-function collectMissingIds(
+function walkTree(
   blocks: Record<string, NotionBlock>,
   rootId: string,
-): string[] {
+): { ids: string[]; missing: string[] } {
+  const ids: string[] = [];
   const missing: string[] = [];
   const visited = new Set<string>();
   const stack = [rootId];
@@ -169,10 +171,12 @@ function collectMissingIds(
       missing.push(id);
       continue;
     }
+    ids.push(id);
     if (block.type === "page" && id !== rootId) continue;
-    for (const childId of block.content ?? []) stack.push(childId);
+    const children = block.content ?? [];
+    for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
   }
-  return missing;
+  return { ids, missing };
 }
 
 /**
@@ -187,9 +191,10 @@ async function fillMissingBlocks(
   const requested = new Set<string>();
 
   for (let round = 0; round < SYNC_ROUNDS; round++) {
-    const missing = collectMissingIds(blocks, rootId).filter(
-      (id) => !requested.has(id),
-    );
+    // 정렬해 두면 순회 방식이 바뀌어도 요청 본문(=벤치 스냅샷 키)이 같다
+    const missing = walkTree(blocks, rootId)
+      .missing.filter((id) => !requested.has(id))
+      .sort();
     if (missing.length === 0) return;
 
     for (let i = 0; i < missing.length; i += SYNC_BATCH) {
@@ -302,9 +307,13 @@ export async function parseNotion(
     title = extractText(pageBlock.properties.title);
   }
 
+  // 본문은 recordMap 키 순서가 아니라 페이지 블록의 content 트리 순서를 따른다
+  const rootId = pageBlock?.id ?? uuidPageId;
+  const treeIds = walkTree(blocks, rootId).ids;
+
   // image 블록의 attachment: URL → blockId 매핑 수집
   const attachmentItems: Array<{ attachmentUrl: string; blockId: string }> = [];
-  for (const blockId of blockIds) {
+  for (const blockId of treeIds) {
     const block = unwrapBlock(blocks[blockId]);
     if (!block || block.type !== "image") continue;
 
@@ -322,19 +331,13 @@ export async function parseNotion(
   const signedUrlMap = await resolveAttachmentUrls(attachmentItems, fetchFn);
 
   // 블록들을 마크다운으로 변환
-  const markdownLines: string[] = [];
-
-  for (const blockId of blockIds) {
-    const block = unwrapBlock(blocks[blockId]);
-    if (!block) continue;
-
-    const line = blockToMarkdown(block, signedUrlMap);
-    if (line !== null) {
-      markdownLines.push(line);
-    }
-  }
-
-  const markdown = markdownLines.join("\n\n");
+  const markdown = renderChildren(
+    blocks,
+    pageBlock?.content ?? [],
+    0,
+    new Set([rootId]),
+    signedUrlMap,
+  ).join("\n\n");
   // 원본 보존용. 페이지네이션·보충으로 합친 블록 전체를 담는다
   const contentHtml = JSON.stringify({ ...recordMap, block: blocks });
 
@@ -375,6 +378,68 @@ function extractText(richTextArray: unknown[][]): string {
       return result;
     })
     .join("");
+}
+
+// 자식이 같은 들여쓰기로 이어지는 대신 한 단계 들여써야 하는 블록
+const LIST_TYPES = new Set(["bulleted_list", "numbered_list", "to_do"]);
+const LIST_INDENT = "    ";
+
+function indent(markdown: string, depth: number): string {
+  if (depth === 0) return markdown;
+  const pad = LIST_INDENT.repeat(depth);
+  return markdown
+    .split("\n")
+    .map((line) => (line ? pad + line : line))
+    .join("\n");
+}
+
+/**
+ * 블록 id 목록을 트리 순서대로 마크다운 조각 배열로 렌더링한다.
+ * - 리스트 자식은 한 단계 들여쓴다 (중첩 리스트)
+ * - 컬럼은 자기 줄 없이 자식을 순서대로 펼친다
+ * - 토글은 요약 줄 아래에 자식을 그대로 잇는다 (프론트가 raw HTML을 렌더링하지 않아 <details>를 쓰지 않는다)
+ * - 하위 페이지는 제목 한 줄만 쓰고 내려가지 않는다
+ */
+function renderChildren(
+  blocks: Record<string, NotionBlock>,
+  ids: string[],
+  depth: number,
+  visited: Set<string>,
+  signedUrlMap: Map<string, string>,
+): string[] {
+  const out: string[] = [];
+
+  for (const id of ids) {
+    if (visited.has(id)) continue;
+    visited.add(id);
+
+    const block = unwrapBlock(blocks[id]);
+    if (!block) continue;
+
+    if (block.type === "page") {
+      const pageTitle = block.properties?.title
+        ? extractText(block.properties.title)
+        : "";
+      if (pageTitle) out.push(indent(pageTitle, depth));
+      continue;
+    }
+
+    const line = blockToMarkdown(block, signedUrlMap);
+    if (line !== null) out.push(indent(line, depth));
+
+    const childDepth = LIST_TYPES.has(block.type) ? depth + 1 : depth;
+    out.push(
+      ...renderChildren(
+        blocks,
+        block.content ?? [],
+        childDepth,
+        visited,
+        signedUrlMap,
+      ),
+    );
+  }
+
+  return out;
 }
 
 /**
@@ -419,7 +484,10 @@ function blockToMarkdown(
     }
 
     case "toggle":
-      return `<details><summary>${text}</summary></details>`;
+      // 자식은 renderChildren이 바로 아래에 잇는다.
+      // 요약에 이미 굵게 표시가 있으면 겹치면 깨지므로 그대로 둔다
+      if (!text) return null;
+      return text.includes("**") ? text : `**${text}**`;
 
     case "quote":
       return `> ${text}`;
