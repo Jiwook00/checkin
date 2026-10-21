@@ -1,11 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import {
-  detectSourceType,
-  extractNotionPageId,
-  validateSourceUrl,
-} from "./url-utils.ts";
-import { parseBlog } from "./blog-parser.ts";
-import { parseNotion } from "./notion-parser.ts";
+import { validateSourceUrl } from "./url-utils.ts";
+import { runPipeline } from "./pipeline.ts";
 import { extractUrls } from "./image-processor.ts";
 
 const corsHeaders = {
@@ -108,33 +103,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // URL 타입 판별
-    const sourceType = detectSourceType(source_url);
-
     // 콘텐츠 파싱
-    let parsed: {
-      title: string;
-      content_html: string;
-      content_markdown: string;
-    };
-
-    if (sourceType === "notion") {
-      const pageId = extractNotionPageId(source_url);
-      if (!pageId) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "노션 페이지 ID를 추출할 수 없습니다",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-      parsed = await parseNotion(pageId);
-    } else {
-      parsed = await parseBlog(source_url);
+    const parsed = await runPipeline(source_url, { fetch });
+    if (!parsed.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: parsed.error }),
+        {
+          status: parsed.stage === "input" ? 400 : 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     // 제목: 사용자 입력 우선, 없으면 파싱된 제목 사용
@@ -153,7 +131,7 @@ Deno.serve(async (req) => {
         title: finalTitle,
         member_id: user.id,
         source_url,
-        source_type: sourceType,
+        source_type: parsed.source_type,
         content_html: parsed.content_html,
         content_markdown: parsed.content_markdown,
         session,

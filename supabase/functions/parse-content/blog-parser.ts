@@ -11,9 +11,12 @@ interface ParsedContent {
  * 블로그(티스토리 등) URL에서 콘텐츠를 파싱한다.
  * fetch → DOM 파싱 → 본문 추출 → 마크다운 변환
  */
-export async function parseBlog(url: string): Promise<ParsedContent> {
+export async function parseBlog(
+  url: string,
+  fetchFn: typeof fetch,
+): Promise<ParsedContent> {
   // 1. HTML 가져오기
-  const response = await fetch(url, {
+  const response = await fetchFn(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (compatible; RetroReader/1.0; +https://retro-reader.app)",
