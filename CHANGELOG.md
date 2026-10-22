@@ -1,5 +1,70 @@
 # Changelog
 
+## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-10-22)
+
+
+### Features
+
+* checkin 회고 조회용 MCP 서버 추가 ([3ddae72](https://github.com/Jiwook00/checkin/commit/3ddae727045e47812846d5e784f12bbcab1a81cc))
+* degraded 글에 리더 상단 안내 배너 ([b278ae9](https://github.com/Jiwook00/checkin/commit/b278ae99ed8e06ba89e3af33fdd058d7fa8735ec))
+* fetch 타임아웃·재시도·인코딩 정책 추가 ([ee5e986](https://github.com/Jiwook00/checkin/commit/ee5e9861b38924a25d46fa26e299cb0c0295e311)), closes [#55](https://github.com/Jiwook00/checkin/issues/55)
+* fetch 타임아웃·재시도·인코딩 처리 추가 ([c19e7ed](https://github.com/Jiwook00/checkin/commit/c19e7ed8f35f2a45d817c40c1ba634248fa4cdd6))
+* Jina Reader 통합 및 노션 파싱 폴백 추가 ([2b67d8b](https://github.com/Jiwook00/checkin/commit/2b67d8b293f8b77d04a1aaffbed7f8662ade13a8))
+* LLM 셀렉터 폴백 모듈 ([80f9669](https://github.com/Jiwook00/checkin/commit/80f96690f05b38f698958d6de4d976abcbecebc5)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* LLM 셀렉터 폴백으로 규칙이 놓친 블로그 본문 복구 ([de7b19c](https://github.com/Jiwook00/checkin/commit/de7b19c71c6be19d3056e12cbe98910ac1fe51e6))
+* parse-content 파싱 실패 분류와 시도 기록 ([8a1c752](https://github.com/Jiwook00/checkin/commit/8a1c752a2ca72d88694b663eeef2d748b76ded8e))
+* Tiptap 인앱 에디터 기반 작업 — DB 마이그레이션 및 타입 업데이트 ([01f27f3](https://github.com/Jiwook00/checkin/commit/01f27f3aad608dfac5ab5494501febd444afb3e2))
+* Tiptap 인앱 에디터 기반 직접 작성 기능 추가 ([f888c2b](https://github.com/Jiwook00/checkin/commit/f888c2ba94989f493c01abde02207b16f5d02a4d))
+* written 회고 카드 미리보기, 수정 분기, 에디터 스크롤 수정 ([a29f43b](https://github.com/Jiwook00/checkin/commit/a29f43b0498cf72021a9131619f8abb66effbce7))
+* 갈피 개별 리마인더 메일 자동화 ([fecd3e2](https://github.com/Jiwook00/checkin/commit/fecd3e28c14ac34fa2346a1466712231683aca90))
+* 갈피 레터 2차 발송 자동화 ([b50c86d](https://github.com/Jiwook00/checkin/commit/b50c86d8a35cd67e0034c299a843139674b981bf))
+* 갈피 회고 다이제스트 레터 자동화 ([c6915b4](https://github.com/Jiwook00/checkin/commit/c6915b445a93850ef9fa8d50b9aa062898e743cb))
+* 갈피 회고 다이제스트 레터 자동화 (1차·2차) ([c184b58](https://github.com/Jiwook00/checkin/commit/c184b580d20b309574f225cd830ab5049579fbd1))
+* 감정 블롭 아바타 선택 기능 추가 ([31468b1](https://github.com/Jiwook00/checkin/commit/31468b1a825f0079b975f86774ce6a65f321a5c4))
+* 감정 아바타 선택 기능 추가 ([9692c3f](https://github.com/Jiwook00/checkin/commit/9692c3f6e22216e6d501f47db41bf5eed5ef083a))
+* 감정 아바타 파츠 에셋 대폭 확장 ([f693084](https://github.com/Jiwook00/checkin/commit/f6930844eb3da985c4c174dc124f57acccba7997))
+* 글 등록 시 presentation_order 랜덤 설정 ([0860024](https://github.com/Jiwook00/checkin/commit/086002406519e73cc78dc3a966600c52b7d4f285))
+* 노션 페이지네이션과 누락 블록 보충 ([184e838](https://github.com/Jiwook00/checkin/commit/184e838df840a42dc94e249c6e6a3197bed08224)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
+* 도메인 규칙 저장소 모듈 ([1d50b4a](https://github.com/Jiwook00/checkin/commit/1d50b4a8f8bd50212c34922e969eef2de76316f3))
+* 도메인 규칙 캐시 (LLM 셀렉터를 호스트 규칙으로 재사용) ([a1c2d68](https://github.com/Jiwook00/checkin/commit/a1c2d689a956b8125adb81e0ccae68c656179896))
+* 도메인 규칙 테이블 마이그레이션 ([0355a0a](https://github.com/Jiwook00/checkin/commit/0355a0a41ba9d2dae1d9aed68de6d40b04d0c166))
+* 목록·상세에 반응·댓글 참여 신호 노출 ([3db4d13](https://github.com/Jiwook00/checkin/commit/3db4d132a97561c7ee8e5753ba3c442b31668a9f)), closes [#50](https://github.com/Jiwook00/checkin/issues/50)
+* 블로그 Readability tier ([f7a0144](https://github.com/Jiwook00/checkin/commit/f7a01446a951ac1c8226e460f558ceec6fec67b4)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
+* 사진첩 Pinterest 스타일 상세 뷰 구현 ([2664e23](https://github.com/Jiwook00/checkin/commit/2664e233a3319a7bfdd328c1d715706f9890b2b9))
+* 상세 페이지에서 내 written 글 수정하기 버튼 노출 ([0db96c3](https://github.com/Jiwook00/checkin/commit/0db96c395dd1219813c3164efd9a50622f1dd665))
+* 에디터 이미지 클립보드 붙여넣기 지원 ([335ed14](https://github.com/Jiwook00/checkin/commit/335ed14c36d9f9c2a7faf550fcf4e7d409c15e99))
+* 일정 조율에 특정 날짜 선택 모드 추가 ([f32a1b2](https://github.com/Jiwook00/checkin/commit/f32a1b2ebf31b47972db364379bda829b6a4202e))
+* 추출 품질 판정 모듈 ([2712d7a](https://github.com/Jiwook00/checkin/commit/2712d7ad65e0a6da47c2d031213eea43ef2997a6))
+* 추출 품질 판정과 degraded 저장 ([8eb7cc2](https://github.com/Jiwook00/checkin/commit/8eb7cc228912736b05f04750e14c8fdaa1c36381))
+* 파싱 시도 기록 테이블과 parse_status 컬럼 추가 ([fdd9266](https://github.com/Jiwook00/checkin/commit/fdd9266b50ad5194650b6bc4c201e1a9e34e333d))
+* 파싱 시도에 fetch_attempts 기록 ([b2a1ae1](https://github.com/Jiwook00/checkin/commit/b2a1ae19925c58cddf2e0baba135f2c0a5236a50)), closes [#55](https://github.com/Jiwook00/checkin/issues/55)
+* 파싱 시도에 tier 기록 ([388e9f4](https://github.com/Jiwook00/checkin/commit/388e9f416ef52dc73956233710e79926b1853012)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
+* 파싱 실패 분류와 시도 기록 구조 추가 ([ac302d2](https://github.com/Jiwook00/checkin/commit/ac302d292a958c7bc70b38b1cba4e274ca04bd9e))
+* 파싱 실패 원인별 안내와 parse_status 타입 반영 ([31fe135](https://github.com/Jiwook00/checkin/commit/31fe1353e1421b0f800f97c1ce9d706987420249)), closes [#54](https://github.com/Jiwook00/checkin/issues/54)
+* 파싱 진행 상태 문구 ([1418233](https://github.com/Jiwook00/checkin/commit/141823350e37618bf5ecc44ec084f11890fc0eec)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* 파이프라인에 LLM 폴백 연결 ([354fbb2](https://github.com/Jiwook00/checkin/commit/354fbb24f40fd7196d0aa12f9e607fd6581914ee)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* 파이프라인에 도메인 규칙 연결 ([2a4de79](https://github.com/Jiwook00/checkin/commit/2a4de792cc8926810d68b6df56a6fd1f89f2a368))
+* 품질 미달 글을 degraded로 저장 ([3f249b6](https://github.com/Jiwook00/checkin/commit/3f249b6d3a162e1bef514ed07d5a4dfd45ffc45c))
+* 회고 글·댓글 반응 기능 + 참여 신호 ([3c037c3](https://github.com/Jiwook00/checkin/commit/3c037c33613f6e995c85c4c2534456217918d3df))
+* 회고 글·댓글 반응 기능 추가 ([4bc44ff](https://github.com/Jiwook00/checkin/commit/4bc44ff47ebee58885dc3ddf87c3093f2868b22b)), closes [#50](https://github.com/Jiwook00/checkin/issues/50)
+
+
+### Bug Fixes
+
+* app.notion.com 도메인 노션 링크 파싱 실패 수정 ([a74183a](https://github.com/Jiwook00/checkin/commit/a74183a6a9876d81591c0dc066ef213bd686eb3d))
+* notion api 응답 구조 변경에 따른 블록 파싱 수정 ([a34a98e](https://github.com/Jiwook00/checkin/commit/a34a98e4c96297e7f01c9a29dd0f0cc4763d6655))
+* template 안에 렌더되는 본문 추출 ([f6ad6c6](https://github.com/Jiwook00/checkin/commit/f6ad6c6bd68e2e0e258cc7fa00246c8a34839053)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* 노션 블록을 트리 순서로 렌더링 ([73168db](https://github.com/Jiwook00/checkin/commit/73168db966c596d1fc8f04588e1166795e44e8ac)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
+* 노션 잘림·토글 누락과 블로그 body 폴백 수정 + Readability tier ([920c9aa](https://github.com/Jiwook00/checkin/commit/920c9aac13196b028b8172fdb6b4b3c10d981d8e))
+* 메인 세션 필터를 지난 3개월치만 표시하도록 수정 ([cb16385](https://github.com/Jiwook00/checkin/commit/cb16385df0526caa7554e058397c4f3d23e4b2df))
+* 벤치 부분 문자열 검사의 정규화 비대칭 수정 ([37135e7](https://github.com/Jiwook00/checkin/commit/37135e7687b6d43c5e3cf16e3b480be3ac369587)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* 본문 위치 탐색 안내 문구 전환 기준을 1.5초로 ([f1e89a9](https://github.com/Jiwook00/checkin/commit/f1e89a94a119331607fd93db06fb4c832da756bb)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* 부분 문자열 검사를 문자·숫자 기준으로, 강제 평가 요약에 불합격 사유 추가 ([956b9e4](https://github.com/Jiwook00/checkin/commit/956b9e4178b7beb3371ab27e4714883591eede73)), closes [#58](https://github.com/Jiwook00/checkin/issues/58)
+* 블로그 body 통째 폴백 제거 ([17033d7](https://github.com/Jiwook00/checkin/commit/17033d76c7ed4a00c9b9e8f24b092b5f2043ff36)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
+* 비공개 노션 페이지를 NOTION_PRIVATE로 분류 ([ba59992](https://github.com/Jiwook00/checkin/commit/ba59992f7316725e295b85d2e0fe053ad34edc61))
+* 비공개 노션 페이지를 NOTION_PRIVATE로 분류 ([d3e2966](https://github.com/Jiwook00/checkin/commit/d3e2966751f91b821978ccd962d665b34ac5679f)), closes [#54](https://github.com/Jiwook00/checkin/issues/54)
+* 티스토리 보호글을 명시적 실패로 처리 ([735bdc5](https://github.com/Jiwook00/checkin/commit/735bdc50ac2eab0cf3edf3e6c47109c97d08ba34)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
+
 ## [1.0.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.4.0...checkin-v1.0.0) (2026-04-01)
 
 ### Features
