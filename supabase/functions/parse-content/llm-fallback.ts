@@ -12,7 +12,7 @@ import {
   isEmptyContent,
   MIN_TEXT_CHARS,
 } from "./quality.ts";
-import type { ParsedContent } from "./types.ts";
+import type { ParsedContent, ParseTier } from "./types.ts";
 
 // 규칙(셀렉터 → Readability)이 실패했거나 품질 미달인 블로그 글에서, LLM이 본문 위치(CSS 셀렉터)만
 // 고른다. LLM은 본문을 쓰지 않는다. 본문은 원문 DOM에서 코드가 자르고 assessQuality로 검증한다.
@@ -414,17 +414,24 @@ export function validateSelector(
   return { ok: true, node };
 }
 
-type ExtractCheck =
+export type ExtractCheck =
   | { ok: true; parsed: ParsedContent }
   | { ok: false; reason: string };
 
-/** 노드를 마크다운으로 바꾸고 규칙 경로와 같은 품질 판정을 통과하는지 본다 */
-function extractFromNode(doc: HTMLDocument, node: Element): ExtractCheck {
+/**
+ * 노드를 마크다운으로 바꾸고 규칙 경로와 같은 품질 판정을 통과하는지 본다.
+ * LLM이 고른 셀렉터와 저장된 도메인 규칙이 같은 검증을 쓴다
+ */
+export function extractFromNode(
+  doc: HTMLDocument,
+  node: Element,
+  tier: ParseTier = "llm",
+): ExtractCheck {
   const markdown = createTurndown().turndown(node);
   if (isEmptyContent(markdown)) {
     return { ok: false, reason: "변환 결과가 비어 있음" };
   }
-  const quality = assessQuality({ markdown, tier: "llm" });
+  const quality = assessQuality({ markdown, tier });
   if (isDegraded(quality.score)) {
     const bp = boilerplateLines(markdown).slice(0, 3);
     return {
@@ -441,7 +448,7 @@ function extractFromNode(doc: HTMLDocument, node: Element): ExtractCheck {
       title: pickTitle(doc),
       content_html: node.innerHTML,
       content_markdown: markdown,
-      tier: "llm",
+      tier,
     },
   };
 }

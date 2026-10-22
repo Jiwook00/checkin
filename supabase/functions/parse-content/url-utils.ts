@@ -44,6 +44,15 @@ export function validateSourceUrl(
   return { ok: true, url };
 }
 
+/** URL의 hostname(소문자). 파싱할 수 없으면 null */
+export function hostnameOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 export function detectSourceType(url: string): SourceType {
   try {
     const parsed = new URL(url);

@@ -1,5 +1,11 @@
 /** 본문을 뽑아낸 단계. checkin_parse_attempts.tier에 기록한다 */
-export type ParseTier = "notion" | "selector" | "readability" | "llm";
+export type ParseTier =
+  | "notion"
+  | "selector"
+  | "readability"
+  // 저장된 도메인 규칙(checkin_parse_rules)으로 추출
+  | "domain_rule"
+  | "llm";
 
 /** 추출 품질 플래그. quality.ts가 판정하고 checkin_parse_attempts.quality_flags에 기록한다 */
 export type QualityFlag =

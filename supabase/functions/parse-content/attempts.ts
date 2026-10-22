@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ParseError } from "./errors.ts";
 import type { LlmUsage } from "./llm-fallback.ts";
 import type { ParseTier, QualityFlag } from "./types.ts";
+import { hostnameOf } from "./url-utils.ts";
 
 export type AttemptTrigger = "user" | "backfill" | "benchmark";
 export type AttemptStatus = "ok" | "degraded" | "failed";
@@ -21,14 +22,6 @@ export interface AttemptInput {
   // LLM 폴백을 호출했을 때만 (재요청 포함 합산)
   llm?: LlmUsage | null;
   duration_ms: number;
-}
-
-function hostnameOf(url: string): string | null {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
 }
 
 /**
