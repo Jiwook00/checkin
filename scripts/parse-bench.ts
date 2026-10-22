@@ -21,6 +21,12 @@
 //   --llm-max-calls N   실제 API 호출 상한 (기본 20). 넘으면 이후 호출은 llm_max_calls 오류로 기록
 //   --llm-force         규칙 결과와 무관하게 라벨 있는 블로그 글에 LLM을 돌려 골든 정확도를 잰다
 //
+// 도메인 규칙 (#59): --rules off|memory  (기본 off)
+//   memory  메모리 저장소를 주입한다. 규칙은 기존 규칙이 실패한 페이지에서 LLM 직전에 적용된다
+//   --passes N          같은 프로세스·같은 저장소로 N회 실행해 회차별로 비교한다 (--rules memory 필요)
+//   --rules-seed h=sel  저장소 초기 규칙 (여러 번 가능). 비활성화 동작 확인용
+//   규칙 모드에서는 같은 호스트의 글이 실행 순서에 따라 달라지지 않도록 순차 실행한다
+//
 // 세트 파일 형식: { "name": "A", "items": [{ "url": "...", "had_content"?: bool, "label"?: GoldenLabel }] }
 
 import { encodeBase64, decodeBase64 } from "jsr:@std/encoding@1/base64";
@@ -40,6 +46,7 @@ import {
   runLlmFallback,
   type LlmClient,
 } from "../supabase/functions/parse-content/llm-fallback.ts";
+import { createMemoryRules } from "../supabase/functions/parse-content/rules.ts";
 import {
   assessQuality,
   DEGRADED_BELOW,
@@ -104,6 +111,13 @@ interface RunRecord {
   content_markdown?: string;
   // LLM 폴백이 개입한 경우(대상이었던 경우 포함)
   llm?: LlmRecord;
+  // 도메인 규칙 단계가 개입한 경우 (hit / failed / saved)
+  rule?: {
+    outcome: string;
+    selector: string;
+    reason?: string;
+    disabled?: boolean;
+  };
 }
 
 interface LlmRecord {
@@ -137,7 +151,14 @@ const mode: "live" | "record" | "replay" = args.includes("--record")
   : args.includes("--replay")
     ? "replay"
     : "live";
-const VALUE_FLAGS = ["--label", "--llm", "--llm-max-calls"];
+const VALUE_FLAGS = [
+  "--label",
+  "--llm",
+  "--llm-max-calls",
+  "--rules",
+  "--passes",
+  "--rules-seed",
+];
 function flagValue(name: string): string | undefined {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
@@ -164,6 +185,29 @@ if (llmForce && llmMode === "off") {
   console.error("--llm-force는 --llm off 이외의 모드와 함께 써야 해요");
   Deno.exit(1);
 }
+const rulesMode = flagValue("--rules") ?? "off";
+if (!["off", "memory"].includes(rulesMode)) {
+  console.error(`--rules 값이 올바르지 않아요: ${rulesMode}`);
+  Deno.exit(1);
+}
+const passes = Number(flagValue("--passes") ?? 1);
+if (!Number.isInteger(passes) || passes < 1) {
+  console.error("--passes는 1 이상의 정수여야 해요");
+  Deno.exit(1);
+}
+if ((passes > 1 || args.includes("--rules-seed")) && rulesMode !== "memory") {
+  console.error("--passes/--rules-seed는 --rules memory와 함께 써야 해요");
+  Deno.exit(1);
+}
+const ruleSeeds = args.flatMap((a, i) => {
+  if (args[i - 1] !== "--rules-seed") return [];
+  const eq = a.indexOf("=");
+  return eq > 0
+    ? [{ hostname: a.slice(0, eq), selector: a.slice(eq + 1) }]
+    : [];
+});
+const ruleStore =
+  rulesMode === "memory" ? createMemoryRules(ruleSeeds) : undefined;
 if (setFiles.length === 0) {
   console.error("세트 파일을 하나 이상 주세요. 사용법은 파일 상단 주석 참고");
   Deno.exit(1);
@@ -420,7 +464,16 @@ async function runOne(url: string): Promise<RunRecord> {
   const result = await runPipeline(url, {
     fetch: makeFetch(counter),
     llm: makeLlmClient(sink),
+    rules: ruleStore,
   });
+  const rule = result.rule
+    ? {
+        outcome: result.rule.outcome,
+        selector: result.rule.selector,
+        reason: result.rule.reason,
+        disabled: result.rule.disabled,
+      }
+    : undefined;
   const llm: LlmRecord | undefined = result.llm
     ? {
         rule: result.llm.rule,
@@ -452,11 +505,13 @@ async function runOne(url: string): Promise<RunRecord> {
       quality_flags: [],
       content_chars: 0,
       ...(llm ? { llm } : {}),
+      ...(rule ? { rule } : {}),
     };
   }
   return {
     ...base,
     ...(llm ? { llm } : {}),
+    ...(rule ? { rule } : {}),
     ok: true,
     title: result.title,
     tier: result.tier,
@@ -484,7 +539,10 @@ async function runAll(urls: string[]): Promise<Map<string, RunRecord>> {
       );
     }
   }
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  // 규칙 저장소는 프로세스 안에서 공유되므로 실행 순서가 결과를 바꾸지 않게 순차로 돈다
+  await Promise.all(
+    Array.from({ length: ruleStore ? 1 : CONCURRENCY }, worker),
+  );
   return results;
 }
 
@@ -1178,6 +1236,99 @@ function renderLlmGlobal(
   return out.join("\n");
 }
 
+// --- 도메인 규칙 리포트 -------------------------------------------------------
+
+/** 회차별 규칙·LLM 개입 요약. 2회차 이후는 1회차와 본문이 같은지도 본다 */
+function renderRules(
+  sets: BenchSet[],
+  passResults: Map<string, RunRecord>[],
+): string {
+  const out: string[] = [];
+  out.push("## 도메인 규칙 (메모리 저장소)");
+  out.push(
+    "규칙은 기존 규칙(셀렉터·Readability)이 실패한 블로그 글에서 LLM 직전에만 적용된다. 같은 프로세스·같은 저장소로 같은 URL을 다시 넣는 측정이라 **같은 글을 재입력한 효과**이며 호스트 단위 일반화를 보여 주지 않는다.",
+  );
+  out.push("");
+  if (ruleSeeds.length > 0) {
+    out.push(
+      `초기 규칙(seed): ${ruleSeeds.map((s) => `\`${s.hostname}\` → \`${s.selector}\``).join(", ")}`,
+    );
+    out.push("");
+  }
+  for (const set of sets) {
+    const n = set.items.length;
+    out.push(`### 세트 ${set.name} — ${n}건`);
+    out.push(
+      "| 회차 | LLM 호출 URL | tier=domain_rule | 규칙 hit | 규칙 failed (비활성화) | 규칙 saved | 하드 실패 | 1회차와 본문 동일 |",
+    );
+    out.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+    passResults.forEach((results, i) => {
+      const recs = set.items.map((it) => results.get(it.url)!);
+      const first = set.items.map((it) => passResults[0].get(it.url)!);
+      const count = (f: (r: RunRecord) => boolean) => recs.filter(f).length;
+      const failedRules = recs.filter((r) => r.rule?.outcome === "failed");
+      const disabled = failedRules.filter((r) => r.rule?.disabled).length;
+      const same = recs.filter(
+        (r, j) =>
+          r.ok === first[j].ok &&
+          r.content_markdown === first[j].content_markdown,
+      ).length;
+      out.push(
+        `| ${i + 1} | ${pct(
+          count((r) => (r.llm?.calls ?? 0) > 0),
+          n,
+        )} | ${pct(
+          count((r) => r.ok && r.tier === "domain_rule"),
+          n,
+        )} | ${count((r) => r.rule?.outcome === "hit")} | ${failedRules.length} (${disabled}) | ${count((r) => r.rule?.outcome === "saved")} | ${pct(
+          count((r) => !r.ok),
+          n,
+        )} | ${i === 0 ? "—" : pct(same, n)} |`,
+      );
+    });
+    out.push("");
+    const events = passResults.flatMap((results, i) =>
+      set.items
+        .map((it) => ({ pass: i + 1, it, r: results.get(it.url)! }))
+        .filter((e) => e.r.rule),
+    );
+    if (events.length > 0) {
+      out.push("<details><summary>규칙 이벤트 목록</summary>");
+      out.push("");
+      out.push("| 회차 | URL | 결과 | 셀렉터 | 비고 |");
+      out.push("| --- | --- | --- | --- | --- |");
+      for (const { pass, it, r } of events) {
+        const rule = r.rule!;
+        const note = [
+          rule.reason,
+          rule.disabled ? "비활성화" : "",
+          r.ok ? `tier=${r.tier}` : `실패 ${r.error_code}`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        out.push(
+          `| ${pass} | ${it.url} | ${rule.outcome} | \`${rule.selector}\` | ${note.replace(/\|/g, "\\|")} |`,
+        );
+      }
+      out.push("");
+      out.push("</details>");
+      out.push("");
+    }
+  }
+  out.push("### 최종 저장소");
+  out.push(
+    "| 호스트 | 셀렉터 | source | hit | 연속 실패 | 비활성 | seed_url |",
+  );
+  out.push("| --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of ruleStore!.all()) {
+    out.push(
+      `| ${r.hostname} | \`${r.selector}\` | ${r.source} | ${r.hit_count} | ${r.consecutive_failures} | ${r.disabled ? "예" : "아니오"} | ${r.seed_url ?? "—"} |`,
+    );
+  }
+  out.push("");
+  return out.join("\n");
+}
+
 async function gitCommit(): Promise<string> {
   const run = async (...a: string[]) =>
     new TextDecoder()
@@ -1210,6 +1361,12 @@ console.error(
 
 const startedAt = new Date();
 const results = await runAll(urls);
+// 2회차 이후: 같은 저장소(규칙)를 이어 받아 같은 URL을 다시 돌린다
+const laterPasses: Map<string, RunRecord>[] = [];
+for (let pass = 2; pass <= passes; pass++) {
+  console.error(`\n--- ${pass}회차 ---`);
+  laterPasses.push(await runAll(urls));
+}
 
 // LLM 강제 평가와 부분 문자열 검사 (--llm 이 off가 아닐 때만)
 const forceResults = llmForce
@@ -1256,8 +1413,18 @@ await Deno.writeTextFile(
           force: llmForce,
           stats: llmStats,
         },
+        rules: {
+          mode: rulesMode,
+          passes,
+          seeds: ruleSeeds,
+          store: ruleStore?.all() ?? [],
+        },
       },
       results: [...results.values()],
+      passes: laterPasses.map((m, i) => ({
+        pass: i + 2,
+        results: [...m.values()],
+      })),
       force: [...forceResults.values()],
       substring: substringResults,
     },
@@ -1275,6 +1442,7 @@ const report = [
   ...(llmMode === "off"
     ? []
     : [renderLlmGlobal(sets, results, forceResults, substringResults)]),
+  ...(ruleStore ? [renderRules(sets, [results, ...laterPasses])] : []),
 ].join("\n");
 await Deno.writeTextFile(`${stem}.md`, report);
 console.error(`\n리포트: ${stem}.md`);
