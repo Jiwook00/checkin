@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { detectSourceType, validateSourceUrl } from "./url-utils.ts";
-import { llmNote, runPipeline } from "./pipeline.ts";
+import { llmNote, ruleNote, runPipeline } from "./pipeline.ts";
 import { createAnthropicLlm } from "./llm-fallback.ts";
+import { createSupabaseRules } from "./rules.ts";
 import { recordAttempt } from "./attempts.ts";
 import { ParseError } from "./errors.ts";
 import { DEGRADED_BELOW } from "./quality.ts";
@@ -142,6 +143,7 @@ Deno.serve(async (req) => {
       llm: anthropicKey
         ? createAnthropicLlm({ apiKey: anthropicKey, fetch })
         : undefined,
+      rules: createSupabaseRules(supabaseAdmin),
     });
     if (!parsed.ok) {
       // 최종 실패 → 원본 링크만 저장
@@ -190,6 +192,7 @@ Deno.serve(async (req) => {
         error: parsed.error,
         fetch_attempts: parsed.fetch_attempts,
         llm: parsed.llm?.usage,
+        note: parsed.rule ? ruleNote(parsed.rule) : undefined,
         duration_ms: parsed.duration_ms,
       });
       return failure(parsed.error, linkRow.id);
@@ -265,6 +268,7 @@ Deno.serve(async (req) => {
       quality_score: parsed.quality_score,
       quality_flags: parsed.quality_flags,
       llm: parsed.llm?.usage,
+      note: parsed.rule ? ruleNote(parsed.rule) : undefined,
       duration_ms: parsed.duration_ms,
     });
 

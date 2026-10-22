@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ParseError } from "./errors.ts";
 import type { LlmUsage } from "./llm-fallback.ts";
 import type { ParseTier, QualityFlag } from "./types.ts";
+import { hostnameOf } from "./url-utils.ts";
 
 export type AttemptTrigger = "user" | "backfill" | "benchmark";
 export type AttemptStatus = "ok" | "degraded" | "failed";
@@ -20,15 +21,9 @@ export interface AttemptInput {
   quality_flags?: QualityFlag[];
   // LLM 폴백을 호출했을 때만 (재요청 포함 합산)
   llm?: LlmUsage | null;
+  // error_detail 뒤에 덧붙이는 기록 (도메인 규칙 적용 결과 등). 성공 행에도 남는다
+  note?: string;
   duration_ms: number;
-}
-
-function hostnameOf(url: string): string | null {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -48,7 +43,12 @@ export async function recordAttempt(
     error_stage: input.error?.stage ?? null,
     error_code: input.error?.code ?? null,
     error_kind: input.error?.kind ?? null,
-    error_detail: input.error?.detail || null,
+    // DB CHECK(500자)를 넘기면 insert가 통째로 실패하므로 여기서 자른다
+    error_detail:
+      [input.error?.detail, input.note]
+        .filter(Boolean)
+        .join("; ")
+        .slice(0, 500) || null,
     fetch_attempts: input.fetch_attempts ?? null,
     tier: input.tier ?? null,
     quality_score: input.quality_score ?? null,
