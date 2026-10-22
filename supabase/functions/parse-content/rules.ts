@@ -28,12 +28,15 @@ export interface RuleStore {
   recordHit(rule: DomainRule): Promise<void>;
   /** disabled는 계산값이다. 쓰기가 실패해도 그대로 돌려준다 */
   recordFailure(rule: DomainRule): Promise<{ disabled: boolean }>;
-  /** 호출 조건(활성 규칙 없음)은 파이프라인이 보장한다. 비활성 행은 덮어써서 다시 활성화한다 */
+  /**
+   * 호출 조건(활성 규칙 없음)은 파이프라인이 보장한다. 비활성 행은 덮어써서 다시 활성화한다.
+   * 저장에 실패하면 false (attempts 기록이 거짓이 되지 않도록)
+   */
   saveFromLlm(
     hostname: string,
     selector: string,
     seedUrl: string,
-  ): Promise<void>;
+  ): Promise<boolean>;
 }
 
 /** 저장된 셀렉터로 본문을 뽑고 LLM 경로와 같은 검증(매칭 1개, 영역, 품질)을 거친다 */
@@ -125,9 +128,14 @@ export function createSupabaseRules(admin: SupabaseClient): RuleStore {
           },
           { onConflict: "hostname" },
         );
-        if (error) console.error(`도메인 규칙 저장 실패: ${error.message}`);
+        if (error) {
+          console.error(`도메인 규칙 저장 실패: ${error.message}`);
+          return false;
+        }
+        return true;
       } catch (err) {
         console.error(`도메인 규칙 저장 실패: ${String(err)}`);
+        return false;
       }
     },
   };
@@ -197,7 +205,7 @@ export function createMemoryRules(
         seed_url: seedUrl,
         disabled: false,
       });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
 
     all() {

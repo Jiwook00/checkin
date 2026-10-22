@@ -1,11 +1,13 @@
 import {
   detectSourceType,
   extractNotionPageId,
+  hostnameOf,
   type SourceType,
 } from "./url-utils.ts";
 import { ParseError, toParseError } from "./errors.ts";
 import { extractBlog, fetchBlogHtml } from "./blog-parser.ts";
 import { parseNotion } from "./notion-parser.ts";
+import { applyRule, type RuleStore } from "./rules.ts";
 import {
   runLlmFallback,
   type LlmClient,
@@ -26,6 +28,19 @@ export interface PipelineDeps {
   fetch: typeof fetch;
   // 없으면 LLM 폴백 단계를 건너뛴다 (API 키 미등록, 벤치 기본값)
   llm?: LlmClient;
+  // 없으면 도메인 규칙 단계를 건너뛴다 (벤치 기본값)
+  rules?: RuleStore;
+}
+
+/**
+ * 도메인 규칙 단계의 기록. hit: 규칙으로 복구 / failed: 규칙이 맞지 않음(2회째면 disabled) /
+ * saved: LLM이 복구한 셀렉터를 새 규칙으로 저장
+ */
+export interface RuleReport {
+  outcome: "hit" | "failed" | "saved";
+  selector: string;
+  reason?: string;
+  disabled?: boolean;
 }
 
 /**
@@ -54,6 +69,7 @@ export type PipelineResult =
       duration_ms: number;
       fetch_attempts: number;
       llm?: LlmReport;
+      rule?: RuleReport;
     }
   | {
       ok: false;
@@ -62,6 +78,7 @@ export type PipelineResult =
       fetch_attempts: number;
       error: ParseError;
       llm?: LlmReport;
+      rule?: RuleReport;
     };
 
 /** attempts.error_detail에 붙이는 LLM 폴백 요약 */
@@ -70,6 +87,16 @@ export function llmNote(llm: LlmReport): string {
   // error의 reasons는 이미 llm_error=… 형태다
   if (llm.outcome === "error") return llm.reasons.join("; ");
   return `llm=${llm.outcome} ${llm.reasons.join("; ")}`.trim();
+}
+
+/** attempts.error_detail에 붙이는 도메인 규칙 요약 */
+export function ruleNote(rule: RuleReport): string {
+  if (rule.outcome === "hit") return `rule=hit ${rule.selector}`;
+  if (rule.outcome === "saved") return `rule_saved=${rule.selector}`;
+  return (
+    `rule_failed=${rule.selector}: ${rule.reason ?? ""}` +
+    (rule.disabled ? "; rule_disabled" : "")
+  );
 }
 
 /** LLM이 대상으로 삼는 규칙 실패: 본문 노드를 못 찾았거나 빈 본문. 보호글 등은 제외 */
@@ -131,13 +158,18 @@ export async function runPipeline(
     return deps.fetch(input, init);
   };
 
-  const fail = (error: ParseError, llm?: LlmReport): PipelineResult => ({
+  const fail = (
+    error: ParseError,
+    llm?: LlmReport,
+    rule?: RuleReport,
+  ): PipelineResult => ({
     ok: false,
     source_type: sourceType,
     duration_ms: elapsed(),
     fetch_attempts: fetchAttempts,
     error,
     ...(llm ? { llm } : {}),
+    ...(rule ? { rule } : {}),
   });
 
   try {
@@ -190,22 +222,58 @@ export async function runPipeline(
         })
       : undefined;
 
-    // 규칙이 실패했거나 품질 미달인 블로그 글만 LLM이 본문 위치를 다시 고른다
+    // 규칙이 실패했거나 품질 미달인 블로그 글만 도메인 규칙 → LLM 순서로 본문 위치를 다시 찾는다
     let llm: LlmReport | undefined;
+    let rule: RuleReport | undefined;
     const eligible = failure
       ? isLlmTargetFailure(failure)
       : quality !== undefined && isDegraded(quality.score);
-    if (blogHtml !== undefined && deps.llm && eligible) {
-      const rule = failure?.code ?? "degraded";
+    // LLM 프롬프트는 도메인 규칙과 상관없이 기존 규칙 체인의 결과로 만든다
+    // (규칙 실패를 넣으면 요청 본문이 달라져 벤치 스냅샷 재생이 깨진다)
+    const promptReason = ruleReason(failure, quality);
+    const host = hostnameOf(url);
+
+    // 저장된 도메인 규칙이 있으면 LLM보다 먼저 적용한다
+    let ruleHit = false;
+    let activeRule: Awaited<ReturnType<RuleStore["get"]>> = null;
+    if (blogHtml !== undefined && deps.rules && eligible && host) {
+      activeRule = await deps.rules.get(host);
+      if (activeRule) {
+        const applied = applyRule(blogHtml, activeRule.selector);
+        if (applied.ok) {
+          parsed = applied.parsed;
+          failure = undefined;
+          quality = assessQuality({
+            markdown: applied.parsed.content_markdown,
+            tier: applied.parsed.tier,
+            flags: applied.parsed.quality_flags,
+          });
+          await deps.rules.recordHit(activeRule);
+          rule = { outcome: "hit", selector: activeRule.selector };
+          ruleHit = true;
+        } else {
+          const { disabled } = await deps.rules.recordFailure(activeRule);
+          rule = {
+            outcome: "failed",
+            selector: activeRule.selector,
+            reason: applied.reason,
+            disabled,
+          };
+        }
+      }
+    }
+
+    if (blogHtml !== undefined && deps.llm && eligible && !ruleHit) {
+      const ruleOutcome = failure?.code ?? "degraded";
       const llmStartedAt = performance.now();
       const { parsed: recovered, ...result } = await runLlmFallback(
         blogHtml,
-        ruleReason(failure, quality),
+        promptReason,
         deps.llm,
       );
       const report: LlmReport = {
         ...result,
-        rule,
+        rule: ruleOutcome,
         ms: Math.round(performance.now() - llmStartedAt),
       };
       llm = report;
@@ -217,12 +285,21 @@ export async function runPipeline(
           tier: recovered.tier,
           flags: recovered.quality_flags,
         });
+        // 활성 규칙이 있었다면(실패했더라도) 덮어쓰지 않는다. 덮어쓰면 실패 횟수가 0으로 돌아가 비활성화가 안 된다
+        if (deps.rules && host && !activeRule && report.selector) {
+          const saved = await deps.rules.saveFromLlm(
+            host,
+            report.selector,
+            url,
+          );
+          if (saved) rule = { outcome: "saved", selector: report.selector };
+        }
       } else if (failure) {
         failure = failureAfterLlm(failure, report);
       }
     }
 
-    if (failure) return fail(failure, llm);
+    if (failure) return fail(failure, llm, rule);
     if (!parsed || !quality) {
       return fail(
         new ParseError(
@@ -232,6 +309,7 @@ export async function runPipeline(
           "본문을 찾지 못했어요",
         ),
         llm,
+        rule,
       );
     }
 
@@ -247,6 +325,7 @@ export async function runPipeline(
       duration_ms: elapsed(),
       fetch_attempts: fetchAttempts,
       ...(llm ? { llm } : {}),
+      ...(rule ? { rule } : {}),
     };
   } catch (err) {
     return fail(toParseError(err));
