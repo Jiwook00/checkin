@@ -1,12 +1,19 @@
 // 리마인더 평가셋 추출 (Deno 2.x, #73)
 //
 //   deno run -A --no-lock --config supabase/functions/parse-content/deno.json \
-//     scripts/eval-dataset.ts
+//     scripts/eval-dataset.ts [--check]
 //
-// - DB에서 SELECT만 한다. 아무것도 쓰지 않는다 (.env의 VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 필요)
-// - 결과: local/eval/dataset/cases.json (case 목록, id 순 정렬, 시각 정보 없음 → 같은 DB면 같은 파일)
-//         local/eval/dataset/build-log.json (중복 제거·제외 내역)
+// - DB에서 SELECT만 한다. DB에는 아무것도 쓰지 않는다 (.env의 VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 필요)
+// - 결과: local/eval/dataset/cases.json     (case 목록, id 순 정렬, 시각 정보 없음 → 같은 DB면 같은 파일)
+//         local/eval/dataset/subset-dev.json (개발용 서브셋 20건: seed·층 구성·id)
+//         local/eval/dataset/summary.md      (유형별 건수, 본문 길이 분포, 멤버별 건수, 기준선 대비)
+//         local/eval/dataset/manifest.json   (case id 목록 해시, git 커밋, 생성 시각)
+//         local/eval/dataset/build-log.json  (중복 제거·제외 내역)
 //   local/은 git 제외다. 회고 원문이 들어가므로 이 밖으로 내보내지 않는다
+// - --check: 파일을 쓰지 않고 다시 계산해 manifest와 비교한다. 같으면 exit 0, case id가 달라졌으면 exit 1
+//
+// reference case: local/메일예시/checkin-galpi-<영문이름>-2026-07.html 에 발송한 메일을 둔다.
+//   없으면 reference 0건으로 계속 진행한다 (local/이라 다른 환경에는 없을 수 있다)
 //
 // 평가 단위: 멤버 m이 회차 N+1에 글을 썼다면, "N+1 글을 쓰기 전에 받았을 리마인더"가 case 하나다.
 //   N = 존재하는 회차를 정렬한 순서상 직전 회차 (2024-12처럼 빠진 달은 건너뛴다)
@@ -491,11 +498,285 @@ async function buildReferences(
   return refs.sort((a, b) => a.id.localeCompare(b.id));
 }
 
+// --- 개발용 서브셋 ----------------------------------------------------------
+// 유형 × 본문 길이로 층화하고, seed를 고정해 같은 case 목록이면 같은 20건이 나온다.
+const SUBSET_SEED = 73;
+// callback 본문 길이 3구간 경계. 3분위수(3605 / 5054)를 보고 한 번 정해 고정한다 (데이터가 늘어도 구간이 움직이지 않게)
+const LENGTH_BOUNDS = [3600, 5050];
+const LENGTH_LABELS = [
+  `~${LENGTH_BOUNDS[0]}자`,
+  `${LENGTH_BOUNDS[0] + 1}~${LENGTH_BOUNDS[1]}자`,
+  `${LENGTH_BOUNDS[1] + 1}자~`,
+];
+// 층별 목표 건수. reference는 4통 전부 넣는다
+const SUBSET_PLAN = [
+  { name: "callback · 짧음", want: 3 },
+  { name: "callback · 중간", want: 3 },
+  { name: "callback · 긺", want: 3 },
+  { name: "no_source · parse_failed", want: 4 },
+  { name: "no_source · not_participated", want: 3 },
+  { name: "reference", want: Infinity },
+];
+// 같은 멤버가 한 그룹(callback / no_source)에서 이 건수를 넘어 뽑히지 않게 한다
+const MEMBER_CAP = 2;
+
+// 이슈 #72/#73에 적힌 2026-10-23 DB 조회 기준선
+const BASELINE = { rows: 217, normal: 168, failed: 48, callback: 142 };
+
+function mulberry32(seed: number): () => number {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle<T>(xs: T[], rand: () => number): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+const lengthBucket = (chars: number) =>
+  chars <= LENGTH_BOUNDS[0] ? 0 : chars <= LENGTH_BOUNDS[1] ? 1 : 2;
+
+interface Stratum {
+  name: string;
+  want: number | null;
+  ids: string[];
+  note?: string;
+}
+
+function buildSubset(cases: EvalCase[]) {
+  const callbacks = cases.filter((c) => c.type === "callback");
+  const pools: EvalCase[][] = [
+    ...[0, 1, 2].map((b) =>
+      callbacks.filter((c) => lengthBucket(c.source!.chars) === b),
+    ),
+    cases.filter((c) => c.reason === "parse_failed"),
+    cases.filter((c) => c.reason === "not_participated"),
+    cases.filter((c) => c.type === "reference"),
+  ];
+  // 멤버 상한은 callback 3층이 함께, no_source 2층이 함께 센다
+  const capGroups = [0, 0, 0, 1, 1, 2];
+  const used = [
+    new Map<string, number>(),
+    new Map<string, number>(),
+    new Map<string, number>(),
+  ];
+
+  const strata: Stratum[] = [];
+  pools.forEach((pool, k) => {
+    const plan = SUBSET_PLAN[k];
+    const want = Math.min(plan.want, pool.length);
+    // 층마다 PRNG를 따로 둬서 다른 층의 소비량이 이 층의 결과를 바꾸지 않게 한다
+    const rand = mulberry32(SUBSET_SEED * 1000 + k);
+    const order = shuffle(
+      [...pool].sort((a, b) => a.id.localeCompare(b.id)),
+      rand,
+    );
+    const cap = capGroups[k] === 2 ? Infinity : MEMBER_CAP;
+    const taken: EvalCase[] = [];
+    for (const c of order) {
+      if (taken.length >= want) break;
+      if ((used[capGroups[k]].get(c.memberId) ?? 0) >= cap) continue;
+      taken.push(c);
+      used[capGroups[k]].set(
+        c.memberId,
+        (used[capGroups[k]].get(c.memberId) ?? 0) + 1,
+      );
+    }
+    let note: string | undefined;
+    if (taken.length < want) {
+      // 상한 때문에 못 채우면 상한을 무시하고 채운다. 조용히 넘기지 않고 남긴다
+      for (const c of order) {
+        if (taken.length >= want) break;
+        if (!taken.includes(c)) taken.push(c);
+      }
+      note = "멤버 상한(2건)을 넘겨 채움";
+    }
+    if (plan.want !== Infinity && pool.length < plan.want)
+      note = `후보가 ${pool.length}건뿐이라 목표 ${plan.want}건을 채우지 못함`;
+    strata.push({
+      name: plan.name,
+      want: plan.want === Infinity ? null : plan.want,
+      ids: taken.map((c) => c.id).sort(),
+      note,
+    });
+  });
+  const ids = strata.flatMap((s) => s.ids).sort();
+  return { seed: SUBSET_SEED, lengthBounds: LENGTH_BOUNDS, strata, ids };
+}
+
+// --- 요약 · manifest -------------------------------------------------------
+async function sha256(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(s),
+  );
+  return [...new Uint8Array(buf)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function gitCommit(): Promise<string> {
+  try {
+    const out = await new Deno.Command("git", {
+      args: ["rev-parse", "--short", "HEAD"],
+      cwd: ROOT,
+    }).output();
+    return new TextDecoder().decode(out.stdout).trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+const percentile = (sorted: number[], p: number) =>
+  sorted.length
+    ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))]
+    : 0;
+
+// 기준선과 같은 정의(중복 제거·제외 전): 직전 회차에 본문 정상 글이 있고 이번 회차에도 글이 있는 (멤버, 회차) 쌍
+function baselineStyleCallbacks(retros: Retro[]): number {
+  const sessions = [...new Set(retros.map((r) => r.session))].sort();
+  const prevOf = new Map(sessions.map((s, i) => [s, sessions[i - 1]]));
+  const wrote = new Set(retros.map((r) => `${r.member_id}:${r.session}`));
+  const normalAt = new Set(
+    retros
+      .filter((r) => r.state === "normal")
+      .map((r) => `${r.member_id}:${r.session}`),
+  );
+  let n = 0;
+  for (const key of wrote) {
+    const [memberId, session] = [key.slice(0, 36), key.slice(37)];
+    const prev = prevOf.get(session);
+    if (prev && normalAt.has(`${memberId}:${prev}`)) n++;
+  }
+  return n;
+}
+
+function buildSummary(args: {
+  retros: Retro[];
+  kept: Retro[];
+  dropped: Dropped[];
+  excluded: Excluded[];
+  cases: EvalCase[];
+  subset: ReturnType<typeof buildSubset>;
+}): string {
+  const { retros, kept, dropped, excluded, cases, subset } = args;
+  const byType = (f: (c: EvalCase) => boolean) => cases.filter(f).length;
+  const callbacks = cases.filter((c) => c.type === "callback");
+  const lens = callbacks.map((c) => c.source!.chars).sort((a, b) => a - b);
+  const bucketCounts = [0, 1, 2].map(
+    (b) => callbacks.filter((c) => lengthBucket(c.source!.chars) === b).length,
+  );
+  const rawNormal = retros.filter((r) => r.state === "normal").length;
+  const rawFailed = retros.filter((r) => r.state === "failed").length;
+  const rawAmbiguous = retros.length - rawNormal - rawFailed;
+  const baselineCb = baselineStyleCallbacks(retros);
+  const diff = (a: number, b: number) => (a - b > 0 ? `+${a - b}` : `${a - b}`);
+
+  const L: string[] = [];
+  L.push("# 평가셋 요약", "");
+  L.push("## 기준선 대비", "");
+  L.push("| 항목 | 기준선 | 이번 | 차이 |", "| --- | ---: | ---: | ---: |");
+  const row = (name: string, base: number, now: number) =>
+    L.push(`| ${name} | ${base} | ${now} | ${diff(now, base)} |`);
+  row("회고 (멤버 × 회차, 원본 행)", BASELINE.rows, retros.length);
+  row("본문 정상 (ok 또는 직접 작성 200자 초과)", BASELINE.normal, rawNormal);
+  row("본문 없음 (failed)", BASELINE.failed, rawFailed);
+  row(
+    "콜백 사례 — 기준선과 같은 정의 (중복 제거 전)",
+    BASELINE.callback,
+    baselineCb,
+  );
+  row(
+    "callback case — 중복 제거·제외 후",
+    BASELINE.callback,
+    byType((c) => c.type === "callback"),
+  );
+  L.push("");
+  L.push(
+    `판정이 애매해 본문 정상·없음 어디에도 안 들어간 원본 행: ${rawAmbiguous}건`,
+    "",
+  );
+
+  L.push("## 유형별 건수", "");
+  L.push("| 유형 | 건수 |", "| --- | ---: |");
+  L.push(`| callback | ${byType((c) => c.type === "callback")} |`);
+  L.push(
+    `| no_source · parse_failed | ${byType((c) => c.reason === "parse_failed")} |`,
+  );
+  L.push(
+    `| no_source · not_participated | ${byType((c) => c.reason === "not_participated")} |`,
+  );
+  L.push(`| reference | ${byType((c) => c.type === "reference")} |`);
+  L.push(`| **합계** | **${cases.length}** |`, "");
+
+  L.push("## callback 본문 길이 분포", "");
+  L.push(
+    `min ${lens[0]} · p25 ${percentile(lens, 0.25)} · p50 ${percentile(lens, 0.5)} · p75 ${percentile(lens, 0.75)} · max ${lens[lens.length - 1]} (글자 수)`,
+    "",
+  );
+  L.push("| 구간 | 건수 |", "| --- | ---: |");
+  LENGTH_LABELS.forEach((l, i) => L.push(`| ${l} | ${bucketCounts[i]} |`));
+  L.push("");
+
+  L.push("## 멤버별 건수", "");
+  L.push(
+    "| 멤버 | callback | parse_failed | not_participated | reference | 합계 |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |",
+  );
+  const names = [...new Set(cases.map((c) => c.memberName))].sort();
+  for (const n of names) {
+    const mine = cases.filter((c) => c.memberName === n);
+    const c = (f: (x: EvalCase) => boolean) => mine.filter(f).length;
+    L.push(
+      `| ${n} | ${c((x) => x.type === "callback")} | ${c((x) => x.reason === "parse_failed")} | ${c((x) => x.reason === "not_participated")} | ${c((x) => x.type === "reference")} | ${mine.length} |`,
+    );
+  }
+  L.push("");
+
+  L.push("## 중복 제거 · 제외", "");
+  L.push(`원본 ${retros.length}행 → 중복 제거 후 ${kept.length}건`, "");
+  for (const d of dropped)
+    L.push(
+      `- 중복 제거: ${d.memberName} ${d.session} (${d.reason}) → ${d.keptSession} 유지`,
+    );
+  for (const e of excluded)
+    L.push(
+      `- 제외: ${e.memberName} ${e.session} ← ${e.prevSession}: ${e.reason}`,
+    );
+  L.push("");
+
+  L.push("## 개발용 서브셋", "");
+  L.push(`seed ${subset.seed} · 총 ${subset.ids.length}건`, "");
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  for (const s of subset.strata) {
+    L.push(
+      `**${s.name}** (${s.ids.length}/${s.want ?? "전부"})${s.note ? ` — ${s.note}` : ""}`,
+    );
+    for (const id of s.ids) {
+      const c = byId.get(id)!;
+      L.push(
+        `- ${id} · ${c.memberName}${c.source ? ` · ${c.source.chars}자` : ""}`,
+      );
+    }
+    L.push("");
+  }
+  return L.join("\n");
+}
+
 async function writeJson(path: string, data: unknown) {
   await Deno.writeTextFile(path, JSON.stringify(data, null, 2) + "\n");
 }
 
-async function main() {
+async function build() {
   const env = await loadEnv();
   if (!env.VITE_SUPABASE_URL) die(".env에 VITE_SUPABASE_URL이 없어요.");
   if (!env.SUPABASE_SERVICE_ROLE_KEY)
@@ -536,9 +817,72 @@ async function main() {
   const cases = [...built.cases, ...references].sort((a, b) =>
     a.id.localeCompare(b.id),
   );
+  const subset = buildSubset(cases);
+  const caseIds = cases.map((c) => c.id);
+  const hashes = {
+    caseIdsSha256: await sha256(caseIds.join("\n")),
+    subsetIdsSha256: await sha256(subset.ids.join("\n")),
+    casesSha256: await sha256(JSON.stringify(cases)),
+  };
+  return { retros, kept, dropped, excluded, timeline, cases, subset, hashes };
+}
+
+// 저장된 manifest와 지금 DB에서 다시 계산한 결과를 비교한다. 아무것도 쓰지 않는다
+async function check(built: Awaited<ReturnType<typeof build>>) {
+  let saved: {
+    caseIds?: string[];
+    caseIdsSha256: string;
+    subsetIdsSha256: string;
+    casesSha256: string;
+  };
+  try {
+    saved = JSON.parse(await Deno.readTextFile(`${OUT_DIR}/manifest.json`));
+  } catch {
+    die(
+      `${OUT_DIR}/manifest.json 이 없어요. 먼저 --check 없이 한 번 실행하세요.`,
+    );
+  }
+  const ids = built.cases.map((c) => c.id);
+  if (saved.caseIdsSha256 !== built.hashes.caseIdsSha256) {
+    const before = new Set(saved.caseIds ?? []);
+    const after = new Set(ids);
+    console.error("\n✗ case id 목록이 달라졌어요.");
+    for (const id of ids) if (!before.has(id)) console.error(`  + ${id}`);
+    for (const id of before) if (!after.has(id)) console.error(`  - ${id}`);
+    console.error("");
+    Deno.exit(1);
+  }
+  if (saved.subsetIdsSha256 !== built.hashes.subsetIdsSha256)
+    die(
+      "case id는 같은데 개발용 서브셋이 달라졌어요. seed나 층 구성을 확인하세요.",
+    );
+  if (saved.casesSha256 !== built.hashes.casesSha256)
+    console.warn(
+      "\n! case id는 같지만 case 내용(본문·메일)이 바뀐 것이 있어요. 평가 결과를 비교할 때 유의하세요.\n",
+    );
+  console.log(
+    `\n✓ 같은 평가셋입니다 (case ${ids.length}건, 서브셋 ${built.subset.ids.length}건)\n`,
+  );
+}
+
+async function main() {
+  const built = await build();
+  if (Deno.args.includes("--check")) return await check(built);
+
+  const { retros, kept, dropped, excluded, timeline, cases, subset, hashes } =
+    built;
+  const summary = buildSummary({
+    retros,
+    kept,
+    dropped,
+    excluded,
+    cases,
+    subset,
+  });
 
   await Deno.mkdir(OUT_DIR, { recursive: true });
   await writeJson(`${OUT_DIR}/cases.json`, cases);
+  await writeJson(`${OUT_DIR}/subset-dev.json`, subset);
   await writeJson(`${OUT_DIR}/build-log.json`, {
     rows: retros.length,
     afterDedupe: kept.length,
@@ -546,31 +890,23 @@ async function main() {
     dropped,
     excluded,
   });
+  await writeJson(`${OUT_DIR}/manifest.json`, {
+    generatedAt: new Date().toISOString(),
+    gitCommit: await gitCommit(),
+    counts: {
+      cases: cases.length,
+      subset: subset.ids.length,
+    },
+    ...hashes,
+    // --check가 바뀐 id를 보여줄 수 있게 남긴다
+    caseIds: cases.map((c) => c.id),
+  });
+  await Deno.writeTextFile(`${OUT_DIR}/summary.md`, summary + "\n");
 
-  const count = (f: (c: EvalCase) => boolean) => cases.filter(f).length;
-  console.log(`\n✓ 평가셋 생성 → ${OUT_DIR}/cases.json\n`);
-  console.log(
-    `  회고 ${retros.length}행 → 중복 제거 후 ${kept.length}건 (제거 ${dropped.length}), 회차 ${timeline.length}개`,
-  );
-  console.log(`  case ${cases.length}건`);
-  console.log(`    callback   ${count((c) => c.type === "callback")}`);
-  console.log(
-    `    no_source  ${count((c) => c.type === "no_source")} (parse_failed ${count((c) => c.reason === "parse_failed")}, not_participated ${count((c) => c.reason === "not_participated")})`,
-  );
-  console.log(`    reference  ${count((c) => c.type === "reference")}`);
-  console.log(`    제외       ${excluded.length}`);
-  for (const r of references)
-    console.log(
-      `  · reference ${r.memberName}: 기대 콜백 ${r.expectCallback ? "있음" : "없음"}, 메일 콜백 ${r.reference?.sections.callback ? "있음" : "없음"}${r.ruleDeviation ? ` ⚠ ${r.ruleDeviation}` : ""}`,
-    );
-  for (const d of dropped)
-    console.log(
-      `  · 중복 제거 ${d.memberName} ${d.session} (${d.reason}) → ${d.keptSession} 유지`,
-    );
-  for (const e of excluded)
-    console.log(
-      `  · 제외 ${e.memberName} ${e.session} ← ${e.prevSession}: ${e.reason}`,
-    );
+  console.log(`\n✓ 평가셋 생성 → ${OUT_DIR}/\n`);
+  console.log(summary);
+  for (const r of cases.filter((c) => c.ruleDeviation))
+    console.log(`⚠ ${r.id} (${r.memberName}): ${r.ruleDeviation}`);
   console.log("");
 }
 
