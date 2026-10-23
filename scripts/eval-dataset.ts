@@ -50,7 +50,26 @@ export interface EvalCase {
     markdown: string;
     chars: number;
   } | null;
-  reference?: unknown;
+  // reference 전용: 실제로 발송한 메일 (참고 답안)
+  reference?: ReferenceMail;
+  // 같은 멤버·회차의 callback/no_source case id
+  pairedWith?: string;
+  // 발송한 메일이 이 case의 expectCallback과 어긋날 때 이유
+  ruleDeviation?: string;
+}
+
+// 메일의 큰 틀 5단계. 직전 회차 글이 없으면 callback은 null이다
+export interface ReferenceMail {
+  file: string;
+  sections: {
+    opening: string;
+    callback: string | null;
+    commonQuestion: string;
+    notice: string;
+    closing: string;
+  };
+  // 위 구간을 메일에 나온 순서대로 이은 본문 (preheader·푸터 제외)
+  text: string;
 }
 
 interface RetroRow {
@@ -302,6 +321,176 @@ function buildCases(
   return { cases, excluded, timeline };
 }
 
+// --- reference: 7월에 발송한 메일 ------------------------------------------
+// 파일명의 영문 이름 → 닉네임. 메일 형식이 바뀔 예정이라 "그대로 맞출 정답"이 아니라 참고 답안으로만 쓴다
+const REFERENCE_DIR = `${ROOT}local/메일예시`;
+const REFERENCE_SESSION = "2026-07";
+const REFERENCE_MEMBERS: Record<string, string> = {
+  danny: "대니",
+  iris: "아이리스",
+  roni: "로니",
+  dudo: "두도",
+};
+
+function htmlToLines(html: string): string[] {
+  const text = html
+    .replace(/<(style|head|script)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|td|th|h\d|tr|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+  return text
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean);
+}
+
+// 메일의 구간을 고정 문구로 자른다. 문구를 못 찾으면 조용히 잘못 자르지 않고 멈춘다
+export function splitMail(file: string, html: string): ReferenceMail {
+  const lines = htmlToLines(html);
+  const find = (pred: (l: string) => boolean, from = 0) => {
+    for (let i = from; i < lines.length; i++) if (pred(lines[i])) return i;
+    return -1;
+  };
+  const starts = (p: string) => (l: string) => l.startsWith(p);
+
+  const iOpen = find((l) => l === "안녕하세요, 저는 갈피예요");
+  if (iOpen < 0)
+    die(`${file}: 인사 구간("안녕하세요, 저는 갈피예요")을 찾지 못했어요.`);
+  const iCb = find(
+    (l) =>
+      l.startsWith("지난달 남겨주신 글") ||
+      l.startsWith("지난 회고에 남겨주신 글"),
+    iOpen,
+  );
+  const iQ = find(starts("그리고 이번 달엔"), iOpen);
+  const iClose = find(starts("이번 달 못 오시게"), iOpen);
+  const iNotice = find(starts("이번 달 만남은"), iOpen);
+  const iCta = find((l) => l === "이번 달 회고 쓰러 가기", iOpen);
+  for (const [name, i] of [
+    ["공통 질문", iQ],
+    ["마무리", iClose],
+    ["안내", iNotice],
+    ["CTA", iCta],
+  ] as const)
+    if (i < 0) die(`${file}: ${name} 구간을 찾지 못했어요.`);
+  const ordered = [
+    iOpen,
+    ...(iCb >= 0 ? [iCb] : []),
+    iQ,
+    iClose,
+    iNotice,
+    iCta,
+  ];
+  if (ordered.some((v, k) => k > 0 && v <= ordered[k - 1]))
+    die(`${file}: 구간 순서가 예상과 달라요 (${ordered.join(" < ")}).`);
+
+  const join = (a: number, b: number) => lines.slice(a, b).join("\n");
+  const opening = join(iOpen + 1, iCb >= 0 ? iCb : iQ);
+  const callback = iCb >= 0 ? join(iCb, iQ) : null;
+  const commonQuestion = join(iQ, iClose);
+  const closing = `${join(iClose, iNotice)}\n${lines[iCta]}`;
+  const notice = join(iNotice, iCta);
+  const sections = { opening, callback, commonQuestion, notice, closing };
+
+  const text = [opening, callback, commonQuestion, closing, notice]
+    .filter((s) => s !== null)
+    .join("\n\n");
+  return { file, sections, text };
+}
+
+async function buildReferences(
+  kept: Retro[],
+  nick: Map<string, string>,
+  cases: EvalCase[],
+  timeline: string[],
+): Promise<EvalCase[]> {
+  const idOf = new Map([...nick].map(([id, name]) => [name, id]));
+  const sessionIdx = timeline.indexOf(REFERENCE_SESSION);
+  if (sessionIdx < 1) {
+    console.warn(
+      `  ! 회차 ${REFERENCE_SESSION}가 타임라인에 없어 reference를 건너뛰어요.`,
+    );
+    return [];
+  }
+  const prevSession = timeline[sessionIdx - 1];
+  const bySlot = new Map(kept.map((r) => [`${r.member_id}:${r.session}`, r]));
+  const caseIds = new Set(cases.map((c) => c.id));
+
+  let entries: Deno.DirEntry[] = [];
+  try {
+    entries = [...Deno.readDirSync(REFERENCE_DIR)];
+  } catch {
+    console.warn(`  ! ${REFERENCE_DIR} 가 없어 reference 0건으로 진행해요.`);
+    return [];
+  }
+
+  const refs: EvalCase[] = [];
+  for (const entry of entries) {
+    const m = entry.name.match(
+      new RegExp(`^checkin-galpi-(\\w+)-${REFERENCE_SESSION}\\.html$`),
+    );
+    if (!m) continue;
+    const name = REFERENCE_MEMBERS[m[1]];
+    if (!name)
+      die(`${entry.name}: 영문 이름 '${m[1]}'의 닉네임 매핑이 없어요.`);
+    const memberId = idOf.get(name);
+    if (!memberId)
+      die(`${entry.name}: 닉네임 '${name}' 멤버를 DB에서 찾지 못했어요.`);
+
+    const mail = splitMail(
+      entry.name,
+      await Deno.readTextFile(`${REFERENCE_DIR}/${entry.name}`),
+    );
+    const prev = bySlot.get(`${memberId}:${prevSession}`);
+    const expectCallback = prev?.state === "normal";
+    const id = `reference:${memberId.slice(0, 8)}:${REFERENCE_SESSION}`;
+    const paired = [`callback`, `no_source`]
+      .map((t) => `${t}:${memberId.slice(0, 8)}:${REFERENCE_SESSION}`)
+      .find((c) => caseIds.has(c));
+
+    let ruleDeviation: string | undefined;
+    const hasCallback = mail.sections.callback !== null;
+    if (hasCallback && !expectCallback)
+      ruleDeviation = `메일에는 콜백이 있지만 직전 회차(${prevSession})에 본문 정상 글이 없다`;
+    else if (!hasCallback && expectCallback)
+      ruleDeviation = `직전 회차(${prevSession}) 글이 있는데 메일에 콜백이 없다`;
+
+    refs.push({
+      id,
+      type: "reference",
+      memberId,
+      memberName: name,
+      session: REFERENCE_SESSION,
+      prevSession,
+      expectCallback,
+      source:
+        prev?.state === "normal"
+          ? {
+              retroId: prev.id,
+              title: prev.title,
+              markdown: prev.markdown,
+              chars: prev.markdown.length,
+            }
+          : null,
+      reference: mail,
+      ...(paired ? { pairedWith: paired } : {}),
+      ...(ruleDeviation ? { ruleDeviation } : {}),
+    });
+  }
+  if (refs.length === 0)
+    console.warn(
+      `  ! ${REFERENCE_DIR} 에 ${REFERENCE_SESSION} 메일이 없어 reference 0건이에요.`,
+    );
+  return refs.sort((a, b) => a.id.localeCompare(b.id));
+}
+
 async function writeJson(path: string, data: unknown) {
   await Deno.writeTextFile(path, JSON.stringify(data, null, 2) + "\n");
 }
@@ -341,7 +530,12 @@ async function main() {
   );
   const retros = (rows as RetroRow[]).map(classify);
   const { kept, dropped, crossDropped } = dedupe(retros, nick);
-  const { cases, excluded, timeline } = buildCases(kept, crossDropped, nick);
+  const built = buildCases(kept, crossDropped, nick);
+  const { excluded, timeline } = built;
+  const references = await buildReferences(kept, nick, built.cases, timeline);
+  const cases = [...built.cases, ...references].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
 
   await Deno.mkdir(OUT_DIR, { recursive: true });
   await writeJson(`${OUT_DIR}/cases.json`, cases);
@@ -363,7 +557,12 @@ async function main() {
   console.log(
     `    no_source  ${count((c) => c.type === "no_source")} (parse_failed ${count((c) => c.reason === "parse_failed")}, not_participated ${count((c) => c.reason === "not_participated")})`,
   );
+  console.log(`    reference  ${count((c) => c.type === "reference")}`);
   console.log(`    제외       ${excluded.length}`);
+  for (const r of references)
+    console.log(
+      `  · reference ${r.memberName}: 기대 콜백 ${r.expectCallback ? "있음" : "없음"}, 메일 콜백 ${r.reference?.sections.callback ? "있음" : "없음"}${r.ruleDeviation ? ` ⚠ ${r.ruleDeviation}` : ""}`,
+    );
   for (const d of dropped)
     console.log(
       `  · 중복 제거 ${d.memberName} ${d.session} (${d.reason}) → ${d.keptSession} 유지`,
