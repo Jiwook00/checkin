@@ -4,6 +4,8 @@
 //     scripts/eval/harness.ts run [--provider claude|ollama|echo] [--model <id>] \
 //       [--subset dev|all] [--only <caseId>]... [--max-tokens N] [--dry-run] [--label <name>]
 //
+//   deno run ... scripts/eval/harness.ts compare <runA> <runB>
+//
 // - 평가셋은 local/eval/dataset/ (scripts/eval-dataset.ts가 만든다)에서 읽는다. DB에는 접근하지 않는다
 // - 기본값: --provider echo, --subset dev, --max-tokens 200000. --only는 여러 번 줄 수 있고 --subset보다 우선한다
 // - 결과: local/eval/runs/<runId>/config.json    (모델, 단계별 프롬프트 해시, 평가셋 해시, 선택한 case)
@@ -15,6 +17,9 @@
 // - --dry-run: 호출하지 않고 파이프라인을 끝까지 돌며 예상 입력 토큰과 비용 상한을 출력한다 (기록 폴더 없음).
 //   입력 토큰은 글자 ÷ 2 추정이고, 뒤 단계 입력에 앞 단계 출력이 들어가는 경우 그 출력은 추정에서 빠진다
 // - 실행은 case를 하나씩 순서대로 한다 (누적 토큰과 기록 순서가 결정적이 되도록)
+// - compare: 두 run(runId 또는 폴더 경로)의 설정 차이, 단계별 점수·토큰·지연·비용 차이, 점수가 바뀐 case를 마크다운으로
+//   출력하고 <runB>/compare-<runA>.md에도 저장한다. 평가셋 해시가 다르면 맨 위에 경고한다.
+//   단계별 표는 두 run에 모두 있는 case만 쓴다 (한쪽이 상한으로 중단됐을 때 공정하게 비교하려고)
 
 import {
   costUsd,
@@ -342,7 +347,7 @@ interface StageStats {
 
 function summarizeStages(
   records: StageRecord[],
-  stages: AnyStage[],
+  stages: { name: string }[],
 ): Record<string, StageStats> {
   const out: Record<string, StageStats> = {};
   for (const st of stages) {
@@ -639,12 +644,245 @@ function printSummary(
   console.log(`  기록: ${runDir}/\n`);
 }
 
+// --- compare ------------------------------------------------------------------
+
+interface RunConfig {
+  runId: string;
+  provider: string;
+  model: string;
+  price: { inputPerMTok: number; outputPerMTok: number };
+  gitCommit: string;
+  gitDirty: boolean;
+  stages: { name: string; promptSha256: string }[];
+  dataset: {
+    casesSha256: string;
+    selection: string;
+    caseIds: string[];
+  };
+  maxTokens: number;
+}
+
+interface LoadedRun {
+  dir: string;
+  config: RunConfig;
+  records: StageRecord[];
+}
+
+async function loadRun(arg: string): Promise<LoadedRun> {
+  let dir = `${RUNS_DIR}/${arg}`;
+  try {
+    await Deno.stat(`${dir}/config.json`);
+  } catch {
+    dir = arg.replace(/\/$/, "");
+  }
+  try {
+    const config = JSON.parse(
+      await Deno.readTextFile(`${dir}/config.json`),
+    ) as RunConfig;
+    const records = (await Deno.readTextFile(`${dir}/records.jsonl`))
+      .split("\n")
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as StageRecord)
+      // 상한으로 멈춘 기록은 실행되지 않은 것이다. 비교에서는 그 case가 없는 것으로 본다
+      .filter((r) => r.status !== "budget_stop");
+    return { dir, config, records };
+  } catch {
+    die(
+      `run을 읽을 수 없어요: ${arg} (${RUNS_DIR}/ 아래 runId 또는 폴더 경로)`,
+    );
+  }
+}
+
+const sign = (n: number, digits = 0) =>
+  `${n > 0 ? "+" : ""}${n.toFixed(digits)}`;
+
+// "A → B (Δ)". 같으면 Δ를 생략한다
+function change(a: number, b: number, digits = 0): string {
+  const f = (n: number) => n.toFixed(digits);
+  return a === b ? f(a) : `${f(a)} → ${f(b)} (${sign(b - a, digits)})`;
+}
+
+const costOf = (run: LoadedRun, recs: StageRecord[]) =>
+  costUsd(run.config.price, {
+    input: recs.reduce((n, r) => n + r.tokens.input, 0),
+    output: recs.reduce((n, r) => n + r.tokens.output, 0),
+  });
+
+async function compareCommand(args: string[]) {
+  if (args.length !== 2) die("사용법: harness.ts compare <runA> <runB>");
+  const [a, b] = await Promise.all(args.map(loadRun));
+  const out: string[] = [];
+
+  out.push(`# compare ${a.config.runId} → ${b.config.runId}`, "");
+
+  // 1. 설정 차이
+  const sameData =
+    a.config.dataset.casesSha256 === b.config.dataset.casesSha256;
+  if (!sameData) {
+    out.push(
+      "> ⚠ 두 run의 평가셋(casesSha256)이 달라요. 점수 차이가 프롬프트·모델 때문인지 데이터 때문인지 가릴 수 없어요.",
+      "",
+    );
+  }
+  const aStages = new Map(a.config.stages.map((s) => [s.name, s.promptSha256]));
+  const bStages = new Map(b.config.stages.map((s) => [s.name, s.promptSha256]));
+  const diffs: string[] = [];
+  const diff = (label: string, x: unknown, y: unknown) => {
+    if (x !== y) diffs.push(`- ${label}: ${x} → ${y}`);
+  };
+  diff("provider", a.config.provider, b.config.provider);
+  diff("model", a.config.model, b.config.model);
+  diff("max-tokens", a.config.maxTokens, b.config.maxTokens);
+  diff("평가셋 선택", a.config.dataset.selection, b.config.dataset.selection);
+  diff(
+    "평가셋 해시",
+    a.config.dataset.casesSha256.slice(0, 8),
+    b.config.dataset.casesSha256.slice(0, 8),
+  );
+  diff(
+    "코드",
+    `${a.config.gitCommit}${a.config.gitDirty ? "+dirty" : ""}`,
+    `${b.config.gitCommit}${b.config.gitDirty ? "+dirty" : ""}`,
+  );
+  for (const name of new Set([...aStages.keys(), ...bStages.keys()])) {
+    const x = aStages.get(name);
+    const y = bStages.get(name);
+    if (x !== y) {
+      diffs.push(
+        `- 프롬프트(${name}): ${x ? x.slice(0, 8) : "(없음)"} → ${y ? y.slice(0, 8) : "(없음)"}`,
+      );
+    }
+  }
+  out.push(
+    "## 설정 차이",
+    "",
+    ...(diffs.length ? diffs : ["- 없음 (같은 설정)"]),
+    "",
+  );
+
+  // case 구성
+  const aIds = new Set(a.records.map((r) => r.caseId));
+  const bIds = new Set(b.records.map((r) => r.caseId));
+  const common = new Set([...aIds].filter((id) => bIds.has(id)));
+  const onlyA = [...aIds].filter((id) => !bIds.has(id));
+  const onlyB = [...bIds].filter((id) => !aIds.has(id));
+
+  // 2. 단계별 표 (공통 case 기준)
+  const inCommon = (r: StageRecord) => common.has(r.caseId);
+  const aCommon = a.records.filter(inCommon);
+  const bCommon = b.records.filter(inCommon);
+  const stageNames = [...new Set([...aStages.keys(), ...bStages.keys()])];
+  const aStats = summarizeStages(
+    aCommon,
+    stageNames.map((name) => ({ name })),
+  );
+  const bStats = summarizeStages(
+    bCommon,
+    stageNames.map((name) => ({ name })),
+  );
+
+  out.push(`## 단계별 비교 (공통 case ${common.size}건)`, "");
+  out.push(
+    "| 단계 | ok | 채점 | 입력 tok | 출력 tok | 지연 p50 ms | 지연 p95 ms |",
+  );
+  out.push("| --- | --- | --- | --- | --- | --- | --- |");
+  for (const name of stageNames) {
+    const x = aStats[name];
+    const y = bStats[name];
+    const graders = [
+      ...new Set([...Object.keys(x.scores), ...Object.keys(y.scores)]),
+    ];
+    const scoreCell = graders.length
+      ? graders
+          .map((g) => `${g} ${change(x.scores[g] ?? 0, y.scores[g] ?? 0, 3)}`)
+          .join("<br>")
+      : "-";
+    out.push(
+      `| ${name} | ${x.ok}/${x.n} → ${y.ok}/${y.n} | ${scoreCell} | ${change(x.tokens.input, y.tokens.input)} | ${change(x.tokens.output, y.tokens.output)} | ${change(x.latencyMs.p50, y.latencyMs.p50)} | ${change(x.latencyMs.p95, y.latencyMs.p95)} |`,
+    );
+  }
+  out.push(
+    "",
+    `비용 $${costOf(a, aCommon).toFixed(5)} → $${costOf(b, bCommon).toFixed(5)}`,
+    "",
+  );
+
+  // 3. 점수·상태가 바뀐 case, 4. 점수는 같고 출력만 바뀐 case
+  const key = (r: StageRecord) => `${r.caseId}\u0000${r.stage}`;
+  const bByKey = new Map(b.records.map((r) => [key(r), r]));
+  const changed: string[] = [];
+  let outputOnly = 0;
+  for (const ra of a.records) {
+    const rb = bByKey.get(key(ra));
+    if (!rb) continue;
+    let scoreChanged = false;
+    if (ra.status !== rb.status) {
+      scoreChanged = true;
+      changed.push(
+        `| ${ra.caseId} | ${ra.stage} | 상태 | ${ra.status} → ${rb.status} | ${rb.error ?? ""} |`,
+      );
+    } else {
+      for (const g of new Set([
+        ...Object.keys(ra.scores),
+        ...Object.keys(rb.scores),
+      ])) {
+        const x = ra.scores[g]?.value;
+        const y = rb.scores[g]?.value;
+        if (x !== y) {
+          scoreChanged = true;
+          changed.push(
+            `| ${ra.caseId} | ${ra.stage} | ${g} | ${x ?? "-"} → ${y ?? "-"} | ${rb.scores[g]?.reason ?? ""} |`,
+          );
+        }
+      }
+    }
+    if (
+      !scoreChanged &&
+      JSON.stringify(ra.output) !== JSON.stringify(rb.output)
+    ) {
+      outputOnly++;
+    }
+  }
+  out.push(`## 점수가 바뀐 case (${changed.length}건)`, "");
+  if (changed.length) {
+    out.push(
+      "| case | 단계 | 채점기 | A → B | B의 이유 |",
+      "| --- | --- | --- | --- | --- |",
+      ...changed,
+    );
+  } else {
+    out.push("없음");
+  }
+  out.push("", `점수는 같지만 출력이 바뀐 기록: ${outputOnly}건`, "");
+
+  // 5. 한쪽에만 있는 case
+  if (onlyA.length || onlyB.length) {
+    out.push("## 한쪽에만 있는 case", "");
+    out.push(
+      `- A에만 ${onlyA.length}건${onlyA.length ? `: ${onlyA.slice(0, 5).join(", ")}${onlyA.length > 5 ? " …" : ""}` : ""}`,
+    );
+    out.push(
+      `- B에만 ${onlyB.length}건${onlyB.length ? `: ${onlyB.slice(0, 5).join(", ")}${onlyB.length > 5 ? " …" : ""}` : ""}`,
+      "",
+    );
+  }
+
+  const text = out.join("\n");
+  console.log("\n" + text);
+  const path = `${b.dir}/compare-${a.config.runId}.md`;
+  await Deno.writeTextFile(path, text + "\n");
+  console.log(`저장: ${path}\n`);
+}
+
 // --- main ---------------------------------------------------------------------
 
 async function main() {
   const [cmd, ...rest] = Deno.args;
   if (cmd === "run") return await runCommand(rest);
-  die("사용법: harness.ts run [옵션]  (자세한 옵션은 파일 상단 주석)");
+  if (cmd === "compare") return await compareCommand(rest);
+  die(
+    "사용법: harness.ts run [옵션] | compare <runA> <runB>  (자세한 옵션은 파일 상단 주석)",
+  );
 }
 
 if (import.meta.main) await main();
