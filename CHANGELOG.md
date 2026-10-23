@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-10-22)
+## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-10-23)
 
 
 ### Features
@@ -63,6 +63,7 @@
 * 블로그 body 통째 폴백 제거 ([17033d7](https://github.com/Jiwook00/checkin/commit/17033d76c7ed4a00c9b9e8f24b092b5f2043ff36)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
 * 비공개 노션 페이지를 NOTION_PRIVATE로 분류 ([ba59992](https://github.com/Jiwook00/checkin/commit/ba59992f7316725e295b85d2e0fe053ad34edc61))
 * 비공개 노션 페이지를 NOTION_PRIVATE로 분류 ([d3e2966](https://github.com/Jiwook00/checkin/commit/d3e2966751f91b821978ccd962d665b34ac5679f)), closes [#54](https://github.com/Jiwook00/checkin/issues/54)
+* 시간 미선택 날짜가 있을 때 저장 카드가 사라지는 문제 수정 ([7b01d74](https://github.com/Jiwook00/checkin/commit/7b01d749049677a1ca694fab2857752f682961c2))
 * 티스토리 보호글을 명시적 실패로 처리 ([735bdc5](https://github.com/Jiwook00/checkin/commit/735bdc50ac2eab0cf3edf3e6c47109c97d08ba34)), closes [#56](https://github.com/Jiwook00/checkin/issues/56)
 
 ## [1.0.0](https://github.com/Jiwook00/checkin/compare/checkin-v0.4.0...checkin-v1.0.0) (2026-04-01)
