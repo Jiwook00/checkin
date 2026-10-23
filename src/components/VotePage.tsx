@@ -884,7 +884,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                 ) : null}
 
                 {/* 선택 요약 + 저장 카드 */}
-                {canSave && (
+                {(cannotAttend || selectedDates.size > 0) && (
                   <div className="bg-canvas rounded-[12px] border border-hairline p-5">
                     {cannotAttend ? (
                       saved ? (
@@ -973,9 +973,14 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
                                 {saveError}
                               </p>
                             )}
+                            {!canSave && (
+                              <p className="text-xs text-muted mb-2">
+                                시간을 선택하지 않은 날짜가 있어요
+                              </p>
+                            )}
                             <button
                               onClick={handleSave}
-                              disabled={saving}
+                              disabled={!canSave || saving}
                               className="w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-[8px] hover:bg-primary/90 transition-colors disabled:opacity-50"
                             >
                               {saving ? "저장 중..." : "저장하기"}
@@ -1195,10 +1200,19 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
 
             {/* 모바일 전용: 하단 고정 액션바 */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-canvas border-t border-hairline px-4 py-3 z-30 flex gap-2">
-              {saveError && (
+              {saveError ? (
                 <p className="absolute -top-6 left-4 text-xs text-red-500">
                   {saveError}
                 </p>
+              ) : (
+                !saved &&
+                !cannotAttend &&
+                selectedDates.size > 0 &&
+                !canSave && (
+                  <p className="absolute -top-6 left-4 text-xs text-muted">
+                    시간을 선택하지 않은 날짜가 있어요
+                  </p>
+                )
               )}
               {saved ? (
                 <div className="flex-1 flex items-center justify-between px-1">
