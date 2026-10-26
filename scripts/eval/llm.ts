@@ -34,6 +34,8 @@ export interface LLMProvider {
   name: "claude" | "ollama" | "echo";
   model: string;
   price: Price;
+  // 요청 밖에서 응답을 바꾸는 provider 설정 (예: Ollama num_ctx). 호출 캐시 키에 들어간다
+  cacheTag?: string;
   complete(req: LLMRequest): Promise<LLMResponse>;
 }
 
