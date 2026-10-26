@@ -15,7 +15,7 @@
 // - --max-tokens: 누적(입력+출력) + 이번 호출의 입력 추정 + max_tokens가 상한을 넘으면 호출하지 않고 멈춘다.
 //   상한을 넘기지 않는 대신 출력 상한(max_tokens)만큼 여유를 남기고 멈추므로 보수적이다. 멈추면 exit 2
 // - --dry-run: 호출하지 않고 파이프라인을 끝까지 돌며 예상 입력 토큰과 비용 상한을 출력한다 (기록 폴더 없음).
-//   입력 토큰은 글자 ÷ 2 추정이고, 뒤 단계 입력에 앞 단계 출력이 들어가는 경우 그 출력은 추정에서 빠진다
+//   입력 토큰은 글자 수 + 요청당 40 추정(한글 기준 실측 상한)이고, 뒤 단계 입력에 앞 단계 출력이 들어가는 경우 그 출력은 추정에서 빠진다
 // - 실행은 case를 하나씩 순서대로 한다 (누적 토큰과 기록 순서가 결정적이 되도록)
 // - compare: 두 run(runId 또는 폴더 경로)의 설정 차이, 단계별 점수·토큰·지연·비용 차이, 점수가 바뀐 case를 마크다운으로
 //   출력하고 <runB>/compare-<runA>.md에도 저장한다. 평가셋 해시가 다르면 맨 위에 경고한다.
@@ -599,7 +599,7 @@ function printDryRun(
   });
   console.log(`\n호출 ${meter.calls}회 (case ${cases}건)`);
   console.log(
-    `예상 입력   ${meter.estimatedInput.toLocaleString()} tok  (글자 ÷ 2 추정)`,
+    `예상 입력   ${meter.estimatedInput.toLocaleString()} tok  (글자 수 + 요청당 40 추정)`,
   );
   console.log(
     `출력 상한   ${meter.worstCaseOutput.toLocaleString()} tok  (max_tokens 합)`,

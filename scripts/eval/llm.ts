@@ -58,8 +58,12 @@ export class LLMError extends Error {
 
 // --- 토큰 · 비용 ---------------------------------------------------------------
 
-// 한글 기준으로 보수적인 추정 (글자 ÷ 2). parse-bench.ts의 DRY_CHARS_PER_TOKEN과 같다
-const CHARS_PER_TOKEN = 2;
+// 한글은 글자 하나가 토큰 하나에 가깝다. dev 20건 실측에서 Claude(Haiku 5.5)는 호출마다 "글자 수 + 32" 이하,
+// Qwen 2.5 7B는 글자 수 이하였다. 글자 ÷ 2로 잡았더니 Claude 실제 입력의 절반이라 상한 검사가 뚫릴 수 있었다.
+// 영어 등은 토큰이 훨씬 적으므로 이 추정은 위쪽으로 틀린다 (상한 검사에는 그쪽이 안전하다)
+const CHARS_PER_TOKEN = 1;
+// 요청마다 붙는 형식 토큰 여유
+const REQUEST_OVERHEAD_TOKENS = 40;
 
 /** 요청의 입력 토큰 추정치. 호출 전 상한 검사와 dry-run이 쓴다 */
 export function estimateTokens(req: LLMRequest): number {
@@ -67,7 +71,7 @@ export function estimateTokens(req: LLMRequest): number {
     req.system.length +
     req.messages.reduce((n, m) => n + m.content.length, 0) +
     (req.jsonSchema ? JSON.stringify(req.jsonSchema).length : 0);
-  return Math.ceil(chars / CHARS_PER_TOKEN);
+  return Math.ceil(chars / CHARS_PER_TOKEN) + REQUEST_OVERHEAD_TOKENS;
 }
 
 export function costUsd(
