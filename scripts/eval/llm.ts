@@ -70,14 +70,27 @@ export class LLMError extends Error {
 const CHARS_PER_TOKEN = 1;
 // 요청마다 붙는 형식 토큰 여유
 const REQUEST_OVERHEAD_TOKENS = 40;
+// 한글 음절은 Claude에서 글자당 1토큰보다 조금 더 든다. #75 추출(긴 회고) 12건 실측에서 추정/실제 비율이
+// 한글 17% 본문 1.28배 → 71% 본문 0.998배로, 한글이 많을수록 추정이 실제보다 작아졌다(7토큰 부족 1건).
+// 한글 글자마다 이만큼 더 얹어 순수 한글 본문에서도 위쪽으로 틀리게 한다
+const HANGUL_EXTRA_TOKENS = 0.25;
 
 /** 요청의 입력 토큰 추정치. 호출 전 상한 검사와 dry-run이 쓴다 */
 export function estimateTokens(req: LLMRequest): number {
-  const chars =
-    req.system.length +
-    req.messages.reduce((n, m) => n + m.content.length, 0) +
-    (req.jsonSchema ? JSON.stringify(req.jsonSchema).length : 0);
-  return Math.ceil(chars / CHARS_PER_TOKEN) + REQUEST_OVERHEAD_TOKENS;
+  const texts = [
+    req.system,
+    ...req.messages.map((m) => m.content),
+    req.jsonSchema ? JSON.stringify(req.jsonSchema) : "",
+  ];
+  const chars = texts.reduce((n, t) => n + t.length, 0);
+  const hangul = texts.reduce(
+    (n, t) => n + (t.match(/[\uac00-\ud7a3]/g)?.length ?? 0),
+    0,
+  );
+  return (
+    Math.ceil(chars / CHARS_PER_TOKEN + hangul * HANGUL_EXTRA_TOKENS) +
+    REQUEST_OVERHEAD_TOKENS
+  );
 }
 
 export function costUsd(
@@ -97,6 +110,12 @@ const CLAUDE_PRICES: Record<string, Price> = {
 };
 
 export const DEFAULT_CLAUDE_MODEL = "claude-haiku-5-5";
+
+// 추론(thinking)을 끄고 호출하는 모델. Haiku 5.5는 기본으로 추론이 켜져 있고 추론 토큰이 max_tokens에 포함돼서,
+// 추출 요청에서 출력 2,048 중 1,655가 추론에 쓰여 JSON이 잘린 적이 있다(#75). 로컬 모델도 think:false로 돌리므로
+// 같은 조건에서 비교하려고 끈다. Haiku 5.5의 disabled는 effort high 이하(기본 medium)에서만 받는다.
+// 다른 모델(P3 채점용 상위 모델 등)은 disabled를 400으로 거절할 수 있어 모델별로 명시한다
+const CLAUDE_THINKING_DISABLED = new Set(["claude-haiku-5-5"]);
 
 // --- .env ----------------------------------------------------------------------
 
@@ -142,6 +161,8 @@ export function createClaudeProvider(opts: {
     );
   }
 
+  const thinkingOff = CLAUDE_THINKING_DISABLED.has(model);
+
   const post = async (req: LLMRequest): Promise<Response> => {
     try {
       return await fetch("https://api.anthropic.com/v1/messages", {
@@ -157,6 +178,7 @@ export function createClaudeProvider(opts: {
           max_tokens: req.maxTokens,
           system: req.system,
           messages: req.messages,
+          ...(thinkingOff ? { thinking: { type: "disabled" } } : {}),
           ...(req.jsonSchema
             ? {
                 output_config: {
@@ -183,6 +205,7 @@ export function createClaudeProvider(opts: {
     name: "claude",
     model,
     price,
+    cacheTag: thinkingOff ? "thinking=disabled" : "",
     async complete(req) {
       const start = performance.now();
       let res = await post(req);
