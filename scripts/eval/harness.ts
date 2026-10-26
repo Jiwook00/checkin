@@ -752,7 +752,7 @@ function printDryRun(
   });
   console.log(`\n호출 ${meter.calls}회 (case ${cases}건)`);
   console.log(
-    `예상 입력   ${meter.estimatedInput.toLocaleString()} tok  (글자 수 + 요청당 40 추정)`,
+    `예상 입력   ${meter.estimatedInput.toLocaleString()} tok  (글자 수 + 한글당 0.25 + 요청당 40 추정)`,
   );
   console.log(
     `출력 상한   ${meter.worstCaseOutput.toLocaleString()} tok  (max_tokens 합)`,

@@ -34,8 +34,11 @@ export function normalizeStrict(input: string): string {
   s = s.replace(/^[ \t]*#{1,6}(?:[ \t]+|$)/gm, "");
   s = s.replace(/^[ \t]*(?:>[ \t]*)+/gm, "");
   s = s.replace(/^[ \t]*(?:[-*+]|\d+\.)(?:[ \t]+|$)/gm, "");
-  // 강조 · 코드 · 취소선 기호
+  // 강조 · 코드 · 취소선 기호. 밑줄 강조(_text_)는 단어 경계의 밑줄만 지운다 (snake_case는 남긴다)
   s = s.replace(/\*+|__|~~|`/g, "");
+  s = s.replace(/(^|[^\p{L}\p{N}])_+|_+(?=[^\p{L}\p{N}]|$)/gu, "$1");
+  // 남은 대괄호: 모델이 링크 [text](url)에서 URL만 떼고 [text]로 옮기는 경우가 있어 양쪽에서 지운다
+  s = s.replace(/[[\]]/g, "");
   // 공백류: 폭 없는 문자는 지우고, nbsp·전각 공백을 포함한 모든 공백을 한 칸으로
   s = s.replace(/[​-‍⁠﻿]/g, "");
   s = s.replace(/[\s 　]+/g, " ").trim();
