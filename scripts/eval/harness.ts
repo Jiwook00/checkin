@@ -8,7 +8,7 @@
 //
 // - 평가셋은 local/eval/dataset/ (scripts/eval-dataset.ts가 만든다)에서 읽는다. DB에는 접근하지 않는다
 // - 기본값: --provider echo, --subset dev, --max-tokens 200000. --only는 여러 번 줄 수 있고 --subset보다 우선한다
-// - --stages: 실행할 단계를 쉼표로 이어 순서대로 쓴다 (stages.ts의 STAGES 이름). 앞 단계 출력이 뒤 단계 입력(prev)으로 넘어간다
+// - --stages: 실행할 단계를 쉼표로 이어 순서대로 쓴다 (stages.ts의 STAGES 이름, 기본 extract). 앞 단계 출력이 뒤 단계 입력(prev)으로 넘어간다
 // - 호출 캐시: 성공한 호출은 항상 local/eval/cache/calls/<key>.json에 쓴다. --cache를 줘야 읽는다 (측정 run은 항상 새로 호출해야 하므로
 //   기본은 읽지 않는다). 키 = sha256(provider · model · cacheTag · 요청 전체)라서 본문·system·스키마·max_tokens 중 하나라도 바뀌면 다른 키다.
 //   적중한 호출은 토큰·상한에서 빼고 기록에 cached: true로 남기며, 지연 통계에서도 뺀다. dry-run은 캐시를 읽지도 쓰지도 않는다
@@ -47,7 +47,7 @@ const RUNS_DIR = `${ROOT}local/eval/runs`;
 const CACHE_DIR = `${ROOT}local/eval/cache/calls`;
 
 const DEFAULT_MAX_TOKENS = 200_000;
-const DEFAULT_PIPELINE = ["echo"];
+const DEFAULT_PIPELINE = ["extract"];
 
 function die(msg: string): never {
   console.error(`\n✗ ${msg}\n`);
