@@ -273,6 +273,14 @@ const SENTENCE_RANGE: Record<Section, [number, number]> = {
 // 따옴표와 공백을 지워 질문 문장이 그대로 들어갔는지 본다
 const squash = (s: string) => s.replace(/[\s“”"'‘’「」]/g, "");
 
+// 간접 의문 후속 질문 ("~지 궁금해요")
+const INDIRECT_QUESTION_RE = /지\s*궁금(?:해요|합니다|하네요)/;
+
+// voice: 말끝이 "~니다"인 문장. 스킬 고정 문형 "지난 회고 잘 읽었습니다."만 허용한다
+const FORMAL_END_RE = /니다[.?!…]*$/;
+const FORMAL_ALLOWED = "지난회고잘읽었습니다";
+const squashPunct = (s: string) => s.replace(/[\s.?!…。！？"'“”‘’]/g, "");
+
 // 공지 구간은 코드가 붙이므로 LLM 구간에는 날짜·시간·링크가 없어야 한다.
 // callback은 제외한다: 회원이 쓴 글의 날짜("7월 1일에 이사")를 그대로 짚는 건 정상이다
 const SCHEDULE_PATTERNS: [string, RegExp][] = [
@@ -437,7 +445,13 @@ function ruleGrade(
   if (!squash(r.commonQuestion).includes(squash(input.commonQuestion))) {
     formFail.push("question_changed: 공통 질문이 원문과 달라요");
   }
-  if (hasCallback && !r.callback.includes("?") && !r.callback.includes("？")) {
+  // 후속 질문: 물음표가 없어도 "~는지 궁금해요" 같은 간접 의문이면 통과 (8월 사람 답안도 이 문형을 쓴다)
+  if (
+    hasCallback &&
+    !r.callback.includes("?") &&
+    !r.callback.includes("？") &&
+    !INDIRECT_QUESTION_RE.test(r.callback)
+  ) {
     formFail.push("no_followup_question: 콜백에 후속 질문이 없어요");
   }
   for (const s of ["opening", "commonQuestion", "closing"] as const) {
@@ -449,6 +463,19 @@ function ruleGrade(
   }
   scores.form = formFail.length
     ? { value: 0, reason: formFail.join("; ") }
+    : { value: 1 };
+
+  // voice: 말끝은 "~해요/~예요". "~니다"로 끝나는 문장은 실패 (고정 문형 하나만 허용)
+  const voiceHits: string[] = [];
+  for (const s of SECTIONS) {
+    for (const sentence of splitSentences(r[s])) {
+      if (!FORMAL_END_RE.test(sentence)) continue;
+      if (squashPunct(sentence) === FORMAL_ALLOWED) continue;
+      voiceHits.push(`[${s}] formal:"${sentence.slice(-12)}"`);
+    }
+  }
+  scores.voice = voiceHits.length
+    ? { value: 0, reason: voiceHits.slice(0, 5).join("; ") }
     : { value: 1 };
 
   // banned: 금지 표현 (카운트다운 · 사서 메타포 · 압박 · 느낌표/이모지 · 예시 유출)
@@ -569,7 +596,7 @@ interface JudgeInput {
 
 // 같은 Claude 계열이 생성(Haiku)과 채점(Sonnet)을 하므로 자기 선호 편향이 있을 수 있다 (ADR 0006 한계)
 const JUDGE_SYSTEM = `당신은 개인 리마인더 메일 초안을 채점합니다. 메일은 회고 모임의 "갈피"가 멤버 한 사람에게 보내며, 지난 회고의 한 대목을 짚고 근황을 묻는 것이 핵심입니다. 일정 안내는 따로 붙으므로 채점하지 않습니다.
-항목마다 reason을 먼저 쓰고 score를 매깁니다. reason에는 메일 문장을 짧게 인용해 근거를 댑니다. 메일이 재료나 규칙을 잘 따랐다면 망설이지 말고 2를 줍니다.
+항목마다 reason을 먼저 쓰고 score를 매깁니다. reason에는 메일 문장을 짧게 인용해 근거를 댑니다. 메일이 재료나 규칙을 잘 따랐다면 망설이지 말고 2를 줍니다. "지난 회고 잘 읽었습니다", "~라고 적어두셨더라고요"는 이 메일에 정해진 문형이라 형식적인 인사로 보고 감점하지 않습니다.
 
 grounded — callback이 고른 재료에 있는 사실만 말하는가
   2: callback의 사실(무엇을, 언제, 어떤 상태인지)이 모두 고른 재료의 evidence에서 확인된다
