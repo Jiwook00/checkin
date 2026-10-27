@@ -4,7 +4,8 @@
 // 앞 단계의 출력을 prev[단계이름]으로 다음 단계에 넘긴다. P2부터 추출·생성 단계와 채점기가 여기에 붙는다.
 // 단계는 provider를 직접 부르지 못한다. 모든 호출은 ctx.call을 지나야 토큰 집계·상한·기록이 빠지지 않는다.
 
-import { checkEvidence, prepareSource } from "./evidence.ts";
+import { checkEvidence, normalizeStrict, prepareSource } from "./evidence.ts";
+import { generateStage, judgeStage } from "./generate.ts";
 import type { LLMRequest, LLMResponse } from "./llm.ts";
 import type { EvalCase } from "./types.ts";
 
@@ -135,6 +136,23 @@ const EXTRACT_SCHEMA = {
   additionalProperties: false,
 };
 
+// dry-run에서 뒤 단계(생성)의 입력 크기를 현실에 가깝게 잡으려는 전형적인 출력: 원문을 정규화한 글에서 70자 구간 4개를
+// 인용으로 뽑는다(근거 검증을 통과하는 모양). 실제 호출에는 쓰지 않는다
+function syntheticExtractText(markdown: string): string {
+  const flat = normalizeStrict(markdown);
+  const pick = (frac: number) => {
+    const seg = flat
+      .slice(Math.floor(flat.length * frac))
+      .slice(0, 70)
+      .trim();
+    return { evidence: seg, text: seg.slice(0, 40) };
+  };
+  return JSON.stringify({
+    goals: [pick(0.2), pick(0.4)],
+    moments: [pick(0.6), pick(0.8)],
+  });
+}
+
 function extractUserMessage(source: { title: string; markdown: string }) {
   const body = EXTRACT_USER_TEMPLATE.replace(
     "{markdown}",
@@ -193,12 +211,15 @@ export const extractStage: Stage<ExtractInput, ExtractOutput> = {
   }),
   async run(input, ctx) {
     if (!input.source) return { skipped: "no_source" };
-    const res = await ctx.call({
-      system: EXTRACT_SYSTEM,
-      messages: [{ role: "user", content: extractUserMessage(input.source) }],
-      maxTokens: EXTRACT_MAX_TOKENS,
-      jsonSchema: EXTRACT_SCHEMA,
-    });
+    const res = await ctx.call(
+      {
+        system: EXTRACT_SYSTEM,
+        messages: [{ role: "user", content: extractUserMessage(input.source) }],
+        maxTokens: EXTRACT_MAX_TOKENS,
+        jsonSchema: EXTRACT_SCHEMA,
+      },
+      { dryRunText: syntheticExtractText(input.source.markdown) },
+    );
     const parsed = parseExtract(res.text);
     if (typeof parsed === "string") {
       return {
@@ -265,4 +286,6 @@ export const extractStage: Stage<ExtractInput, ExtractOutput> = {
 export const STAGES: Record<string, AnyStage> = {
   [echoStage.name]: echoStage,
   [extractStage.name]: extractStage,
+  [generateStage.name]: generateStage,
+  [judgeStage.name]: judgeStage,
 };
