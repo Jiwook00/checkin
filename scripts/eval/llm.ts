@@ -290,8 +290,10 @@ export function createClaudeProvider(opts: {
 //   - 토큰은 modelUsage[모델]에서 읽는다: 같은 응답에 내부용 Haiku 호출이 따로 잡힌다
 const CLI_TIMEOUT_MS = 120_000;
 const CLI_EFFORT = "low";
-// 실측: 요청 추정 + 이 값 ≥ 실제 (G0 한 건 262tok, 채점 요청 2건 평균 약 260tok)
-const CLI_INPUT_OVERHEAD_TOKENS = 270;
+// 호출마다 얹히는 기본 입력. CLI 버전에 따라 다르다: 2.1.209는 약 270tok, 2.1.311은 --safe-mode에서도 환경 정보
+// (작업 디렉터리·플랫폼·날짜·모델)를 얹어 약 1,350tok (채점 31건 추정 94k vs 실제 128k, 140건 415k vs 565k에서 역산).
+// CLAUDE.md·메모리·스킬은 두 버전 모두 막힌다. 버전이 바뀌면 다시 재서 고친다
+const CLI_INPUT_OVERHEAD_TOKENS = 1350;
 
 interface CliModelUsage {
   inputTokens?: number;
@@ -428,7 +430,7 @@ export async function createClaudeCliProvider(opts: {
     price,
     billing: "subscription",
     info: { cliVersion: version, effort: CLI_EFFORT, safeMode: true },
-    // --safe-mode에서도 CLI가 호출마다 기본 프롬프트를 얹는다: 입력 262tok(G0, 사용자 메시지 약 40tok) ~ 363tok(채점 요청 2건 평균)
+    // --safe-mode에서도 CLI가 호출마다 기본 프롬프트를 얹는다 (위 상수 참고)
     inputOverheadTokens: CLI_INPUT_OVERHEAD_TOKENS,
     cacheTag: `cli:safe-mode,effort=${CLI_EFFORT}`,
     async complete(req) {
