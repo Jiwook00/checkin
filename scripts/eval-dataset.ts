@@ -1,7 +1,7 @@
 // 리마인더 평가셋 추출 (Deno 2.x, #73)
 //
 //   deno run -A --no-lock --config supabase/functions/parse-content/deno.json \
-//     scripts/eval-dataset.ts [--check]
+//     scripts/eval-dataset.ts [--check | --split]
 //
 // - DB에서 SELECT만 한다. DB에는 아무것도 쓰지 않는다 (.env의 VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 필요)
 // - 결과: local/eval/dataset/cases.json     (case 목록, id 순 정렬, 시각 정보 없음 → 같은 DB면 같은 파일)
@@ -11,6 +11,9 @@
 //         local/eval/dataset/build-log.json  (중복 제거·제외 내역)
 //   local/은 git 제외다. 회고 원문이 들어가므로 이 밖으로 내보내지 않는다
 // - --check: 파일을 쓰지 않고 다시 계산해 manifest와 비교한다. 같으면 exit 0, case id가 달라졌으면 exit 1
+// - --split: DB를 읽지 않는다. cases.json·subset-dev.json·case-notes.json으로 튜닝/홀드아웃을 나눠
+//         subset-tune.json (프롬프트 개선에 쓰는 40건)과 subset-holdout.json (나머지 171건, 집계 숫자만 본다)을 쓴다 (#76).
+//         cases.json을 건드리지 않으므로 casesSha256이 바뀌지 않고 지금까지의 비교가 이어진다
 //
 // reference case: local/메일예시/checkin-galpi-<영문이름>-2026-07.html 에 발송한 메일을 둔다.
 //   없으면 reference 0건으로 계속 진행한다 (local/이라 다른 환경에는 없을 수 있다)
@@ -572,6 +575,163 @@ function buildSubset(cases: EvalCase[]) {
   return { seed: SUBSET_SEED, lengthBounds: LENGTH_BOUNDS, strata, ids };
 }
 
+// --- 튜닝 / 홀드아웃 분할 (#76) ----------------------------------------------
+// #75에서 dev 20건으로만 튜닝하려 했지만 전체 실행에서 실패 유형을 뽑아 준-홀드아웃이 깨졌다.
+// 이번에는 처음에 나눠서 기록한다. 규칙: 프롬프트·채점 기준을 고치려고 case를 읽는 건 tune에서만 한다.
+// holdout은 기준선과 최종 run에서 집계 숫자(compare --subset holdout)만 본다.
+//   tune    = dev 20건 + callback 20건 (dev의 callback이 9건뿐이라 생성 품질을 튜닝하기엔 흔들림에 묻힌다)
+//   holdout = 나머지 전부
+// 추가 callback 20건은 본문 길이 3구간(7/7/6)으로 층화하고 멤버당 4건까지. 본문이 사실상 없는 글(empty_body)은
+// 정확히 1건(id 순 첫 번째)만 tune에 넣어 "재료 없이 쓰기"를 튜닝 중에도 보게 하고, 나머지는 holdout에 둔다.
+const SPLIT_SEED = 76;
+const SPLIT_EXTRA_WANT = [7, 7, 6];
+const SPLIT_MEMBER_CAP = 4;
+
+async function split() {
+  const read = async <T>(name: string, optional = false): Promise<T | null> => {
+    try {
+      return JSON.parse(await Deno.readTextFile(`${OUT_DIR}/${name}`)) as T;
+    } catch {
+      if (optional) return null;
+      die(
+        `${OUT_DIR}/${name}를 읽을 수 없어요. 먼저 scripts/eval-dataset.ts로 평가셋을 만들어 주세요.`,
+      );
+    }
+  };
+  const cases = (await read<EvalCase[]>("cases.json"))!;
+  const dev = (await read<{ ids: string[] }>("subset-dev.json"))!;
+  const manifest = (await read<{ casesSha256: string }>("manifest.json"))!;
+  const notes =
+    (await read<Record<string, string[]>>("case-notes.json", true)) ?? {};
+  const isEmpty = (id: string) => notes[id]?.includes("empty_body") ?? false;
+
+  const devSet = new Set(dev.ids);
+  const pool = cases
+    .filter((c) => c.type === "callback" && !devSet.has(c.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const emptyIds = pool.filter((c) => isEmpty(c.id)).map((c) => c.id);
+  const forced = emptyIds[0] ?? null;
+  const candidates = pool.filter((c) => !isEmpty(c.id));
+
+  const memberCount = new Map<string, number>();
+  const extras: EvalCase[] = [];
+  const take = (c: EvalCase) => {
+    extras.push(c);
+    memberCount.set(c.memberId, (memberCount.get(c.memberId) ?? 0) + 1);
+  };
+  const want = [...SPLIT_EXTRA_WANT];
+  if (forced) {
+    const c = pool.find((x) => x.id === forced)!;
+    take(c);
+    want[lengthBucket(c.source!.chars)]--;
+  }
+  const notes_: string[] = [];
+  const strata: { name: string; want: number; ids: string[] }[] = [];
+  [0, 1, 2].forEach((b) => {
+    const rand = mulberry32(SPLIT_SEED * 1000 + b);
+    const order = shuffle(
+      candidates.filter((c) => lengthBucket(c.source!.chars) === b),
+      rand,
+    );
+    const mine: EvalCase[] = [];
+    for (const c of order) {
+      if (mine.length >= want[b]) break;
+      if ((memberCount.get(c.memberId) ?? 0) >= SPLIT_MEMBER_CAP) continue;
+      take(c);
+      mine.push(c);
+    }
+    if (mine.length < want[b]) {
+      for (const c of order) {
+        if (mine.length >= want[b]) break;
+        if (!mine.includes(c)) {
+          take(c);
+          mine.push(c);
+        }
+      }
+      notes_.push(
+        `${LENGTH_LABELS[b]}: 멤버 상한(${SPLIT_MEMBER_CAP}건)을 넘겨 채움`,
+      );
+    }
+    strata.push({
+      name: `callback · ${LENGTH_LABELS[b]}`,
+      want: SPLIT_EXTRA_WANT[b],
+      ids: [
+        ...mine.map((c) => c.id),
+        ...(forced &&
+        lengthBucket(pool.find((x) => x.id === forced)!.source!.chars) === b
+          ? [forced]
+          : []),
+      ].sort(),
+    });
+  });
+
+  const tuneIds = [...dev.ids, ...extras.map((c) => c.id)].sort();
+  const tuneSet = new Set(tuneIds);
+  const holdoutIds = cases
+    .map((c) => c.id)
+    .filter((id) => !tuneSet.has(id))
+    .sort();
+
+  // 자체 검증: 겹치지 않고, 합치면 전체여야 한다
+  if (holdoutIds.some((id) => tuneSet.has(id))) die("tune과 holdout이 겹쳐요.");
+  if (tuneIds.length + holdoutIds.length !== cases.length)
+    die(
+      `tune ${tuneIds.length} + holdout ${holdoutIds.length} ≠ 전체 ${cases.length}`,
+    );
+
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  const countBy = (ids: string[], f: (c: EvalCase) => string) => {
+    const m: Record<string, number> = {};
+    for (const id of ids) m[f(byId.get(id)!)] = (m[f(byId.get(id)!)] ?? 0) + 1;
+    return m;
+  };
+  const common = {
+    seed: SPLIT_SEED,
+    // 어느 평가셋을 나눈 것인가. 이 해시가 다르면 분할을 다시 해야 한다
+    casesSha256: manifest.casesSha256,
+  };
+  const tuneFile = {
+    ...common,
+    basedOn: "dev 20건 + callback 20건",
+    extraStrata: strata,
+    ...(notes_.length ? { notes: notes_ } : {}),
+    ids: tuneIds,
+    idsSha256: await sha256(tuneIds.join("\n")),
+  };
+  const holdoutFile = {
+    ...common,
+    policy:
+      "프롬프트·채점 기준을 고치려고 이 파일의 case 출력(생성 문장·채점 이유)을 읽지 않는다. 기준선과 최종 run에서 compare --subset holdout의 집계 숫자만 본다.",
+    ids: holdoutIds,
+    idsSha256: await sha256(holdoutIds.join("\n")),
+  };
+  await writeJson(`${OUT_DIR}/subset-tune.json`, tuneFile);
+  await writeJson(`${OUT_DIR}/subset-holdout.json`, holdoutFile);
+
+  const members = (ids: string[]) =>
+    Object.entries(countBy(ids, (c) => c.memberName))
+      .map(([k, v]) => `${k} ${v}`)
+      .join(" · ");
+  console.log(
+    `\n✓ 분할 완료 (seed ${SPLIT_SEED}, casesSha256 ${manifest.casesSha256.slice(0, 8)})\n`,
+  );
+  for (const [name, ids] of [
+    ["tune", tuneIds],
+    ["holdout", holdoutIds],
+  ] as const) {
+    console.log(
+      `${name} ${ids.length}건  유형 ${JSON.stringify(countBy(ids, (c) => c.type))}  empty_body ${ids.filter(isEmpty).length}건`,
+    );
+    console.log(`  멤버: ${members(ids)}`);
+  }
+  console.log(
+    `\ntune에 추가한 callback ${extras.length}건 (empty_body 고정: ${forced ?? "없음"})`,
+  );
+  for (const s of strata) console.log(`  ${s.name}: ${s.ids.length}건`);
+  for (const n of notes_) console.log(`  ! ${n}`);
+  console.log("");
+}
+
 // --- 요약 · manifest -------------------------------------------------------
 async function sha256(s: string): Promise<string> {
   const buf = await crypto.subtle.digest(
@@ -819,12 +979,27 @@ async function check(built: Awaited<ReturnType<typeof build>>) {
     console.warn(
       "\n! case id는 같지만 case 내용(본문·메일)이 바뀐 것이 있어요. 평가 결과를 비교할 때 유의하세요.\n",
     );
+  // 튜닝/홀드아웃 분할(--split)이 지금 평가셋을 기준으로 한 것인지. 없으면 건너뛴다
+  for (const name of ["tune", "holdout"]) {
+    let s: { casesSha256?: string } | null = null;
+    try {
+      s = JSON.parse(await Deno.readTextFile(`${OUT_DIR}/subset-${name}.json`));
+    } catch {
+      continue;
+    }
+    if (s?.casesSha256 !== built.hashes.casesSha256)
+      console.warn(
+        `\n! subset-${name}.json은 다른 평가셋(casesSha256 ${s?.casesSha256?.slice(0, 8) ?? "?"})을 나눈 거예요. --split을 다시 하면 tune/holdout이 바뀌어 지금까지의 비교가 끊겨요.\n`,
+      );
+  }
   console.log(
     `\n✓ 같은 평가셋입니다 (case ${ids.length}건, 서브셋 ${built.subset.ids.length}건)\n`,
   );
 }
 
 async function main() {
+  // --split은 이미 만든 파일만 읽는다 (DB 접근 없음)
+  if (Deno.args.includes("--split")) return await split();
   const built = await build();
   if (Deno.args.includes("--check")) return await check(built);
 
