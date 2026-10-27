@@ -23,6 +23,8 @@ export interface LLMResponse {
   model: string;
   // end_turn · max_tokens · refusal · stop 등 provider가 알려준 종료 사유
   stopReason: string;
+  // 결과를 믿기 전에 사람이 볼 것 (예: Ollama 컨텍스트가 가득 차서 입력이 잘렸을 수 있음). 기록에 그대로 남는다
+  warning?: string;
 }
 
 export interface Price {
@@ -34,6 +36,10 @@ export interface LLMProvider {
   name: "claude" | "ollama" | "echo";
   model: string;
   price: Price;
+  // 요청 밖에서 응답을 바꾸는 provider 설정 (예: Ollama num_ctx). 호출 캐시 키에 들어간다
+  cacheTag?: string;
+  // 지금 provider의 자원 사용 상태 (Ollama: 로드된 크기·GPU 비율). run 중간과 끝에 summary.json에 남는다
+  snapshot?(): Promise<Record<string, unknown>>;
   complete(req: LLMRequest): Promise<LLMResponse>;
 }
 
@@ -64,14 +70,27 @@ export class LLMError extends Error {
 const CHARS_PER_TOKEN = 1;
 // 요청마다 붙는 형식 토큰 여유
 const REQUEST_OVERHEAD_TOKENS = 40;
+// 한글 음절은 Claude에서 글자당 1토큰보다 조금 더 든다. #75 추출(긴 회고) 12건 실측에서 추정/실제 비율이
+// 한글 17% 본문 1.28배 → 71% 본문 0.998배로, 한글이 많을수록 추정이 실제보다 작아졌다(7토큰 부족 1건).
+// 한글 글자마다 이만큼 더 얹어 순수 한글 본문에서도 위쪽으로 틀리게 한다
+const HANGUL_EXTRA_TOKENS = 0.25;
 
 /** 요청의 입력 토큰 추정치. 호출 전 상한 검사와 dry-run이 쓴다 */
 export function estimateTokens(req: LLMRequest): number {
-  const chars =
-    req.system.length +
-    req.messages.reduce((n, m) => n + m.content.length, 0) +
-    (req.jsonSchema ? JSON.stringify(req.jsonSchema).length : 0);
-  return Math.ceil(chars / CHARS_PER_TOKEN) + REQUEST_OVERHEAD_TOKENS;
+  const texts = [
+    req.system,
+    ...req.messages.map((m) => m.content),
+    req.jsonSchema ? JSON.stringify(req.jsonSchema) : "",
+  ];
+  const chars = texts.reduce((n, t) => n + t.length, 0);
+  const hangul = texts.reduce(
+    (n, t) => n + (t.match(/[\uac00-\ud7a3]/g)?.length ?? 0),
+    0,
+  );
+  return (
+    Math.ceil(chars / CHARS_PER_TOKEN + hangul * HANGUL_EXTRA_TOKENS) +
+    REQUEST_OVERHEAD_TOKENS
+  );
 }
 
 export function costUsd(
@@ -91,6 +110,12 @@ const CLAUDE_PRICES: Record<string, Price> = {
 };
 
 export const DEFAULT_CLAUDE_MODEL = "claude-haiku-5-5";
+
+// 추론(thinking)을 끄고 호출하는 모델. Haiku 5.5는 기본으로 추론이 켜져 있고 추론 토큰이 max_tokens에 포함돼서,
+// 추출 요청에서 출력 2,048 중 1,655가 추론에 쓰여 JSON이 잘린 적이 있다(#75). 로컬 모델도 think:false로 돌리므로
+// 같은 조건에서 비교하려고 끈다. Haiku 5.5의 disabled는 effort high 이하(기본 medium)에서만 받는다.
+// 다른 모델(P3 채점용 상위 모델 등)은 disabled를 400으로 거절할 수 있어 모델별로 명시한다
+const CLAUDE_THINKING_DISABLED = new Set(["claude-haiku-5-5"]);
 
 // --- .env ----------------------------------------------------------------------
 
@@ -136,6 +161,8 @@ export function createClaudeProvider(opts: {
     );
   }
 
+  const thinkingOff = CLAUDE_THINKING_DISABLED.has(model);
+
   const post = async (req: LLMRequest): Promise<Response> => {
     try {
       return await fetch("https://api.anthropic.com/v1/messages", {
@@ -151,6 +178,7 @@ export function createClaudeProvider(opts: {
           max_tokens: req.maxTokens,
           system: req.system,
           messages: req.messages,
+          ...(thinkingOff ? { thinking: { type: "disabled" } } : {}),
           ...(req.jsonSchema
             ? {
                 output_config: {
@@ -177,6 +205,7 @@ export function createClaudeProvider(opts: {
     name: "claude",
     model,
     price,
+    cacheTag: thinkingOff ? "thinking=disabled" : "",
     async complete(req) {
       const start = performance.now();
       let res = await post(req);
@@ -236,6 +265,10 @@ export function createClaudeProvider(opts: {
 const OLLAMA_URL = "http://localhost:11434";
 // 로컬 7~8B는 느리다. 긴 회고 한 편도 넉넉히 기다린다
 const OLLAMA_TIMEOUT_MS = 300_000;
+// Ollama 기본 컨텍스트는 VRAM 24GB 미만에서 4k라서, 명시하지 않으면 긴 회고(최대 약 12,000자)의 앞부분이
+// 경고 없이 잘리고 근거 실패가 모델 탓으로 잡힌다. 본문 12,074자 + system·스키마 약 1,500 + 출력 2,048 < 16,384.
+// 컨텍스트를 키우면 KV 캐시 메모리도 늘므로 메모리 측정은 이 값 기준이다
+export const OLLAMA_NUM_CTX = 16_384;
 
 interface OllamaResponse {
   message?: { content?: string };
@@ -245,17 +278,96 @@ interface OllamaResponse {
   error?: string;
 }
 
+interface OllamaPsModel {
+  name?: string;
+  model?: string;
+  size?: number;
+  size_vram?: number;
+  context_length?: number;
+  expires_at?: string;
+}
+
+// Ollama가 모델을 올려 둔 러너 프로세스(llama-server)의 상주 메모리 합계(MB). 못 읽으면 null
+async function runnerRssMB(): Promise<number | null> {
+  try {
+    const out = await new Deno.Command("ps", {
+      args: ["-axo", "rss=,command="],
+    }).output();
+    let kb = 0;
+    for (const line of new TextDecoder().decode(out.stdout).split("\n")) {
+      const m = line.match(/^\s*(\d+)\s+(.*)$/);
+      if (m && /llama-server|ollama runner/.test(m[2])) kb += Number(m[1]);
+    }
+    return kb ? Math.round(kb / 1024) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createOllamaProvider(opts: {
   model: string;
   baseUrl?: string;
+  numCtx?: number;
 }): LLMProvider {
   const baseUrl = opts.baseUrl ?? OLLAMA_URL;
+  const numCtx = opts.numCtx ?? OLLAMA_NUM_CTX;
+
+  // thinking을 지원하는 모델(예: Gemma 4)은 끄지 않으면 추론 토큰이 출력 상한을 먹는다.
+  // 지원하지 않는 모델에 think를 보내면 400이 나는 버전이 있어, /api/show의 capabilities를 한 번 보고 정한다
+  let supportsThinking: Promise<boolean> | undefined;
+  const checkThinking = () =>
+    (supportsThinking ??= (async () => {
+      try {
+        const res = await fetch(`${baseUrl}/api/show`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ model: opts.model }),
+          signal: AbortSignal.timeout(30_000),
+        });
+        const body = (await res.json()) as { capabilities?: string[] };
+        return body.capabilities?.includes("thinking") ?? false;
+      } catch {
+        return false;
+      }
+    })());
+
   return {
     name: "ollama",
     model: opts.model,
     price: { inputPerMTok: 0, outputPerMTok: 0 },
+    cacheTag: `num_ctx=${numCtx}`,
+    async snapshot() {
+      try {
+        const res = await fetch(`${baseUrl}/api/ps`, {
+          signal: AbortSignal.timeout(10_000),
+        });
+        const body = (await res.json()) as { models?: OllamaPsModel[] };
+        const m = body.models?.find(
+          (x) => x.model === opts.model || x.name === opts.model,
+        );
+        if (!m) return { loaded: false };
+        const size = m.size ?? 0;
+        const vram = m.size_vram ?? 0;
+        return {
+          loaded: true,
+          // /api/ps의 크기는 모델에 따라 일부만 센다 (Gemma 4 E4B는 6.6GB 모델이 353MB로 나온다).
+          // 모델 간 비교는 러너 프로세스의 RSS(runnerRssMB)로 한다
+          runnerRssMB: await runnerRssMB(),
+          sizeMB: Math.round(size / 1e6),
+          sizeVramMB: Math.round(vram / 1e6),
+          // 100이 아니면 일부 레이어가 CPU로 내려가 느려진다
+          gpuPercent: size ? Math.round((vram / size) * 100) : null,
+          contextLength: m.context_length ?? null,
+        };
+      } catch (err) {
+        return {
+          error: err instanceof Error ? err.message.slice(0, 120) : "?",
+        };
+      }
+    },
     async complete(req) {
       const start = performance.now();
+      const think = (await checkThinking()) ? { think: false } : {};
       let res: Response;
       try {
         res = await fetch(`${baseUrl}/api/chat`, {
@@ -269,8 +381,13 @@ export function createOllamaProvider(opts: {
               ...req.messages,
             ],
             ...(req.jsonSchema ? { format: req.jsonSchema } : {}),
+            ...think,
             // 재현성을 위해 temperature 0
-            options: { num_predict: req.maxTokens, temperature: 0 },
+            options: {
+              num_predict: req.maxTokens,
+              num_ctx: numCtx,
+              temperature: 0,
+            },
           }),
           signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS),
         });
@@ -303,15 +420,18 @@ export function createOllamaProvider(opts: {
       if (text === undefined) {
         throw new LLMError("invalid_output", "message.content 없음");
       }
+      const input = body.prompt_eval_count ?? 0;
+      const output = body.eval_count ?? 0;
       return {
         text,
-        usage: {
-          input: body.prompt_eval_count ?? 0,
-          output: body.eval_count ?? 0,
-        },
+        usage: { input, output },
         latencyMs: Math.round(performance.now() - start),
         model: opts.model,
         stopReason: body.done_reason ?? "unknown",
+        // 입력 + 출력이 컨텍스트를 거의 다 채웠으면 입력이 잘렸거나 출력이 밀렸을 수 있다
+        ...(input + output >= numCtx - 16
+          ? { warning: `context_full (${input}+${output} / ${numCtx})` }
+          : {}),
       };
     },
   };

@@ -2,12 +2,16 @@
 //
 //   deno run -A --no-lock --config supabase/functions/parse-content/deno.json \
 //     scripts/eval/harness.ts run [--provider claude|ollama|echo] [--model <id>] \
-//       [--subset dev|all] [--only <caseId>]... [--max-tokens N] [--dry-run] [--label <name>]
+//       [--subset dev|all] [--only <caseId>]... [--stages <a,b>] [--max-tokens N] [--dry-run] [--cache] [--label <name>]
 //
 //   deno run ... scripts/eval/harness.ts compare <runA> <runB>
 //
 // - 평가셋은 local/eval/dataset/ (scripts/eval-dataset.ts가 만든다)에서 읽는다. DB에는 접근하지 않는다
 // - 기본값: --provider echo, --subset dev, --max-tokens 200000. --only는 여러 번 줄 수 있고 --subset보다 우선한다
+// - --stages: 실행할 단계를 쉼표로 이어 순서대로 쓴다 (stages.ts의 STAGES 이름, 기본 extract). 앞 단계 출력이 뒤 단계 입력(prev)으로 넘어간다
+// - 호출 캐시: 성공한 호출은 항상 local/eval/cache/calls/<key>.json에 쓴다. --cache를 줘야 읽는다 (측정 run은 항상 새로 호출해야 하므로
+//   기본은 읽지 않는다). 키 = sha256(provider · model · cacheTag · 요청 전체)라서 본문·system·스키마·max_tokens 중 하나라도 바뀌면 다른 키다.
+//   적중한 호출은 토큰·상한에서 빼고 기록에 cached: true로 남기며, 지연 통계에서도 뺀다. dry-run은 캐시를 읽지도 쓰지도 않는다
 // - 결과: local/eval/runs/<runId>/config.json    (모델, 단계별 프롬프트 해시, 평가셋 해시, 선택한 case)
 //         local/eval/runs/<runId>/records.jsonl  (case × 단계마다 한 줄. 끝나는 즉시 덧붙이므로 중단돼도 남는다)
 //         local/eval/runs/<runId>/summary.json   (종료 상태, 토큰, 비용, 단계별 통계와 채점기 평균)
@@ -40,9 +44,10 @@ import type { EvalCase } from "./types.ts";
 const ROOT = new URL("../..", import.meta.url).pathname;
 const DATASET_DIR = `${ROOT}local/eval/dataset`;
 const RUNS_DIR = `${ROOT}local/eval/runs`;
+const CACHE_DIR = `${ROOT}local/eval/cache/calls`;
 
 const DEFAULT_MAX_TOKENS = 200_000;
-const DEFAULT_PIPELINE = ["echo"];
+const DEFAULT_PIPELINE = ["extract"];
 
 function die(msg: string): never {
   console.error(`\n✗ ${msg}\n`);
@@ -93,15 +98,19 @@ const VALUE_FLAGS = [
   "--only",
   "--max-tokens",
   "--label",
+  "--stages",
 ];
+const BOOLEAN_FLAGS = ["--dry-run", "--cache"];
 
 interface RunOptions {
   provider: "claude" | "ollama" | "echo";
   model?: string;
   subset: "dev" | "all";
   only: string[];
+  stages: string[];
   maxTokens: number;
   dryRun: boolean;
+  cache: boolean;
   label: string;
 }
 
@@ -109,7 +118,7 @@ function parseRunOptions(args: string[]): RunOptions {
   const values = new Map<string, string[]>();
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === "--dry-run") continue;
+    if (BOOLEAN_FLAGS.includes(a)) continue;
     if (!VALUE_FLAGS.includes(a)) die(`알 수 없는 인자: ${a}`);
     const v = args[++i];
     if (v === undefined || v.startsWith("--")) die(`${a}에 값이 필요해요.`);
@@ -133,13 +142,27 @@ function parseRunOptions(args: string[]): RunOptions {
   if (label && !/^[\w.-]+$/.test(label)) {
     die(`--label에는 영문·숫자·_ . - 만 쓸 수 있어요: ${label}`);
   }
+  const stages = one("--stages")
+    ? one("--stages")!
+        .split(",")
+        .map((s) => s.trim())
+    : DEFAULT_PIPELINE;
+  for (const name of stages) {
+    if (!STAGES[name]) {
+      die(
+        `알 수 없는 단계예요: ${name || "(빈 값)"}. 쓸 수 있는 단계: ${Object.keys(STAGES).join(", ")}`,
+      );
+    }
+  }
   return {
     provider,
     model: one("--model"),
     subset,
     only: values.get("--only") ?? [],
+    stages,
     maxTokens,
     dryRun: args.includes("--dry-run"),
+    cache: args.includes("--cache"),
     label,
   };
 }
@@ -251,12 +274,27 @@ class BudgetStop extends Error {
   }
 }
 
-// 모든 LLM 호출이 지나는 곳. 상한 검사, 토큰 집계, 호출 기록을 여기서 한다
+// 호출 캐시 파일: 키에 쓴 요청과 응답을 그대로 남긴다 (local/은 git 제외)
+interface CacheEntry {
+  key: string;
+  provider: string;
+  model: string;
+  createdAt: string;
+  response: LLMResponse;
+}
+
+type MeteredResponse = LLMResponse & { cached?: boolean };
+
+// 모든 LLM 호출이 지나는 곳. 캐시, 상한 검사, 토큰 집계, 호출 기록을 여기서 한다
 class Meter {
   input = 0;
   output = 0;
   estimatedInput = 0;
+  // 실제로 provider를 부른 횟수 (캐시 적중은 세지 않는다)
   calls = 0;
+  cacheHits = 0;
+  // 첫 호출이 끝난 직후의 provider 자원 상태 (모델이 막 로드된 상태라 메모리를 보기 좋다)
+  firstSnapshot: Record<string, unknown> | undefined;
   // dry-run: 최악의 경우(추정 입력 + max_tokens) 누적과, 상한을 처음 넘는 호출 번호
   worstCaseTokens = 0;
   worstCaseOutput = 0;
@@ -266,19 +304,31 @@ class Meter {
     private provider: LLMProvider,
     private maxTokens: number,
     private dryRun: boolean,
+    private readCache: boolean,
   ) {}
 
   get total() {
     return this.input + this.output;
   }
 
-  async call(req: LLMRequest): Promise<LLMResponse> {
+  private async cacheKey(req: LLMRequest): Promise<string> {
+    return await sha256(
+      [
+        this.provider.name,
+        this.provider.model,
+        this.provider.cacheTag ?? "",
+        JSON.stringify(req),
+      ].join("\n"),
+    );
+  }
+
+  async call(req: LLMRequest): Promise<MeteredResponse> {
     const estimate = estimateTokens(req);
     const worst = estimate + req.maxTokens;
-    this.calls++;
-    this.estimatedInput += estimate;
 
     if (this.dryRun) {
+      this.calls++;
+      this.estimatedInput += estimate;
       this.worstCaseTokens += worst;
       this.worstCaseOutput += req.maxTokens;
       if (
@@ -298,14 +348,46 @@ class Meter {
       };
     }
 
+    const key = await this.cacheKey(req);
+    const cachePath = `${CACHE_DIR}/${key}.json`;
+    if (this.readCache) {
+      try {
+        const hit = JSON.parse(
+          await Deno.readTextFile(cachePath),
+        ) as CacheEntry;
+        this.cacheHits++;
+        return { ...hit.response, cached: true };
+      } catch {
+        // 없거나 깨진 캐시는 적중이 아니다
+      }
+    }
+
     if (this.total + worst > this.maxTokens) {
-      this.calls--;
-      this.estimatedInput -= estimate;
       throw new BudgetStop(this.total, worst, this.maxTokens);
     }
+    this.calls++;
+    this.estimatedInput += estimate;
     const res = await this.provider.complete(req);
     this.input += res.usage.input;
     this.output += res.usage.output;
+    if (!this.firstSnapshot && this.provider.snapshot) {
+      this.firstSnapshot = await this.provider.snapshot();
+    }
+
+    // 읽기는 --cache일 때만 하지만 쓰기는 항상 한다. 쓰기 실패가 측정을 막으면 안 된다
+    try {
+      await Deno.mkdir(CACHE_DIR, { recursive: true });
+      const entry: CacheEntry = {
+        key,
+        provider: this.provider.name,
+        model: this.provider.model,
+        createdAt: new Date().toISOString(),
+        response: res,
+      };
+      await Deno.writeTextFile(cachePath, JSON.stringify(entry));
+    } catch {
+      // 무시
+    }
     return res;
   }
 }
@@ -320,6 +402,11 @@ interface CallRecord {
   output: number;
   latencyMs: number;
   stopReason: string;
+  // provider가 남긴 주의 (예: Ollama context_full). 없으면 생략
+  warning?: string;
+  // 캐시 적중이면 input/output/latencyMs는 0이고 원래 값은 cachedUsage에 남는다
+  cached?: boolean;
+  cachedUsage?: { input: number; output: number; latencyMs: number };
 }
 
 interface StageRecord {
@@ -343,6 +430,8 @@ interface StageStats {
   tokens: { input: number; output: number };
   latencyMs: { p50: number; p95: number };
   scores: Record<string, number>;
+  // weight가 붙은 채점기만. 가중 평균 (예: 근거 통과율을 case가 아니라 항목 기준으로)
+  scoresWeighted: Record<string, number>;
 }
 
 function summarizeStages(
@@ -354,11 +443,19 @@ function summarizeStages(
     const mine = records.filter((r) => r.stage === st.name);
     const done = mine.filter((r) => r.status === "ok");
     const graders = new Map<string, number[]>();
+    // [value × weight, weight]. weight가 없는 기록은 1로 센다
+    const weighted = new Map<string, [number, number]>();
     for (const r of done) {
       for (const [g, s] of Object.entries(r.scores)) {
         graders.set(g, [...(graders.get(g) ?? []), s.value]);
+        if (s.weight !== undefined) {
+          const [sum, w] = weighted.get(g) ?? [0, 0];
+          weighted.set(g, [sum + s.value * s.weight, w + s.weight]);
+        }
       }
     }
+    // 지연은 실제로 호출한 기록만 쓴다. 호출이 없거나(건너뜀) 전부 캐시에서 온 기록은 뺀다
+    const timed = done.filter((r) => r.calls.some((c) => !c.cached));
     out[st.name] = {
       n: mine.length,
       ok: done.length,
@@ -370,16 +467,21 @@ function summarizeStages(
       },
       latencyMs: {
         p50: percentile(
-          done.map((r) => r.latencyMs),
+          timed.map((r) => r.latencyMs),
           0.5,
         ),
         p95: percentile(
-          done.map((r) => r.latencyMs),
+          timed.map((r) => r.latencyMs),
           0.95,
         ),
       },
       scores: Object.fromEntries(
         [...graders].map(([g, xs]) => [g, Math.round(mean(xs) * 1000) / 1000]),
+      ),
+      scoresWeighted: Object.fromEntries(
+        [...weighted]
+          .filter(([, [, w]]) => w > 0)
+          .map(([g, [sum, w]]) => [g, Math.round((sum / w) * 1000) / 1000]),
       ),
     };
   }
@@ -390,13 +492,33 @@ function summarizeStages(
 
 type RunStatus = "completed" | "stopped_budget" | "failed";
 
+// macOS 스왑 사용량(MB). 모델이 16GB 메모리에 안 들어가면 여기서 먼저 드러난다. 못 읽으면 null
+async function swapUsedMB(): Promise<number | null> {
+  try {
+    const out = await new Deno.Command("sysctl", {
+      args: ["-n", "vm.swapusage"],
+    }).output();
+    const m = new TextDecoder().decode(out.stdout).match(/used = ([\d.]+)M/);
+    return m ? Math.round(Number(m[1])) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function runCommand(args: string[]) {
   const opts = parseRunOptions(args);
-  const stages = DEFAULT_PIPELINE.map((n) => STAGES[n]);
+  const stages = opts.stages.map((n) => STAGES[n]);
   const { selected, dataset } = await loadDataset(opts);
   const provider = await makeProvider(opts);
-  const meter = new Meter(provider, opts.maxTokens, opts.dryRun);
+  // dry-run은 캐시를 읽지도 쓰지도 않는다
+  const meter = new Meter(
+    provider,
+    opts.maxTokens,
+    opts.dryRun,
+    opts.cache && !opts.dryRun,
+  );
 
+  const swapStart = await swapUsedMB();
   const startedAt = new Date();
   const runId = `${localStamp(startedAt)}${opts.label ? `-${opts.label}` : ""}`;
   const runDir = `${RUNS_DIR}/${runId}`;
@@ -422,6 +544,9 @@ async function runCommand(args: string[]) {
     dataset,
     maxTokens: opts.maxTokens,
     dryRun: opts.dryRun,
+    cache: opts.cache && !opts.dryRun,
+    // provider 설정 중 응답에 영향을 주는 것 (예: Ollama num_ctx=16384)
+    providerOptions: provider.cacheTag ?? "",
   };
 
   console.log(
@@ -482,13 +607,30 @@ async function runCommand(args: string[]) {
         const ctx = {
           call: async (req: LLMRequest) => {
             const res = await meter.call(req);
-            calls.push({
-              model: res.model,
-              input: res.usage.input,
-              output: res.usage.output,
-              latencyMs: res.latencyMs,
-              stopReason: res.stopReason,
-            });
+            calls.push(
+              res.cached
+                ? {
+                    model: res.model,
+                    input: 0,
+                    output: 0,
+                    latencyMs: 0,
+                    stopReason: res.stopReason,
+                    cached: true,
+                    cachedUsage: {
+                      input: res.usage.input,
+                      output: res.usage.output,
+                      latencyMs: res.latencyMs,
+                    },
+                  }
+                : {
+                    model: res.model,
+                    input: res.usage.input,
+                    output: res.usage.output,
+                    latencyMs: res.latencyMs,
+                    stopReason: res.stopReason,
+                    ...(res.warning ? { warning: res.warning } : {}),
+                  },
+            );
             return res;
           },
         };
@@ -557,6 +699,9 @@ async function runCommand(args: string[]) {
     fatal = err instanceof Error ? err.message : String(err);
   } finally {
     const tokens = dryRunOr(opts.dryRun, meter);
+    const warnings = records
+      .flatMap((r) => r.calls)
+      .filter((c) => c.warning).length;
     const summary = {
       status,
       finishedAt: new Date().toISOString(),
@@ -566,6 +711,16 @@ async function runCommand(args: string[]) {
         input: tokens.input,
         output: tokens.output,
         estimatedInput: meter.estimatedInput,
+      },
+      cacheHits: meter.cacheHits,
+      ...(warnings ? { warnings } : {}),
+      // 모델 비교의 메모리 근거. Ollama는 첫 호출 직후와 끝의 /api/ps, 둘 다 스왑 사용량을 남긴다
+      resources: {
+        providerAfterFirstCall: meter.firstSnapshot ?? null,
+        providerAtEnd: opts.dryRun
+          ? null
+          : ((await provider.snapshot?.()) ?? null),
+        swapUsedMB: { start: swapStart, end: await swapUsedMB() },
       },
       costUsd: Math.round(costUsd(provider.price, tokens) * 1e6) / 1e6,
       stages: summarizeStages(records, stages),
@@ -599,7 +754,7 @@ function printDryRun(
   });
   console.log(`\n호출 ${meter.calls}회 (case ${cases}건)`);
   console.log(
-    `예상 입력   ${meter.estimatedInput.toLocaleString()} tok  (글자 수 + 요청당 40 추정)`,
+    `예상 입력   ${meter.estimatedInput.toLocaleString()} tok  (글자 수 + 한글당 0.25 + 요청당 40 추정)`,
   );
   console.log(
     `출력 상한   ${meter.worstCaseOutput.toLocaleString()} tok  (max_tokens 합)`,
@@ -625,20 +780,35 @@ function printSummary(
     status: RunStatus;
     cases: { planned: number; done: number };
     tokens: { input: number; output: number; estimatedInput: number };
+    cacheHits: number;
+    warnings?: number;
+    resources?: {
+      providerAfterFirstCall: Record<string, unknown> | null;
+      providerAtEnd: Record<string, unknown> | null;
+      swapUsedMB: { start: number | null; end: number | null };
+    };
     costUsd: number;
     stages: Record<string, StageStats>;
   },
 ) {
   console.log(
-    `\n${s.status === "completed" ? "✓" : "!"} ${s.status}  case ${s.cases.done}/${s.cases.planned}  토큰 ${s.tokens.input}+${s.tokens.output} (추정 입력 ${s.tokens.estimatedInput})  $${s.costUsd.toFixed(5)}`,
+    `\n${s.status === "completed" ? "✓" : "!"} ${s.status}  case ${s.cases.done}/${s.cases.planned}  토큰 ${s.tokens.input}+${s.tokens.output} (추정 입력 ${s.tokens.estimatedInput})  $${s.costUsd.toFixed(5)}${s.cacheHits ? `  캐시 적중 ${s.cacheHits}회` : ""}${s.warnings ? `  ⚠ 경고 ${s.warnings}회 (records의 calls[].warning)` : ""}`,
   );
-  for (const [name, st] of Object.entries(s.stages)) {
+  const mem = s.resources?.providerAfterFirstCall;
+  if (mem?.loaded) {
     console.log(
-      `  ${name}: ok ${st.ok}/${st.n}  err ${st.errors}  skip ${st.skipped}  p50 ${st.latencyMs.p50}ms  p95 ${st.latencyMs.p95}ms  ${Object.entries(
-        st.scores,
-      )
-        .map(([g, v]) => `${g}=${v}`)
-        .join(" ")}`,
+      `  메모리: 러너 RSS ${mem.runnerRssMB ?? "?"}MB · /api/ps ${mem.sizeMB}MB (GPU ${mem.gpuPercent}%, 컨텍스트 ${mem.contextLength ?? "?"})  스왑 ${s.resources?.swapUsedMB.start ?? "?"} → ${s.resources?.swapUsedMB.end ?? "?"}MB`,
+    );
+  }
+  for (const [name, st] of Object.entries(s.stages)) {
+    const weighted = Object.entries(st.scoresWeighted).map(
+      ([g, v]) => `${g}(가중)=${v}`,
+    );
+    console.log(
+      `  ${name}: ok ${st.ok}/${st.n}  err ${st.errors}  skip ${st.skipped}  p50 ${st.latencyMs.p50}ms  p95 ${st.latencyMs.p95}ms  ${[
+        ...Object.entries(st.scores).map(([g, v]) => `${g}=${v}`),
+        ...weighted,
+      ].join(" ")}`,
     );
   }
   console.log(`  기록: ${runDir}/\n`);
@@ -660,6 +830,9 @@ interface RunConfig {
     caseIds: string[];
   };
   maxTokens: number;
+  // #75 이전 run에는 없다 (없으면 false로 본다)
+  cache?: boolean;
+  providerOptions?: string;
 }
 
 interface LoadedRun {
@@ -733,6 +906,12 @@ async function compareCommand(args: string[]) {
   diff("provider", a.config.provider, b.config.provider);
   diff("model", a.config.model, b.config.model);
   diff("max-tokens", a.config.maxTokens, b.config.maxTokens);
+  diff("캐시 읽기(--cache)", a.config.cache ?? false, b.config.cache ?? false);
+  diff(
+    "provider 설정",
+    a.config.providerOptions ?? "",
+    b.config.providerOptions ?? "",
+  );
   diff("평가셋 선택", a.config.dataset.selection, b.config.dataset.selection);
   diff(
     "평가셋 해시",
@@ -792,10 +971,22 @@ async function compareCommand(args: string[]) {
     const graders = [
       ...new Set([...Object.keys(x.scores), ...Object.keys(y.scores)]),
     ];
+    const weighted = [
+      ...new Set([
+        ...Object.keys(x.scoresWeighted),
+        ...Object.keys(y.scoresWeighted),
+      ]),
+    ];
     const scoreCell = graders.length
-      ? graders
-          .map((g) => `${g} ${change(x.scores[g] ?? 0, y.scores[g] ?? 0, 3)}`)
-          .join("<br>")
+      ? [
+          ...graders.map(
+            (g) => `${g} ${change(x.scores[g] ?? 0, y.scores[g] ?? 0, 3)}`,
+          ),
+          ...weighted.map(
+            (g) =>
+              `${g}(가중) ${change(x.scoresWeighted[g] ?? 0, y.scoresWeighted[g] ?? 0, 3)}`,
+          ),
+        ].join("<br>")
       : "-";
     out.push(
       `| ${name} | ${x.ok}/${x.n} → ${y.ok}/${y.n} | ${scoreCell} | ${change(x.tokens.input, y.tokens.input)} | ${change(x.tokens.output, y.tokens.output)} | ${change(x.latencyMs.p50, y.latencyMs.p50)} | ${change(x.latencyMs.p95, y.latencyMs.p95)} |`,
