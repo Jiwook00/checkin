@@ -360,7 +360,9 @@ export function createOllamaProvider(opts: {
           contextLength: m.context_length ?? null,
         };
       } catch (err) {
-        return { error: err instanceof Error ? err.message.slice(0, 120) : "?" };
+        return {
+          error: err instanceof Error ? err.message.slice(0, 120) : "?",
+        };
       }
     },
     async complete(req) {

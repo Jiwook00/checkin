@@ -717,7 +717,9 @@ async function runCommand(args: string[]) {
       // 모델 비교의 메모리 근거. Ollama는 첫 호출 직후와 끝의 /api/ps, 둘 다 스왑 사용량을 남긴다
       resources: {
         providerAfterFirstCall: meter.firstSnapshot ?? null,
-        providerAtEnd: opts.dryRun ? null : ((await provider.snapshot?.()) ?? null),
+        providerAtEnd: opts.dryRun
+          ? null
+          : ((await provider.snapshot?.()) ?? null),
         swapUsedMB: { start: swapStart, end: await swapUsedMB() },
       },
       costUsd: Math.round(costUsd(provider.price, tokens) * 1e6) / 1e6,
