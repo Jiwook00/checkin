@@ -33,9 +33,16 @@ export interface Price {
 }
 
 export interface LLMProvider {
-  name: "claude" | "ollama" | "echo";
+  name: "claude" | "claude-cli" | "ollama" | "echo";
   model: string;
+  // USD / 100만 토큰. subscription provider는 청구되지 않으므로 "API로 부르면 얼마인가"의 환산 단가다
   price: Price;
+  // 기본 api. subscription이면 비용은 API 환산으로만 보고하고 --max-tokens 상한에서 뺀다
+  billing?: "api" | "subscription";
+  // 결과 해석에 필요한 provider 정보 (예: claude CLI 버전). config.json에 남는다
+  info?: Record<string, unknown>;
+  // 요청 밖에서 provider가 호출마다 얹는 입력 토큰 (예: claude CLI의 기본 시스템 프롬프트). dry-run 추정에 더한다
+  inputOverheadTokens?: number;
   // 요청 밖에서 응답을 바꾸는 provider 설정 (예: Ollama num_ctx). 호출 캐시 키에 들어간다
   cacheTag?: string;
   // 지금 provider의 자원 사용 상태 (Ollama: 로드된 크기·GPU 비율). run 중간과 끝에 summary.json에 남는다
@@ -107,15 +114,26 @@ export function costUsd(
 const CLAUDE_PRICES: Record<string, Price> = {
   // 프롬프트 10만 토큰 이하 단가. 2026-10-21 공식 가격표 확인 (llm-fallback.ts와 같은 값)
   "claude-haiku-5-5": { inputPerMTok: 0.1, outputPerMTok: 0.5 },
+  // 아래 둘은 claude-api 스킬의 모델 표(2026-10-06 기준)에서 옮겼고 공식 가격표는 다시 보지 않았다.
+  // 채점은 구독 경로(claude-cli)라서 실제 청구가 없고, 이 값은 "API였다면"의 환산에만 쓴다
+  "claude-sonnet-5-5": { inputPerMTok: 2, outputPerMTok: 10 },
+  "claude-opus-5-5": { inputPerMTok: 4, outputPerMTok: 20 },
 };
 
 export const DEFAULT_CLAUDE_MODEL = "claude-haiku-5-5";
+export const DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5";
 
-// 추론(thinking)을 끄고 호출하는 모델. Haiku 5.5는 기본으로 추론이 켜져 있고 추론 토큰이 max_tokens에 포함돼서,
-// 추출 요청에서 출력 2,048 중 1,655가 추론에 쓰여 JSON이 잘린 적이 있다(#75). 로컬 모델도 think:false로 돌리므로
-// 같은 조건에서 비교하려고 끈다. Haiku 5.5의 disabled는 effort high 이하(기본 medium)에서만 받는다.
-// 다른 모델(P3 채점용 상위 모델 등)은 disabled를 400으로 거절할 수 있어 모델별로 명시한다
-const CLAUDE_THINKING_DISABLED = new Set(["claude-haiku-5-5"]);
+// 모델별 추론(thinking) 설정. 모델마다 받는 값이 달라서 한 곳에 명시한다.
+//   Haiku 5.5: 기본으로 추론이 켜져 있고 추론 토큰이 max_tokens에 포함돼서, 추출 요청에서 출력 2,048 중 1,655가
+//     추론에 쓰여 JSON이 잘린 적이 있다(#75). 로컬 모델도 think:false로 돌리므로 같은 조건에서 비교하려고 끈다
+//     (disabled는 effort high 이하에서만 받는다).
+//   Sonnet 5.5: disabled가 400이다. 끄려면 between_tools (공식 문서 기준이고 API로 실호출은 해 보지 않았다.
+//     채점 기본 경로는 claude-cli라 이 설정을 쓰지 않는다).
+//   Opus 5.5: 추론을 끌 수 없다(disabled·budget_tokens 모두 400). 보내지 않는다.
+const CLAUDE_THINKING: Record<string, { type: string } | undefined> = {
+  "claude-haiku-5-5": { type: "disabled" },
+  "claude-sonnet-5-5": { type: "between_tools" },
+};
 
 // --- .env ----------------------------------------------------------------------
 
@@ -161,7 +179,7 @@ export function createClaudeProvider(opts: {
     );
   }
 
-  const thinkingOff = CLAUDE_THINKING_DISABLED.has(model);
+  const thinking = CLAUDE_THINKING[model];
 
   const post = async (req: LLMRequest): Promise<Response> => {
     try {
@@ -178,7 +196,7 @@ export function createClaudeProvider(opts: {
           max_tokens: req.maxTokens,
           system: req.system,
           messages: req.messages,
-          ...(thinkingOff ? { thinking: { type: "disabled" } } : {}),
+          ...(thinking ? { thinking } : {}),
           ...(req.jsonSchema
             ? {
                 output_config: {
@@ -205,7 +223,8 @@ export function createClaudeProvider(opts: {
     name: "claude",
     model,
     price,
-    cacheTag: thinkingOff ? "thinking=disabled" : "",
+    // Haiku의 태그는 #75와 같은 문자열이라 그때 쌓인 호출 캐시가 그대로 맞는다
+    cacheTag: thinking ? `thinking=${thinking.type}` : "",
     async complete(req) {
       const start = performance.now();
       let res = await post(req);
@@ -255,6 +274,201 @@ export function createClaudeProvider(opts: {
         latencyMs: Math.round(performance.now() - start),
         model,
         stopReason: body.stop_reason ?? "unknown",
+      };
+    },
+  };
+}
+
+// --- Claude CLI (구독) -----------------------------------------------------------
+
+// `claude -p`(Claude Code 헤드리스)로 호출한다. 구독 사용량으로 돌아 호출당 청구가 없어서 LLM 채점처럼
+// 호출이 많은 개발용 평가에 쓴다 (#76). 운영 경로가 아니다.
+//   - env에서 API 키를 지운다: 셸에 키가 있으면 구독이 아니라 API로 과금되기 때문
+//   - --safe-mode: 전역 CLAUDE.md·메모리 같은 맥락이 채점 프롬프트에 섞이지 않게 한다 (G0 실측: 입력 1,381 → 262tok)
+//   - 빈 임시 폴더에서 실행해 프로젝트 맥락도 막는다
+//   - 모델은 전체 ID로 준다: 별칭 "sonnet"은 claude-sonnet-5로 풀린다
+//   - 토큰은 modelUsage[모델]에서 읽는다: 같은 응답에 내부용 Haiku 호출이 따로 잡힌다
+const CLI_TIMEOUT_MS = 120_000;
+const CLI_EFFORT = "low";
+// 실측: 요청 추정 + 이 값 ≥ 실제 (G0 한 건 262tok, 채점 요청 2건 평균 약 260tok)
+const CLI_INPUT_OVERHEAD_TOKENS = 270;
+
+interface CliModelUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+}
+
+interface CliResult {
+  is_error?: boolean;
+  subtype?: string;
+  result?: string;
+  structured_output?: unknown;
+  stop_reason?: string | null;
+  api_error_status?: number | null;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
+  modelUsage?: Record<string, CliModelUsage>;
+}
+
+export async function createClaudeCliProvider(opts: {
+  model?: string;
+}): Promise<LLMProvider> {
+  const model = opts.model ?? DEFAULT_JUDGE_MODEL;
+  const price = CLAUDE_PRICES[model];
+  if (!price) {
+    throw new Error(
+      `단가를 모르는 모델이에요: ${model}. scripts/eval/llm.ts의 CLAUDE_PRICES에 단가를 추가하세요.`,
+    );
+  }
+
+  const cwd = await Deno.makeTempDir({ prefix: "eval-judge-" });
+  const baseEnv = Deno.env.toObject();
+  delete baseEnv.ANTHROPIC_API_KEY;
+  delete baseEnv.ANTHROPIC_AUTH_TOKEN;
+
+  let version = "unknown";
+  try {
+    const out = await new Deno.Command("claude", {
+      args: ["--version"],
+      cwd,
+      env: baseEnv,
+      clearEnv: true,
+    }).output();
+    version = new TextDecoder().decode(out.stdout).trim() || "unknown";
+  } catch {
+    throw new Error(
+      "claude CLI를 실행할 수 없어요. Claude Code가 설치돼 있고 구독으로 로그인돼 있는지 확인하세요.",
+    );
+  }
+
+  const once = async (req: LLMRequest, prompt: string): Promise<CliResult> => {
+    const args = [
+      "-p",
+      "--safe-mode",
+      "--model",
+      model,
+      "--system-prompt",
+      req.system,
+      "--tools",
+      "",
+      "--no-session-persistence",
+      "--effort",
+      CLI_EFFORT,
+      "--output-format",
+      "json",
+      ...(req.jsonSchema
+        ? ["--json-schema", JSON.stringify(req.jsonSchema)]
+        : []),
+    ];
+    let out: Deno.CommandOutput;
+    try {
+      const child = new Deno.Command("claude", {
+        args,
+        cwd,
+        // 출력 상한은 플래그가 없어 환경변수로 준다
+        env: {
+          ...baseEnv,
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(req.maxTokens),
+        },
+        clearEnv: true,
+        stdin: "piped",
+        stdout: "piped",
+        stderr: "piped",
+        signal: AbortSignal.timeout(CLI_TIMEOUT_MS),
+      }).spawn();
+      const writer = child.stdin.getWriter();
+      await writer.write(new TextEncoder().encode(prompt));
+      await writer.close();
+      out = await child.output();
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      const message = err instanceof Error ? err.message : String(err);
+      throw new LLMError(
+        name === "TimeoutError" || name === "AbortError"
+          ? "timeout"
+          : "network",
+        message.slice(0, 160),
+      );
+    }
+    const stdout = new TextDecoder().decode(out.stdout);
+    let body: CliResult;
+    try {
+      body = JSON.parse(stdout) as CliResult;
+    } catch {
+      const stderr = new TextDecoder().decode(out.stderr).trim();
+      throw new LLMError(
+        "http",
+        `claude -p 종료 코드 ${out.code}: ${(stderr || stdout).slice(0, 160)}`,
+      );
+    }
+    if (body.is_error) {
+      const detail = `${body.subtype ?? "error"}${body.api_error_status ? ` http_${body.api_error_status}` : ""}: ${(body.result ?? "").slice(0, 160)}`;
+      const auth =
+        body.api_error_status === 401 ||
+        body.api_error_status === 403 ||
+        /log ?in|authenticat/i.test(body.result ?? "");
+      throw new LLMError(
+        auth ? "auth" : "http",
+        detail,
+        body.api_error_status ?? undefined,
+      );
+    }
+    return body;
+  };
+
+  return {
+    name: "claude-cli",
+    model,
+    price,
+    billing: "subscription",
+    info: { cliVersion: version, effort: CLI_EFFORT, safeMode: true },
+    // --safe-mode에서도 CLI가 호출마다 기본 프롬프트를 얹는다: 입력 262tok(G0, 사용자 메시지 약 40tok) ~ 363tok(채점 요청 2건 평균)
+    inputOverheadTokens: CLI_INPUT_OVERHEAD_TOKENS,
+    cacheTag: `cli:safe-mode,effort=${CLI_EFFORT}`,
+    async complete(req) {
+      if (req.messages.length !== 1 || req.messages[0].role !== "user") {
+        throw new LLMError(
+          "invalid_output",
+          "claude-cli는 user 메시지 하나만 받아요",
+        );
+      }
+      const prompt = req.messages[0].content;
+      const start = performance.now();
+      let body: CliResult;
+      try {
+        body = await once(req, prompt);
+      } catch (err) {
+        // 인증 실패는 다시 해도 같다. 나머지는 한 번만 다시 시도한다
+        if (err instanceof LLMError && err.kind === "auth") throw err;
+        body = await once(req, prompt);
+      }
+
+      const mu = body.modelUsage?.[model];
+      const input = mu
+        ? (mu.inputTokens ?? 0) +
+          (mu.cacheReadInputTokens ?? 0) +
+          (mu.cacheCreationInputTokens ?? 0)
+        : (body.usage?.input_tokens ?? 0) +
+          (body.usage?.cache_read_input_tokens ?? 0) +
+          (body.usage?.cache_creation_input_tokens ?? 0);
+      const output = mu?.outputTokens ?? body.usage?.output_tokens ?? 0;
+
+      // --json-schema 결과는 structured_output에 객체로 온다 (stop_reason은 내부 도구 호출이라 tool_use)
+      const structured = body.structured_output !== undefined;
+      return {
+        text: structured
+          ? JSON.stringify(body.structured_output)
+          : (body.result ?? ""),
+        usage: { input, output },
+        latencyMs: Math.round(performance.now() - start),
+        model,
+        stopReason: structured ? "end_turn" : (body.stop_reason ?? "unknown"),
       };
     },
   };

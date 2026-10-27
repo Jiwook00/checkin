@@ -9,7 +9,9 @@ import type { LLMRequest, LLMResponse } from "./llm.ts";
 import type { EvalCase } from "./types.ts";
 
 export interface StageContext {
-  call(req: LLMRequest): Promise<LLMResponse>;
+  // dryRunText: dry-run에서 호출 대신 돌려줄 "전형적인 출력". 뒤 단계의 입력 크기를 현실에 가깝게 추정하려는 것이다
+  // (없으면 입력을 그대로 돌려줘서 뒤 단계가 비어 보인다). 실제 호출에서는 쓰지 않는다
+  call(req: LLMRequest, opts?: { dryRunText?: string }): Promise<LLMResponse>;
 }
 
 // value는 0~1. LLM 채점기는 reason을 반드시 남긴다
@@ -22,6 +24,8 @@ export interface Score {
 
 export interface Stage<I = unknown, O = unknown> {
   name: string;
+  // "judge"면 --judge-provider·--judge-model로 만든 provider로 호출한다 (기본은 생성과 같은 provider)
+  role?: "judge";
   // 프롬프트 해시 대상. 프롬프트를 바꾸면 compare가 설정 차이로 보여준다
   prompts: string[];
   // 해시되는 입력. 같은 case·같은 prev면 항상 같은 값이어야 한다

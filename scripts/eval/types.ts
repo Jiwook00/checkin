@@ -26,6 +26,9 @@ export interface EvalCase {
   pairedWith?: string;
   // 발송한 메일이 이 case의 expectCallback과 어긋날 때 이유
   ruleDeviation?: string;
+  // local/eval/dataset/case-notes.json에서 붙는 메모 (예: "empty_body" = 본문이 사실상 없는 글).
+  // 해시 계산 뒤에 붙으므로 casesSha256에 들어가지 않는다. 단계의 입력으로 쓰지 말고 채점기만 본다
+  notes?: string[];
 }
 
 // 메일의 큰 틀 5단계. 직전 회차 글이 없으면 callback은 null이다
