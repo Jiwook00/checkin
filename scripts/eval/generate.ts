@@ -11,7 +11,7 @@ import type { ExtractOutput, Score, Stage } from "./stages.ts";
 import type { EvalCase } from "./types.ts";
 
 // --- 평가용 입력: 공통 질문 · 투표 상태 · 일정 --------------------------------------------
-// 공통 질문 DB(#77)보다 앞이라 실제 데이터를 읽지 않는다. 입력은 case id로 정해지는 합성값이다 (같은 case는 항상 같다)
+// 공통 질문 DB(#78)보다 앞이라 실제 데이터를 읽지 않는다. 입력은 case id로 정해지는 합성값이다 (같은 case는 항상 같다)
 
 const SITE = "https://monthly-checkin.vercel.app";
 
@@ -580,7 +580,7 @@ export const generateStage: Stage<GenerateInput, GenerateOutput> = {
 // --- LLM 채점 단계 ----------------------------------------------------------------------
 // 근거성(grounded) · 구체성(specific) · 톤(tone)을 0/1/2로 매기고 이유를 점수보다 먼저 쓴다 (#75 evidence → text와 같은 원리).
 // 콜백이 있는 case에만 돈다: 콜백이 없는 메일의 톤은 규칙 채점기(banned · form)가 본다.
-// 3단계 척도인 이유: 단계가 적을수록 같은 글에 같은 점수가 나오기 쉽고, 사람 라벨(#78)과 비교하기도 쉽다
+// 3단계 척도인 이유: 단계가 적을수록 같은 글에 같은 점수가 나오기 쉽고, 사람 라벨(#77)과 비교하기도 쉽다
 
 export interface JudgeScores {
   grounded: { reason: string; score: number };
