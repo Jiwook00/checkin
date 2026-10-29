@@ -1,7 +1,7 @@
 // 리마인더 평가셋 추출 (Deno 2.x, #73)
 //
 //   deno run -A --no-lock --config supabase/functions/parse-content/deno.json \
-//     scripts/eval-dataset.ts [--check | --split]
+//     scripts/eval-dataset.ts [--check | --split | --questions]
 //
 // - DB에서 SELECT만 한다. DB에는 아무것도 쓰지 않는다 (.env의 VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 필요)
 // - 결과: local/eval/dataset/cases.json     (case 목록, id 순 정렬, 시각 정보 없음 → 같은 DB면 같은 파일)
@@ -14,6 +14,10 @@
 // - --split: DB를 읽지 않는다. cases.json·subset-dev.json·case-notes.json으로 튜닝/홀드아웃을 나눠
 //         subset-tune.json (프롬프트 개선에 쓰는 40건)과 subset-holdout.json (나머지 171건, 집계 숫자만 본다)을 쓴다 (#76).
 //         cases.json을 건드리지 않으므로 casesSha256이 바뀌지 않고 지금까지의 비교가 이어진다
+// - --questions: DB에서 승인된 공통 질문(checkin_session_questions, approved)만 SELECT해서
+//         session-questions.json 스냅샷을 쓴다 (#78). 생성 단계는 이 파일만 읽고 DB에 접근하지 않는다.
+//         cases.json은 건드리지 않는다. 질문이 없는 옛 회차가 고르는 풀(fallbackSessions)은 처음 받을 때 정해지고
+//         다시 받아도 유지된다 (새 질문이 풀에 섞여 옛 case의 입력이 바뀌지 않게)
 //
 // reference case: local/메일예시/checkin-galpi-<영문이름>-2026-07.html 에 발송한 메일을 둔다.
 //   없으면 reference 0건으로 계속 진행한다 (local/이라 다른 환경에는 없을 수 있다)
@@ -31,6 +35,11 @@
 //   2) 같은 멤버의 다른 회차에 본문이 공백 정규화 후 완전히 같은 글 → 가장 이른 회차만 남긴다
 
 import { createClient } from "@supabase/supabase-js";
+import {
+  SESSION_QUESTIONS_PATH,
+  type SessionQuestionSnapshot,
+  snapshotPayload,
+} from "./eval/session-questions.ts";
 import type { CaseType, EvalCase, ReferenceMail } from "./eval/types.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -895,18 +904,64 @@ async function writeJson(path: string, data: unknown) {
   await Deno.writeTextFile(path, JSON.stringify(data, null, 2) + "\n");
 }
 
-async function build() {
+async function connect() {
   const env = await loadEnv();
   if (!env.VITE_SUPABASE_URL) die(".env에 VITE_SUPABASE_URL이 없어요.");
   if (!env.SUPABASE_SERVICE_ROLE_KEY)
     die("SUPABASE_SERVICE_ROLE_KEY가 .env에 없어요 (VITE_ 프리픽스 없이).");
-  const sb = createClient(
-    env.VITE_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: { persistSession: false, autoRefreshToken: false },
-    },
+  return createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+// 승인된 공통 질문을 스냅샷으로 받는다 (SELECT만). cases.json은 건드리지 않는다
+async function fetchQuestions() {
+  const sb = await connect();
+  const { data, error } = await sb
+    .from("checkin_session_questions")
+    .select("session, question")
+    .eq("status", "approved")
+    .order("session");
+  if (error) die(`공통 질문 조회 실패: ${error.message}`);
+  const questions = (data ?? []) as { session: string; question: string }[];
+  if (questions.length === 0) die("승인된 공통 질문이 없어요.");
+
+  // 풀은 처음 정해진 그대로 둔다. 다시 받을 때 새 질문이 풀에 들어가면 질문 없는 옛 case의 입력이 바뀐다
+  let prev: SessionQuestionSnapshot | null = null;
+  try {
+    prev = JSON.parse(await Deno.readTextFile(SESSION_QUESTIONS_PATH));
+  } catch {
+    // 처음 받는 경우
+  }
+  const known = new Set(questions.map((q) => q.session));
+  const fallbackSessions =
+    prev?.fallbackSessions ?? questions.map((q) => q.session);
+  const missing = fallbackSessions.filter((s) => !known.has(s));
+  if (missing.length > 0)
+    die(
+      `풀에 있던 회차의 질문이 승인 목록에 없어요: ${missing.join(", ")}. 풀을 바꾸면 지금까지의 비교가 끊겨요.`,
+    );
+
+  const snap: SessionQuestionSnapshot = {
+    fetchedAt: new Date().toISOString(),
+    questions,
+    fallbackSessions,
+  };
+  const changed = prev && snapshotPayload(prev) !== snapshotPayload(snap);
+  await writeJson(SESSION_QUESTIONS_PATH, snap);
+  console.log(
+    `\n✓ 공통 질문 ${questions.length}건 → ${SESSION_QUESTIONS_PATH}  (풀: ${fallbackSessions.join(", ")})`,
   );
+  for (const q of questions) console.log(`  ${q.session}  ${q.question}`);
+  if (changed)
+    console.warn(
+      "\n! 이전 스냅샷과 내용이 달라요. 새 회차 질문은 그 회차 case의 입력만 바꾸고, 풀은 그대로예요.",
+    );
+  console.log("");
+}
+
+async function build() {
+  const sb = await connect();
 
   const { data: members, error: mErr } = await sb
     .from("checkin_members")
@@ -1000,6 +1055,8 @@ async function check(built: Awaited<ReturnType<typeof build>>) {
 async function main() {
   // --split은 이미 만든 파일만 읽는다 (DB 접근 없음)
   if (Deno.args.includes("--split")) return await split();
+  // --questions는 승인된 질문만 SELECT한다. 평가셋(cases.json)은 다시 만들지 않는다
+  if (Deno.args.includes("--questions")) return await fetchQuestions();
   const built = await build();
   if (Deno.args.includes("--check")) return await check(built);
 
