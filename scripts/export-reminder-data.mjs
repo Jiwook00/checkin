@@ -111,15 +111,20 @@ const { data: polls, error: pErr } = await supabase
 if (pErr) die(`투표 조회 실패: ${pErr.message}`);
 const poll = polls?.[0] ?? null;
 
-// 5) 이번 달 공통 질문 — ledger의 nextTopic
-let commonQuestion = null;
-try {
-  const ledger = JSON.parse(
-    readFileSync(resolve(ROOT, "letters", "galpi-letters.json"), "utf8"),
+// 5) 이번 달 공통 질문 — checkin_session_questions의 approved 질문 (회고 세션 기준)
+//    승인된 질문이 없으면 비워두고 경고한다. 질문은 scripts/session-question.mjs로 승인한다
+const { data: questionRows, error: qErr } = await supabase
+  .from("checkin_session_questions")
+  .select("question")
+  .eq("session", session)
+  .eq("status", "approved")
+  .limit(1);
+if (qErr) die(`공통 질문 조회 실패: ${qErr.message}`);
+const commonQuestion = questionRows?.[0]?.question ?? null;
+if (!commonQuestion) {
+  console.warn(
+    `! ${session}에 승인된 공통 질문이 없어요 — node scripts/session-question.mjs propose/approve로 먼저 승인하세요.`,
   );
-  commonQuestion = ledger.nextTopic ?? null;
-} catch {
-  /* ledger 없으면 비워둔다 — 작성자가 채운다 */
 }
 
 // --- 세션 타임라인 (최신 → 과거). 대상 세션은 글이 0건이어도 포함시킨다. ----
@@ -284,7 +289,7 @@ console.log(
     out.meetingTime ?? ""
   } ${out.meetingType ?? ""} · 투표 ${out.voteClosed ? "마감" : "진행 중"}`,
 );
-console.log(`  공통 질문: ${out.commonQuestion ?? "(ledger에 없음)"}`);
+console.log(`  공통 질문: ${out.commonQuestion ?? "(승인된 질문 없음)"}`);
 console.log(`  작성: ${out.writtenCount}/${out.totalMembers}명\n`);
 for (const m of out.members) {
   console.log(
