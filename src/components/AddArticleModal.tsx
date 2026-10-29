@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { AddArticleForm, AddArticleResult, AvatarConfig } from "../types";
+import type {
+  AddArticleForm,
+  AddArticleResult,
+  AvatarConfig,
+  SessionQuestions,
+} from "../types";
 import { parseErrorMessage } from "../lib/parse-errors";
 import EmotionPicker, { DEFAULT_AVATAR } from "./EmotionPicker";
 import EmotionBlob from "./EmotionBlob";
+import SessionQuestionCard from "./SessionQuestionCard";
 
 interface AddArticleModalProps {
   isOpen: boolean;
@@ -14,6 +20,7 @@ interface AddArticleModalProps {
   ) => Promise<AddArticleResult>;
   onSaveAvatar: (articleId: string, avatar: AvatarConfig) => Promise<void>;
   defaultSession?: string;
+  sessionQuestions: SessionQuestions;
 }
 
 function getCurrentSession(): string {
@@ -27,6 +34,7 @@ export default function AddArticleModal({
   onSubmit,
   onSaveAvatar,
   defaultSession,
+  sessionQuestions,
 }: AddArticleModalProps) {
   const navigate = useNavigate();
   const sessionInit = defaultSession ?? getCurrentSession();
@@ -290,6 +298,10 @@ export default function AddArticleModal({
                 value={form.session}
                 onChange={(e) => setForm({ ...form, session: e.target.value })}
                 className="w-full rounded-[8px] border border-hairline px-3 py-2 text-sm focus:border-ink focus:outline-none"
+              />
+              <SessionQuestionCard
+                question={sessionQuestions[form.session.trim()]}
+                place="form"
               />
             </div>
 

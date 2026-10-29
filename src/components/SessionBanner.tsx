@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { VotePoll } from "../types";
+import SessionQuestionCard from "./SessionQuestionCard";
 
 function formatTime(t: string) {
   const [h, m] = t.split(":").map(Number);
@@ -21,9 +22,15 @@ function formatConfirmedDate(dateStr: string, timeStr: string | null) {
 interface Props {
   onAddClick: () => void;
   activePoll?: VotePoll | null;
+  // 이 배너가 가리키는 회고 회차의 승인된 공통 질문 (없으면 표시 안 함)
+  question?: string;
 }
 
-export default function SessionBanner({ onAddClick, activePoll }: Props) {
+export default function SessionBanner({
+  onAddClick,
+  activePoll,
+  question,
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   function copyPassword(pw: string) {
@@ -130,6 +137,8 @@ export default function SessionBanner({ onAddClick, activePoll }: Props) {
               아직 일정이 만들어지지 않았어요
             </p>
           )}
+
+          <SessionQuestionCard question={question} place="banner" />
         </div>
 
         <button

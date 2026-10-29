@@ -9,9 +9,10 @@ import TaskItem from "@tiptap/extension-task-item";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import type { AvatarConfig } from "../types";
+import type { AvatarConfig, SessionQuestions } from "../types";
 import EmotionPicker, { DEFAULT_AVATAR } from "./EmotionPicker";
 import EmotionBlob from "./EmotionBlob";
+import SessionQuestionCard from "./SessionQuestionCard";
 
 function getCurrentSession(): string {
   const now = new Date();
@@ -22,6 +23,7 @@ function getCurrentSession(): string {
 interface WritePageProps {
   memberId: string;
   defaultSession?: string;
+  sessionQuestions: SessionQuestions;
   onSave: () => void;
 }
 
@@ -54,6 +56,7 @@ function ToolbarButton({
 export default function WritePage({
   memberId,
   defaultSession,
+  sessionQuestions,
   onSave,
 }: WritePageProps) {
   const navigate = useNavigate();
@@ -313,6 +316,10 @@ export default function WritePage({
             className="w-24 rounded border border-hairline bg-surface-card px-2 py-0.5 text-xs text-body focus:border-ink focus:outline-none"
           />
         </div>
+        <SessionQuestionCard
+          question={sessionQuestions[session.trim()]}
+          place="form"
+        />
 
         {/* 툴바 */}
         <div className="mt-6 flex flex-wrap items-center gap-1 rounded-[8px] border border-hairline bg-surface-card px-2 py-1.5">
