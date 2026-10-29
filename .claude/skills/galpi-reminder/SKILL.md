@@ -63,7 +63,7 @@ description: 갈피(사서 페르소나)가 회고 모임 전에 보내는 멤�
      "meetingPlace": null,
      "voteClosed": false,
      "voteUrl": "https://monthly-checkin.vercel.app/vote",
-     "commonQuestion": "이번 달 공통 질문 문장",
+     "commonQuestion": "이번 달 공통 질문 문장 (checkin_session_questions의 approved)",
      "writtenCount": 3,
      "totalMembers": 8,
      "members": [
@@ -105,6 +105,7 @@ description: 갈피(사서 페르소나)가 회고 모임 전에 보내는 멤�
    - `checkin_reactions` — `target_type`(`retrospective`|`comment`), `target_id`, `member_id`, **`emoji`**
    - `checkin_vote_polls` — `status`, `confirmed_date`, `confirmed_time`, `type`, `meeting_url`
    - `checkin_members` — 전체 로스터(현재 8명)
+   - `checkin_session_questions` — 이번 달 공통 질문. `session`(회고 세션)당 하나, `approved`만 쓴다. 없으면 export가 경고하고 `commonQuestion`이 `null`이다 → 임의로 만들지 말고 `node scripts/session-question.mjs propose/approve`로 먼저 승인받는다
 
    반응은 좋아요(boolean)가 아니라 **이모지 반응**이다. 기본 이모지는 `src/types/index.ts`의 `DEFAULT_REACTION_EMOJIS`지만 임의 이모지도 들어온다.
 

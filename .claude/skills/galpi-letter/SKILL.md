@@ -33,14 +33,18 @@ description: 갈피(사서 페르소나)의 월간 회고 다이제스트 레터
 
    → `letters/<session>/data.json` 생성. 세션이 안 맞으면 스크립트가 존재하는 세션을 알려주니 다시 시도.
 
-3. **ledger 읽기 + 회차 판단** — `letters/galpi-letters.json`에서 `nextNumber`(마스트헤드 No.), `topicsUsed`, `nextTopic`을 확인. `sent[]`에 이 세션 `round:1`이 있으면 이번은 **2차**, 없으면 **1차** (인자로 명시했으면 그대로).
+3. **ledger 읽기 + 회차 판단** — `letters/galpi-letters.json`에서 `nextNumber`(마스트헤드 No.)와 `sent[]`를 확인. (공통 질문은 ledger가 아니라 DB — 6단계.) `sent[]`에 이 세션 `round:1`이 있으면 이번은 **2차**, 없으면 **1차** (인자로 명시했으면 그대로).
 
 4. **요약 작성** — `data.json`의 각 `contentMarkdown`을 **중립 톤 불렛 2~3줄**로 간추린다.
    갈피 코멘트·감상 넣지 않는다. 본문에 없는 내용 지어내지 않는다. (가이드 §4)
 
 5. **댓글 정리** — `data.json`의 `comments[]`를 "누가 → 누구 글에 + 본문"으로 정리. 각 항목 링크는 `{articleUrl}#comment-{commentId}`. 댓글 없으면 그 섹션 생략. (가이드 §5)
 
-6. **다음 달 주제** — **1차**면 ledger `topicsUsed`에 **없는** 주제를 후보 뱅크(기획 §4-2)에서 골라 예시 한 줄과 함께 넣는다. **2차**면 새로 고르지 말고 그 세션 1차가 예고한 `nextTopic`을 **그대로** 싣는다. (가이드 §5-2)
+6. **다음 달 주제** — 공통 질문은 DB `checkin_session_questions`가 단일 출처다. 예고하는 주제 = **다음 회고 세션**(session + 1개월)의 질문이다. (가이드 §5-2)
+   - `node scripts/session-question.mjs list`로 이미 쓴 질문을 본다.
+   - **1차:** 후보 **3개**를 한 줄 이유와 함께 제안하고 운영자가 하나를 고르게 한다. 고른 것을 `propose <다음 세션> "<질문>"` → 운영자 확인 → `approve <다음 세션>`. 승인된 문장을 예시 한 줄과 함께 싣는다.
+   - **2차:** 새로 고르지 말고 다음 세션의 **승인된 질문을 그대로** 싣는다. 승인된 질문이 없으면 임의로 정하지 말고 운영자에게 묻는다.
+   - **후보 규칙:** 후보 뱅크(기획 §4-2)에서 고르거나 비슷한 결로 만든다. ① 이미 쓴 질문과 겹치지 않는다 ② 한 줄로 답해도 완성되는 가벼운 질문 ③ 개발·성과가 아니라 안부의 온도 ④ 정답이 있거나 평가가 되는 질문은 쓰지 않는다 ⑤ 문장은 "~는?"으로 끝나는 짧은 한 문장. 승인 전에는 앱에 보이지 않으니 `propose`만으로는 노출되지 않는다.
 
 7. **템플릿 채우기** — 가장 최근 digest HTML을 복사해 `letters/<session>/digest-<회차>.html`(예: `digest-1.html`, `digest-2.html`)로 만들고, `<!-- SLOT: ... -->` / `CARD` / `COMMENT` 블록을 교체한다.
    - 멤버 카드·댓글 항목은 개수만큼 복제/삭제. `더 보기`=각 `articleUrl`, 댓글=각 딥링크.
@@ -52,7 +56,7 @@ description: 갈피(사서 페르소나)의 월간 회고 다이제스트 레터
 
 9. **프리뷰 안내** — 사용자에게 `letters/<session>/digest-<회차>.html`을 브라우저로 열어 검토하라고 안내한다(다크모드 포함). 발송은 사용자가 직접.
 
-10. **ledger 갱신 (발송 후)** — 사용자가 "발송했다"고 하면 `sent[]`에 이번 건 추가(`number`, `session`, `round`, `sentAt`=발송 시각 ISO, `topic`), `nextNumber`를 +1. **1차였다면** 예고 주제를 `topicsUsed`에 추가하고 `nextTopic`을 갱신(2차는 주제·nextTopic 안 건드림).
+10. **ledger 갱신 (발송 후)** — 사용자가 "발송했다"고 하면 `sent[]`에 이번 건 추가(`number`, `session`, `round`, `sentAt`=발송 시각 ISO, `topic`), `nextNumber`를 +1. `topic`에는 예고한 질문 문장을 기록용으로 적는다. 질문 자체는 6단계에서 이미 DB에 승인돼 있으므로 ledger에 `topicsUsed`·`nextTopic`을 더하지 않는다.
 
 ## 하지 않을 것
 
