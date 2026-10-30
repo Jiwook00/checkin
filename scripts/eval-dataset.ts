@@ -34,6 +34,12 @@
 //   1) 같은 멤버·같은 회차의 여러 글 → 하나만: 본문 정상 > 본문 길이 > 먼저 등록 > id
 //   2) 같은 멤버의 다른 회차에 본문이 공백 정규화 후 완전히 같은 글 → 가장 이른 회차만 남긴다
 
+import {
+  classifySource,
+  compareRepresentative,
+  type Retro,
+  type RetroRow,
+} from "../supabase/functions/_shared/reminder/source.ts";
 import { createClient } from "@supabase/supabase-js";
 import {
   SESSION_QUESTIONS_PATH,
@@ -45,28 +51,8 @@ import type { CaseType, EvalCase, ReferenceMail } from "./eval/types.ts";
 const ROOT = new URL("..", import.meta.url).pathname;
 const OUT_DIR = `${ROOT}local/eval/dataset`;
 
-// 직접 작성 글이 이 글자 수를 넘어야 본문 정상으로 본다
-const WRITTEN_MIN_CHARS = 200;
 // supabase-js 기본 조회 상한. 넘으면 일부만 읽은 채 평가셋을 만들게 되므로 멈춘다
 const QUERY_ROW_LIMIT = 1000;
-
-interface RetroRow {
-  id: string;
-  title: string;
-  session: string;
-  member_id: string;
-  content_type: "url" | "written";
-  parse_status: "ok" | "degraded" | "failed" | null;
-  content_markdown: string | null;
-  created_at: string;
-}
-
-type BodyState = "normal" | "failed" | "ambiguous";
-
-interface Retro extends RetroRow {
-  markdown: string;
-  state: BodyState;
-}
 
 interface Dropped {
   retroId: string;
@@ -105,32 +91,6 @@ async function loadEnv(): Promise<Record<string, string>> {
 }
 
 const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
-
-function classify(row: RetroRow): Retro {
-  const markdown = (row.content_markdown ?? "").trim();
-  let state: BodyState;
-  if (row.parse_status === "failed") state = "failed";
-  else if (row.parse_status === "ok") state = markdown ? "normal" : "failed";
-  else if (
-    row.content_type === "written" &&
-    markdown.length > WRITTEN_MIN_CHARS
-  )
-    state = "normal";
-  else state = "ambiguous"; // degraded, 짧은 직접 작성 글
-  return { ...row, markdown, state };
-}
-
-// 같은 멤버·같은 회차의 여러 글 중 대표 하나를 고른다. 결정적이어야 하므로 반응 수 같은 가변 기준은 쓰지 않는다
-function compareRepresentative(a: Retro, b: Retro): number {
-  const rank = (r: Retro) =>
-    r.state === "normal" ? 0 : r.state === "ambiguous" ? 1 : 2;
-  return (
-    rank(a) - rank(b) ||
-    b.markdown.length - a.markdown.length ||
-    a.created_at.localeCompare(b.created_at) ||
-    a.id.localeCompare(b.id)
-  );
-}
 
 function dedupe(retros: Retro[], nick: Map<string, string>) {
   const dropped: Dropped[] = [];
@@ -983,7 +943,7 @@ async function build() {
   const nick = new Map(
     (members ?? []).map((m) => [m.id as string, m.nickname as string]),
   );
-  const retros = (rows as RetroRow[]).map(classify);
+  const retros = (rows as RetroRow[]).map(classifySource);
   const { kept, dropped, crossDropped } = dedupe(retros, nick);
   const built = buildCases(kept, crossDropped, nick);
   const { excluded, timeline } = built;
