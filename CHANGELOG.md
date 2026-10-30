@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.1.0...checkin-v1.2.0) (2026-10-30)
+
+
+### Features
+
+* checkin_reminder_drafts 테이블 ([7912077](https://github.com/Jiwook00/checkin/commit/79120773912ad0cdbaedd6e431614097c1122ece)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* checkin_session_questions 테이블과 기존 질문 시드 ([ff9f47d](https://github.com/Jiwook00/checkin/commit/ff9f47d4a0f38a8d04b0bb8f7f7f460450811e5b)), closes [#78](https://github.com/Jiwook00/checkin/issues/78)
+* generate-reminders Edge Function ([7b2e6dc](https://github.com/Jiwook00/checkin/commit/7b2e6dc875b9d0a04bc3b40532a97c54450bac52)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* suggest-questions Edge Function ([cfccde4](https://github.com/Jiwook00/checkin/commit/cfccde44de8f4510cafae121614129b86c597fb9)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* 공통 질문 DB 이관과 글 등록·작성 화면 노출 ([5502968](https://github.com/Jiwook00/checkin/commit/55029684face207989973ceed9bcd927703ccf4d))
+* 관리자 권한과 공통 질문 쓰기 정책 ([6cc857e](https://github.com/Jiwook00/checkin/commit/6cc857eed49892caa23103f5d368a97c7feb82f7)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* 관리자 리마인더 화면 ([9651f66](https://github.com/Jiwook00/checkin/commit/9651f6646269bda99e29986479ab814be57d3caa)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* 관리자 화면과 리마인더 초안 생성 API ([07efcb1](https://github.com/Jiwook00/checkin/commit/07efcb133b5acfed448a8e9a21f3537c2c20fccd))
+* 글 등록·작성 화면과 배너에 공통 질문 노출 ([fc95520](https://github.com/Jiwook00/checkin/commit/fc95520fcb42e35c6e1490bf4d972963284fd58f)), closes [#78](https://github.com/Jiwook00/checkin/issues/78)
+
 ## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-10-22)
 
 
