@@ -1,9 +1,13 @@
 ---
 name: galpi-reminder
-description: 갈피(사서 페르소나)가 회고 모임 전에 보내는 멤버별 개별 맞춤 리마인더 메일 HTML을 만든다. Supabase에서 그 멤버의 작성 이력·받은 반응·이번 달 공통 질문을 뽑아 한 사람당 한 통씩 생성한다. 사용자가 "갈피 리마인더", "회고 전 메일", "개별 메일 만들어줘", "이번 달 리마인더 돌려줘" 등을 요청할 때 사용한다. 전원 공통으로 나가는 다이제스트 레터(galpi-letter)와는 다른 메일이니 헷갈리지 말 것.
+description: "[관리자 화면으로 대체됨 — 리마인더는 /admin/reminders에서 만든다. 이 스킬은 톤·체크리스트 기준 문서로 남긴다]" 갈피(사서 페르소나)가 회고 모임 전에 보내는 멤버별 개별 맞춤 리마인더 메일 HTML을 만든다. Supabase에서 그 멤버의 작성 이력·받은 반응·이번 달 공통 질문을 뽑아 한 사람당 한 통씩 생성한다. 사용자가 "갈피 리마인더", "회고 전 메일", "개별 메일 만들어줘", "이번 달 리마인더 돌려줘" 등을 요청할 때 사용한다. 전원 공통으로 나가는 다이제스트 레터(galpi-letter)와는 다른 메일이니 헷갈리지 말 것.
 ---
 
 # 갈피 개별 리마인더 생성
+
+> **관리자 화면으로 대체됨 (이슈 #79).** 리마인더 초안은 이제 앱의 `/admin/reminders`(관리자 전용)에서 만든다: ① 공통 질문 승인 → ② 초안 생성(Edge Function + Claude API) → ③ 검토(승인·수정·반려, 복사). 생성 코드는 평가 하네스와 같은 모듈이라 측정한 코드가 곧 운영 코드다. 사용자가 이 스킬을 부르면 **절차를 실행하지 말고** 이 사실을 먼저 알리고 관리자 화면을 안내한다.
+>
+> 이 문서는 갈피의 톤 규칙·개인 콜백·체크리스트의 **원본(채점 기준의 출처)**으로 남긴다. 화면 v1이 아직 다루지 않는 것 — 받은 반응(이모지·댓글) 블록, 결석 분기 B~D별 본문, HTML 템플릿 — 은 후속 이슈(#85)에서 옮긴다. 그 전에 그런 메일이 필요하면 사용자에게 먼저 묻는다.
 
 체크인 회고 모임의 사서 페르소나 **갈피**가 **모임 전에** 보내는 **개별 맞춤 리마인더**(HTML)를 만든다.
 발송 시점은 매번 달라지므로 **본문에서 남은 날짜를 세지 않는다**(§톤 규칙).
@@ -46,15 +50,9 @@ description: 갈피(사서 페르소나)가 회고 모임 전에 보내는 멤�
 1. **가이드 §8(갈피 목소리) 읽기** — 톤이 이 메일의 핵심이라 매번 읽는다.
 
 2. **이번 회차 공통 질문 확정** — 메일과 앱(글 등록 화면·홈 배너)이 같은 질문을 쓴다. 단일 출처는 DB `checkin_session_questions`(회고 세션당 하나, approved만 노출).
-
-   ```bash
-   node scripts/session-question.mjs list
-   ```
-
+   - 관리자 화면 `/admin/reminders` ①에서 정한다: 이미 쓴 질문 보기, 후보 뱅크에서 고르기, 직접 입력, 선택적 LLM 제안(Haiku, 후보 3개 + 이유), 승인. 승인하는 순간 앱 멤버에게 보인다.
    - `<session>`에 approved 질문이 있으면 그대로 쓴다.
-   - 없으면 후보 **3개**를 한 줄 이유와 함께 제안하고 사용자가 고르게 한다. 고른 것을 `propose <session> "<질문>"` → 사용자 확인 → `approve <session>`. 승인하는 순간 앱 멤버에게 보인다.
    - **후보 규칙:** 후보 뱅크(`docs/retro-writing-participation.md` §4-2)에서 고르거나 비슷한 결로 만든다. ① 이미 쓴 질문과 겹치지 않는다 ② 한 줄로 답해도 완성되는 가벼운 질문 ③ 개발·성과가 아니라 안부의 온도 ④ 정답이 있거나 평가가 되는 질문은 쓰지 않는다 ⑤ "~는?"으로 끝나는 짧은 한 문장.
-   - 이 단계는 관리자 화면(#79)이 생기기 전까지의 임시 절차다.
 
 3. **데이터 뽑기**
 
@@ -116,7 +114,7 @@ description: 갈피(사서 페르소나)가 회고 모임 전에 보내는 멤�
    - `checkin_reactions` — `target_type`(`retrospective`|`comment`), `target_id`, `member_id`, **`emoji`**
    - `checkin_vote_polls` — `status`, `confirmed_date`, `confirmed_time`, `type`, `meeting_url`
    - `checkin_members` — 전체 로스터(현재 8명)
-   - `checkin_session_questions` — 이번 달 공통 질문. `session`(회고 세션)당 하나, `approved`만 쓴다. 없으면 export가 경고하고 `commonQuestion`이 `null`이다 → 임의로 만들지 말고 `node scripts/session-question.mjs propose/approve`로 먼저 승인받는다
+   - `checkin_session_questions` — 이번 달 공통 질문. `session`(회고 세션)당 하나, `approved`만 쓴다. 없으면 export가 경고하고 `commonQuestion`이 `null`이다 → 임의로 만들지 말고 관리자 화면에서 먼저 승인받는다
 
    반응은 좋아요(boolean)가 아니라 **이모지 반응**이다. 기본 이모지는 `src/types/index.ts`의 `DEFAULT_REACTION_EMOJIS`지만 임의 이모지도 들어온다.
 

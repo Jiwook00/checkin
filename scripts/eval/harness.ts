@@ -55,6 +55,10 @@ import {
   type SessionQuestionSnapshot,
   snapshotPayload,
 } from "./session-questions.ts";
+import {
+  promptSha256,
+  sha256,
+} from "../../supabase/functions/_shared/reminder/hash.ts";
 import { type AnyStage, type Score, STAGES } from "./stages.ts";
 import type { EvalCase } from "./types.ts";
 
@@ -72,16 +76,6 @@ function die(msg: string): never {
 }
 
 // --- 유틸 ---------------------------------------------------------------------
-
-async function sha256(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(s),
-  );
-  return [...new Uint8Array(buf)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 async function git(args: string[]): Promise<string> {
   try {
@@ -711,7 +705,7 @@ async function runCommand(args: string[]) {
     stages: await Promise.all(
       stages.map(async (s) => ({
         name: s.name,
-        promptSha256: await sha256(s.prompts.join("\n---\n")),
+        promptSha256: await promptSha256(s.prompts),
       })),
     ),
     dataset,

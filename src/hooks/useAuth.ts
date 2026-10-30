@@ -6,6 +6,8 @@ interface Member {
   email: string;
   nickname: string;
   avatar_url: string | null;
+  // 관리자 화면 접근 여부. 서버(RLS·Edge Function)도 is_checkin_admin()으로 따로 막는다
+  is_admin: boolean;
 }
 
 type AuthState =
@@ -64,7 +66,7 @@ export function useAuth() {
 
     const { data: memberData } = await supabase
       .from("checkin_members")
-      .select("avatar_url")
+      .select("avatar_url, is_admin")
       .eq("id", userId)
       .single();
 
@@ -75,6 +77,7 @@ export function useAuth() {
         email,
         nickname: allowed.nickname,
         avatar_url: memberData?.avatar_url ?? null,
+        is_admin: memberData?.is_admin ?? false,
       },
     });
   };

@@ -10,9 +10,13 @@ const NAV_ITEMS = [
   { label: "프로필", to: "/profile" },
 ];
 
+// 관리자에게만 보이는 메뉴. 접근은 App의 라우트 가드와 서버(RLS · Edge Function)가 각각 막는다
+const ADMIN_NAV_ITEM = { label: "관리", to: "/admin/reminders" };
+
 interface LayoutProps {
   children: ReactNode;
   nickname: string;
+  isAdmin?: boolean;
   onLogout: () => void;
   onAddClick: () => void;
   fullBleed?: boolean;
@@ -22,11 +26,13 @@ interface LayoutProps {
 export default function Layout({
   children,
   nickname,
+  isAdmin = false,
   onLogout,
   onAddClick,
   fullBleed = false,
   noPadding = false,
 }: LayoutProps) {
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -66,7 +72,7 @@ export default function Layout({
 
         {/* Nav */}
         <nav className="flex-1 space-y-0.5">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -170,7 +176,7 @@ export default function Layout({
 
             {/* Nav items */}
             <nav className="flex-1 px-3 pt-3 space-y-0.5">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}

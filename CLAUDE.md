@@ -32,6 +32,8 @@ supabase functions deploy parse-content # Deploy
 **Backend** (`supabase/`)
 
 - `supabase/functions/parse-content/` — Edge Function (Deno) for parsing Notion/blog URLs into markdown
+- `supabase/functions/generate-reminders/`, `suggest-questions/` — 관리자 전용 리마인더 초안 생성·공통 질문 제안 (ADR 0007)
+- `supabase/functions/_shared/reminder/` — 리마인더 생성 코어. 평가 하네스(`scripts/eval/`)와 Edge Function이 함께 import한다. 프롬프트·요청 객체를 바꾸면 하네스 호출 캐시와 평가 기준선이 끊긴다
 - `supabase/migrations/` — SQL migration files
 
 **Database** (Supabase)
@@ -45,6 +47,7 @@ supabase functions deploy parse-content # Deploy
 - Supabase Google OAuth 사용
 - 로그인 흐름: Google OAuth → `checkin_allowed_members` 화이트리스트 확인 → `checkin_members` upsert
 - 유저 관리는 `auth.users`가 아닌 `checkin_members`에서 수행
+- 관리자: `checkin_members.is_admin` + SQL 함수 `is_checkin_admin()`. 앱·RLS·Edge Function이 같은 값을 본다. 앱에서 `is_admin`을 바꾸는 것은 트리거가 막는다 (`/admin/reminders`)
 
 **Deployment**: Frontend → Vercel, Backend → Supabase
 

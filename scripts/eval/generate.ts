@@ -6,10 +6,27 @@
 // 일정·투표 링크가 들어가는 공지 구간은 LLM이 쓰지 않고 코드가 붙인다 (날짜를 지어낼 여지를 없앤다. ADR 0006)
 // 설계 근거와 규칙의 출처: .claude/skills/galpi-reminder/SKILL.md (§개인 콜백, §톤 규칙, §체크리스트)
 
-import { checkEvidence, normalizeStrict, prepareSource } from "./evidence.ts";
+import {
+  buildGenerateRequest,
+  composeMail,
+  GENERATE_PROMPTS,
+  type GenerateInput,
+  type GenerateOutput,
+  type Material,
+  type Notice,
+  parseGenerate,
+  renderMaterials,
+  selectMaterials,
+} from "../../supabase/functions/_shared/reminder/generate.ts";
+import type { ExtractOutput } from "../../supabase/functions/_shared/reminder/extract.ts";
+import { ruleGrade } from "../../supabase/functions/_shared/reminder/grade.ts";
+import type { Score } from "../../supabase/functions/_shared/reminder/types.ts";
 import { loadSessionQuestions } from "./session-questions.ts";
-import type { ExtractOutput, Score, Stage } from "./stages.ts";
+import type { Stage } from "./stages.ts";
 import type { EvalCase } from "./types.ts";
+
+// 프롬프트·요청·파싱·메일 조립·규칙 채점기는 Edge Function과 공유하는 _shared/reminder/에 있다 (#79).
+// 여기에는 평가용 합성 입력, 정답 라벨 채점(callback_label), LLM 채점(judge)만 남는다
 
 // --- 평가용 입력: 공통 질문 · 투표 상태 · 일정 --------------------------------------------
 // 공통 질문은 DB(checkin_session_questions, #78)에서 받아 둔 스냅샷 파일에서만 읽는다. 하네스는 DB에 접근하지 않는다.
@@ -41,13 +58,6 @@ function pickQuestion(c: EvalCase): string {
 // 투표가 닫혔는지는 case마다 반반으로 섞는다. LLM은 이 boolean만 본다
 const pickVoteOpen = (c: EvalCase) => hash32(`${c.id}:vote`) % 2 === 0;
 
-interface Notice {
-  // CTA: 이번 달 회고 쓰러 가기
-  writeLine: string;
-  // 투표가 열려 있으면 투표 링크, 닫혔으면 모임 정보
-  scheduleLine: string;
-}
-
 // 모임은 회고 회차의 다음 달 둘째 토요일 오후 3시 온라인이라고 가정한다 (2026-08 회차의 실제 모임이 9월 12일 토요일)
 function buildNotice(session: string, voteOpen: boolean): Notice {
   const [y, m] = session.split("-").map(Number);
@@ -60,183 +70,6 @@ function buildNotice(session: string, voteOpen: boolean): Notice {
       ? `다음 모임 일정은 투표로 정하고 있어요 → ${SITE}/vote`
       : `다음 모임 — ${meetingMonth}월 ${secondSaturday}일 (토) 오후 3시 · 온라인`,
   };
-}
-
-// --- 생성 단계 ---------------------------------------------------------------------
-
-export interface Material {
-  kind: "goal" | "moment";
-  evidence: string;
-  text: string;
-}
-
-export interface GenerateResult {
-  opening: string;
-  // 고른 재료 번호(1부터). 재료가 없거나 콜백을 쓰지 않으면 0
-  callbackItem: number;
-  callback: string;
-  commonQuestion: string;
-  closing: string;
-}
-
-interface GenerateInput {
-  name: string;
-  month: string;
-  voteOpen: boolean;
-  commonQuestion: string;
-  // 추출 항목 중 근거 검증(checkEvidence)을 통과한 것만. 비어 있으면 콜백 없이 쓴다 (ADR 0005)
-  materials: Material[];
-  // 근거 검증에 걸려 넘기지 않은 항목 수 (기록용)
-  dropped: number;
-  notice: Notice;
-}
-
-export interface GenerateOutput {
-  result?: GenerateResult;
-  parseError?: string;
-  raw?: string;
-  stopReason?: string;
-  // 채점기와 리포트가 입력을 다시 계산하지 않도록 남긴다
-  materials: Material[];
-  voteOpen: boolean;
-  commonQuestion: string;
-  notice: Notice;
-  // 인사 → 콜백 → 공통 질문 → 공지 → 마무리를 이은 최종 본문 (사람이 읽는 용도)
-  mail?: string;
-}
-
-// 프롬프트 v3 (v2 대비 변경 이유, v2 tune 실패 유형 기준):
-// - callback: 짚는 내용은 evidence에서만, 질문은 한 문장 (grounded 0.5: 요약의 사실을 짚음, callback 4문장 1건)
-// - 후속 질문 절: 질문 대상·전제도 고른 재료의 evidence 안에서만 (grounded 0: 다른 재료의 사실을 전제로 씀; 0.5: 없는 장면을 전제로 깖)
-// - 후속 질문 절: "달라졌는지" 표현을 빼고 대상이 질문 안에 있어야 한다는 조건으로 교체 (specific 0.5: "달라진 점" 틀이 새로 생김, 약 8/31)
-// - 후속 질문 절: goal이면 했는지·어디까지·지금도 하는지 모두 금지 (v2에도 이행 확인 4/15)
-// 프롬프트 v2 (v1 대비 변경 이유, tune 실패 유형 기준):
-// - callback: 질문이 대목에서 이어지게 하고 evidence의 구체적인 말을 살린다 (specific 0.5: "어떻게 ~는지 궁금해요" 틀이 사람마다 같았음)
-// - closing: 투표·글쓰기 부탁 금지 (tone 0.5: 투표 부탁이 가벼운 재촉으로 읽힘; 투표 링크는 공지에 코드가 붙임)
-// - 후속 질문 절: 구체적 대상을 넣어 직접 묻고, goal이면 이행 점검 대신 경험·변화를 묻는다 (tone 0.5: "써보셨는지/어디까지" = 이행 점검)
-// - 규칙 1: 시제를 바꾸지 않는다 (grounded 0: "길렀다" → "길러보겠다고")
-// - 규칙 8: 말끝 "~해요/~예요" (voice: "궁금합니다·감사하겠습니다" 섞임)
-// 프롬프트 v1. 예시 문장을 넣지 않는다: #75 v2에서 예시 문장이 출력(인용)으로 새어 나왔다.
-// "지난 회고 잘 읽었습니다", "적어두셨더라고요"는 스킬의 고정 문형이라 출력에 나오는 게 의도다.
-// 규칙은 스킬 §톤 규칙·§개인 콜백에서 가져왔다
-const GENERATE_SYSTEM = `당신은 개발자 월간 회고 모임 "체크인"의 갈피입니다. 모임 전에 멤버 한 사람에게 보내는 개인 리마인더 메일에서 네 구간을 씁니다. 모임 일정, 링크, 서명은 따로 붙으므로 쓰지 않습니다.
-
-입력
-- member: 받는 사람의 이름. 호칭은 "○○님"입니다.
-- month: 이번에 쓰는 회고의 달.
-- vote_open: true면 다음 모임 일정을 아직 투표로 정하는 중입니다.
-- common_question: 이번 달 공통 질문.
-- materials: 이 사람이 지난 회고에 적은 대목들. 번호가 붙어 있고 evidence는 원문 그대로의 인용입니다. 비어 있으면 "없음"입니다.
-
-구간
-- opening: "안녕하세요 {이름}님, 갈피예요."로 시작하고, {month} 회고를 이제 쓸 수 있다는 사실을 알립니다. 1~2문장.
-- callback: materials가 있을 때만 씁니다. 재료 중 하나만 골라 callbackItem에 그 번호를 적습니다. "지난 회고 잘 읽었습니다."로 열고, 고른 재료의 evidence에 있는 그 사람의 말(이름, 대상, 숫자)을 살려 "~라고 적어두셨더라고요."로 짚은 뒤, 그 대목에 대한 질문 한 문장으로 끝냅니다. 요약은 고를 때만 참고하고, 짚는 내용은 evidence에서 가져옵니다. 2~3문장. materials가 없으면 callbackItem은 0, callback은 빈 문자열로 둡니다.
-- commonQuestion: 이번 달 공통 질문을 소개합니다. 질문 문장은 따옴표 안에 한 글자도 바꾸지 말고 그대로 넣습니다. 회고와 함께 써도 되고 이 질문에 한 줄만 남겨도 된다고 안내합니다. 질문 문장을 빼고 1~3문장.
-- closing: 짧게 맺습니다. 1문장. 투표나 글쓰기를 부탁하지 않습니다. 일정과 링크는 따로 붙습니다.
-
-후속 질문
-- 고른 대목에 나온 구체적인 대상을 질문 안에 넣어 "~나요?", "~세요?"처럼 직접 묻습니다. 대상을 빼도 말이 되는 질문, 즉 어느 대목에나 붙일 수 있는 질문은 쓰지 않습니다.
-- 질문의 대상과 전제도 고른 재료의 evidence에 있는 것만 씁니다. 다른 재료의 사실이나 evidence에 없는 장면을 질문의 전제로 깔지 않습니다.
-- 계획(goal)을 골랐다면 그 일을 했는지, 어디까지 했는지, 지금도 하고 있는지 묻지 않습니다. 그 계획에 나온 대상에 대한 그 사람의 생각을 묻습니다.
-
-규칙
-1. 재료에 없는 사실을 보태지 않습니다. 대목을 짚을 때 숫자, 이름, 시점, 시제(이미 한 일인지 앞으로 할 일인지)를 바꾸지 않습니다.
-2. 감상이나 평가("멋지네요", "대단하세요")를 붙이지 않습니다. 사실과 질문만 담백하게 씁니다.
-3. 검사하지 않습니다. 하겠다고 한 일을 지켰는지 확인하는 투가 아니라, 근황이 궁금한 투로 묻습니다.
-4. 재촉하지 않습니다. 남은 날짜나 마감을 말하지 않고, 다른 멤버와 비교하거나 몇 명이 썼는지 말하지 않고, 길게 쓰라고 하지 않습니다.
-5. 도서관·책·사서에 빗댄 표현(서가, 보관, 꽂다, 꺼내 읽다, 자리를 비워두다 등)을 쓰지 않습니다.
-6. 날짜, 요일, 시간, 장소, 링크를 쓰지 않습니다.
-7. 느낌표와 이모지를 쓰지 않습니다.
-8. 말끝은 "~해요", "~예요"로 씁니다. "~습니다", "~합니다"는 "지난 회고 잘 읽었습니다." 한 문장에만 씁니다.`;
-
-const GENERATE_USER_TEMPLATE = `<member>{name}</member>
-<month>{month}</month>
-<vote_open>{voteOpen}</vote_open>
-<common_question>{question}</common_question>
-<materials>
-{materials}
-</materials>`;
-
-const GENERATE_MAX_TOKENS = 1200;
-
-// 필드 순서가 생성 순서다: 재료를 먼저 고르고(callbackItem) 그다음 쓴다. "없음"은 0과 빈 문자열로 표현한다
-const GENERATE_SCHEMA = {
-  type: "object",
-  properties: {
-    opening: { type: "string" },
-    callbackItem: { type: "integer" },
-    callback: { type: "string" },
-    commonQuestion: { type: "string" },
-    closing: { type: "string" },
-  },
-  required: [
-    "opening",
-    "callbackItem",
-    "callback",
-    "commonQuestion",
-    "closing",
-  ],
-  additionalProperties: false,
-};
-
-function renderMaterials(materials: Material[]): string {
-  if (materials.length === 0) return "없음";
-  return materials
-    .map(
-      (m, i) =>
-        `${i + 1}. [${m.kind === "goal" ? "goal" : "moment"}] evidence: "${m.evidence}" / 요약: ${m.text}`,
-    )
-    .join("\n");
-}
-
-function generateUserMessage(input: GenerateInput): string {
-  return GENERATE_USER_TEMPLATE.replace("{name}", () => input.name)
-    .replace("{month}", () => input.month)
-    .replace("{voteOpen}", () => String(input.voteOpen))
-    .replace("{question}", () => input.commonQuestion)
-    .replace("{materials}", () => renderMaterials(input.materials));
-}
-
-/** 모델 응답을 GenerateResult로. 실패하면 사유 문자열을 돌려준다 */
-function parseGenerate(text: string): GenerateResult | string {
-  let v: unknown;
-  try {
-    v = JSON.parse(text);
-  } catch (err) {
-    return `json: ${(err as Error).message.slice(0, 120)}`;
-  }
-  const o = v as Partial<GenerateResult> | null;
-  if (
-    typeof o !== "object" ||
-    o === null ||
-    typeof o.opening !== "string" ||
-    !Number.isInteger(o.callbackItem) ||
-    typeof o.callback !== "string" ||
-    typeof o.commonQuestion !== "string" ||
-    typeof o.closing !== "string"
-  ) {
-    return "schema: 다섯 필드(문자열 4, 정수 1)가 아니에요";
-  }
-  return {
-    opening: o.opening,
-    callbackItem: o.callbackItem as number,
-    callback: o.callback,
-    commonQuestion: o.commonQuestion,
-    closing: o.closing,
-  };
-}
-
-function composeMail(input: GenerateInput, r: GenerateResult): string {
-  return [
-    r.opening,
-    r.callback,
-    r.commonQuestion,
-    `${input.notice.writeLine}\n${input.notice.scheduleLine}`,
-    r.closing,
-  ]
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join("\n\n");
 }
 
 // dry-run에서 뒤 단계(채점)의 입력 크기를 현실에 가깝게 잡으려는 전형적인 출력. 호출에는 쓰지 않는다
@@ -253,192 +86,24 @@ function syntheticGenerateText(input: GenerateInput): string {
   });
 }
 
-// --- 규칙 채점기 -----------------------------------------------------------------------
-// 모두 0/1이고, 실패 사유는 reason에 태그로 남긴다 ([구간] 태그:"내용"). jq로 유형을 셀 수 있게 하려는 것이다.
-// 스킬의 "본문 4~7문장"은 메일이 다섯 구간으로 바뀌어 구간별 문장 수로 바꿨다 (ADR 0003 한계)
-
-const QUOTE_RE = /“[^”]*”|"[^"]*"|「[^」]*」/g;
-const QUOTE_MARK = "〔인용〕";
-
-/** 문장 수를 세기 위한 분리. 따옴표 안의 구두점은 문장 끝으로 보지 않는다 */
-export function splitSentences(text: string): string[] {
-  return text
-    .replace(QUOTE_RE, QUOTE_MARK)
-    .split(/(?<=[.?!…。！？])["'”’)\]]*\s+|\n+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && s !== QUOTE_MARK);
-}
-
-type Section = "opening" | "callback" | "commonQuestion" | "closing";
-const SECTIONS: Section[] = [
-  "opening",
-  "callback",
-  "commonQuestion",
-  "closing",
-];
-
-// 구간별 문장 수 [최소, 최대]. callback은 있을 때만 센다
-const SENTENCE_RANGE: Record<Section, [number, number]> = {
-  opening: [1, 2],
-  callback: [2, 3],
-  commonQuestion: [1, 3],
-  closing: [1, 2],
-};
-
-// 따옴표와 공백을 지워 질문 문장이 그대로 들어갔는지 본다
-const squash = (s: string) => s.replace(/[\s“”"'‘’「」]/g, "");
-
-// 간접 의문 후속 질문 ("~지 궁금해요")
-const INDIRECT_QUESTION_RE = /지\s*궁금(?:해요|합니다|하네요)/;
-
-// voice: 말끝이 "~니다"인 문장. 스킬 고정 문형 "지난 회고 잘 읽었습니다."만 허용한다
-const FORMAL_END_RE = /니다[.?!…]*$/;
-const FORMAL_ALLOWED = "지난회고잘읽었습니다";
-const squashPunct = (s: string) => s.replace(/[\s.?!…。！？"'“”‘’]/g, "");
-
-// 공지 구간은 코드가 붙이므로 LLM 구간에는 날짜·시간·링크가 없어야 한다.
-// callback은 제외한다: 회원이 쓴 글의 날짜("7월 1일에 이사")를 그대로 짚는 건 정상이다
-const SCHEDULE_PATTERNS: [string, RegExp][] = [
-  ["date", /\d{1,2}\s*월\s*\d{1,2}\s*일/g],
-  ["time", /\d{1,2}\s*시(?!간)/g],
-  ["ampm", /오전|오후/g],
-  ["weekday", /[월화수목금토일]요일/g],
-  ["link", /https?:\/\/|www\./g],
-];
-
-interface BannedRule {
-  tag: "countdown" | "metaphor" | "pressure" | "style";
-  re: RegExp;
-  // callback 구간에서 회원의 원문에 같은 낱말이 있으면 허용한다 (예: 원문의 "대출 낀 전세")
-  sourceOk: boolean;
-}
-
-// 스킬 §톤 규칙·§체크리스트의 금지 항목. 첫 실행에서 오탐이 나오면 채점 문제로 보고 고친다 (ADR 0006에 기록)
-const BANNED: BannedRule[] = [
-  // 남은 날짜 세기
-  { tag: "countdown", re: /D-\s*\d/gi, sourceOk: true },
-  { tag: "countdown", re: /\d+\s*일\s*(?:남|뒤|후|전)/g, sourceOk: true },
-  { tag: "countdown", re: /며칠\s*(?:남|안|뒤)/g, sourceOk: true },
-  {
-    tag: "countdown",
-    re: /(?:일주일|하루|이틀|사흘)\s*(?:남|뒤|전|안)/g,
-    sourceOk: true,
-  },
-  { tag: "countdown", re: /마감|내일까지|모레까지/g, sourceOk: true },
-  // 사서·도서관 메타포
-  {
-    tag: "metaphor",
-    re: /사서|서가|책장|도서관|보관|꽂|꺼내\s*(?:읽|드리|보)|자리를?\s*(?:비워|표시|지켜|마련)|대출|반납|페이지/g,
-    sourceOk: true,
-  },
-  // 검사·비교·분량 압박
-  { tag: "pressure", re: /벌써\s*\S*\s*(?:분|명)/g, sourceOk: true },
-  {
-    tag: "pressure",
-    re: /\d+\s*(?:분|명)(?:이|께서)?\s*(?:벌써\s*)?(?:쓰|작성|올리)/g,
-    sourceOk: true,
-  },
-  { tag: "pressure", re: /다른\s*(?:분|멤버)/g, sourceOk: true },
-  {
-    tag: "pressure",
-    re: /아직\s*(?:안\s*쓰|글을?\s*안|작성)|안\s*쓰셨/g,
-    sourceOk: true,
-  },
-  // "길게 안 쓰셔도"·"길게 쓰지 않아도"는 허용한다
-  { tag: "pressure", re: /길게\s*(?:써|쓰(?!지)|작성)/g, sourceOk: true },
-  { tag: "pressure", re: /꼭\s*(?:써|작성|참여|오)/g, sourceOk: true },
-  { tag: "pressure", re: /지키셨|지켰나|약속/g, sourceOk: true },
-  // 느낌표 · 이모지 (예외 없음)
-  { tag: "style", re: /[!！]/g, sourceOk: false },
-  { tag: "style", re: /\p{Extended_Pictographic}/gu, sourceOk: false },
-];
-
-// 프롬프트에 예시 문장을 넣으면 여기에 적는다. 정규화한 12자 구간이 출력에 있으면 유출로 센다 (#75 v2의 교훈). v1은 예시가 없다
-const PROMPT_EXAMPLES: string[] = [];
-const LEAK_CHARS = 12;
-
-function findLeaks(text: string): string[] {
-  const out = normalizeStrict(text);
-  const hits: string[] = [];
-  for (const ex of PROMPT_EXAMPLES) {
-    const e = normalizeStrict(ex);
-    for (let i = 0; i + LEAK_CHARS <= e.length; i += 4) {
-      if (out.includes(e.slice(i, i + LEAK_CHARS))) {
-        hits.push(e.slice(i, i + LEAK_CHARS));
-        break;
-      }
-    }
-  }
-  return hits;
-}
-
-/** 구간 하나의 금지 표현. 결과는 `[구간] 태그:"내용"` 목록 */
-function findBanned(
-  section: Section,
-  text: string,
-  question: string,
-  srcStrict: string | null,
-): string[] {
-  // 질문 문장 자체는 우리가 준 것이라 검사하지 않는다
-  const body = text.split(question).join(" ");
-  const hits: string[] = [];
-  for (const rule of BANNED) {
-    for (const m of body.matchAll(rule.re)) {
-      const word = m[0];
-      if (
-        section === "callback" &&
-        rule.sourceOk &&
-        srcStrict !== null &&
-        srcStrict.includes(normalizeStrict(word))
-      ) {
-        continue;
-      }
-      hits.push(`[${section}] ${rule.tag}:"${word.trim()}"`);
-    }
-  }
-  for (const w of findLeaks(body)) hits.push(`[${section}] leak:"${w}"`);
-  return hits;
-}
-
-function ruleGrade(
+// 규칙 채점기는 공유 모듈의 ruleGrade가 맡고, 정답 라벨(expectCallback)이 필요한 callback_label만 여기서 덧붙인다.
+// 기록되는 채점기 순서는 옮기기 전과 같게 유지한다 (compare·summary가 같은 순서로 보인다)
+function gradeGenerate(
   c: EvalCase,
   input: GenerateInput,
   output: GenerateOutput,
 ): Record<string, Score> {
-  const scores: Record<string, Score> = {};
+  const rules = ruleGrade(input, output, c.source?.markdown ?? null);
   const r = output.result;
-
-  scores.json = r
-    ? { value: 1 }
-    : {
-        value: 0,
-        reason: `${output.parseError ?? "결과 없음"} (stop=${output.stopReason ?? "?"})`,
-      };
-  if (!r) return scores;
+  if (!r) return rules;
 
   const hasCallback = r.callback.trim().length > 0;
   const n = input.materials.length;
 
-  // callback_match: 쓴 콜백이 재료와 맞는가 (재료가 있는데 안 썼거나, 없는데 썼거나, 없는 번호를 골랐거나)
-  const matchFail: string[] = [];
-  if (n > 0 && !hasCallback)
-    matchFail.push("missing: 재료가 있는데 콜백이 없어요");
-  if (n === 0 && hasCallback)
-    matchFail.push("invented: 재료가 없는데 콜백을 썼어요");
-  if (hasCallback && n > 0 && (r.callbackItem < 1 || r.callbackItem > n)) {
-    matchFail.push(`bad_item: callbackItem=${r.callbackItem} (재료 ${n}개)`);
-  }
-  if (!hasCallback && r.callbackItem !== 0) {
-    matchFail.push(`bad_item: 콜백이 없는데 callbackItem=${r.callbackItem}`);
-  }
-  scores.callback_match = matchFail.length
-    ? { value: 0, reason: matchFail.join("; ") }
-    : { value: 1 };
-
   // callback_label: 정답 라벨과 같은가. 파이프라인 끝단 지표다 (추출 실패 · 근거 필터 · 생성 판단이 다 섞인다).
   // 본문이 사실상 없는 글(empty_body)은 라벨이 true여도 콜백이 없는 게 정답이다
   const expected = c.expectCallback && !c.notes?.includes("empty_body");
-  scores.callback_label =
+  const callbackLabel: Score =
     hasCallback === expected
       ? { value: 1 }
       : {
@@ -448,87 +113,26 @@ function ruleGrade(
             : "unexpected: 콜백이 없어야 하는데 있어요",
         };
 
-  // form: 구간별 문장 수 · 질문 원문 포함 · 후속 질문 · LLM 구간에 일정 없음
-  const formFail: string[] = [];
-  for (const s of SECTIONS) {
-    if (s === "callback" && !hasCallback) continue;
-    const count = splitSentences(r[s]).length;
-    const [min, max] = SENTENCE_RANGE[s];
-    if (count < min || count > max)
-      formFail.push(`${s}:${count}문장 (${min}~${max})`);
-  }
-  if (!squash(r.commonQuestion).includes(squash(input.commonQuestion))) {
-    formFail.push("question_changed: 공통 질문이 원문과 달라요");
-  }
-  // 후속 질문: 물음표가 없어도 "~는지 궁금해요" 같은 간접 의문이면 통과 (8월 사람 답안도 이 문형을 쓴다)
-  if (
-    hasCallback &&
-    !r.callback.includes("?") &&
-    !r.callback.includes("？") &&
-    !INDIRECT_QUESTION_RE.test(r.callback)
-  ) {
-    formFail.push("no_followup_question: 콜백에 후속 질문이 없어요");
-  }
-  for (const s of ["opening", "commonQuestion", "closing"] as const) {
-    const body = r[s].split(input.commonQuestion).join(" ");
-    for (const [tag, re] of SCHEDULE_PATTERNS) {
-      for (const m of body.matchAll(re))
-        formFail.push(`[${s}] schedule_${tag}:"${m[0].trim()}"`);
-    }
-  }
-  scores.form = formFail.length
-    ? { value: 0, reason: formFail.join("; ") }
-    : { value: 1 };
-
-  // voice: 말끝은 "~해요/~예요". "~니다"로 끝나는 문장은 실패 (고정 문형 하나만 허용)
-  const voiceHits: string[] = [];
-  for (const s of SECTIONS) {
-    for (const sentence of splitSentences(r[s])) {
-      if (!FORMAL_END_RE.test(sentence)) continue;
-      if (squashPunct(sentence) === FORMAL_ALLOWED) continue;
-      voiceHits.push(`[${s}] formal:"${sentence.slice(-12)}"`);
-    }
-  }
-  scores.voice = voiceHits.length
-    ? { value: 0, reason: voiceHits.slice(0, 5).join("; ") }
-    : { value: 1 };
-
-  // banned: 금지 표현 (카운트다운 · 사서 메타포 · 압박 · 느낌표/이모지 · 예시 유출)
-  const srcStrict = c.source ? prepareSource(c.source.markdown).strict : null;
-  const bannedHits = SECTIONS.flatMap((s) =>
-    findBanned(s, r[s], input.commonQuestion, srcStrict),
-  );
-  scores.banned = bannedHits.length
-    ? { value: 0, reason: bannedHits.slice(0, 5).join("; ") }
-    : { value: 1 };
-
-  return scores;
+  return {
+    json: rules.json,
+    callback_match: rules.callback_match,
+    callback_label: callbackLabel,
+    form: rules.form,
+    voice: rules.voice,
+    banned: rules.banned,
+  };
 }
 
 export const generateStage: Stage<GenerateInput, GenerateOutput> = {
   name: "generate",
-  prompts: [
-    GENERATE_SYSTEM,
-    GENERATE_USER_TEMPLATE,
-    JSON.stringify(GENERATE_SCHEMA),
-  ],
+  prompts: GENERATE_PROMPTS,
   input(c, prev) {
     // 단계는 expectCallback · type · notes를 보지 않는다 (정답 라벨은 채점기만 본다)
     const extract = prev.extract as ExtractOutput | undefined;
-    const items = extract?.result
-      ? [
-          ...extract.result.goals.map((x) => ({ kind: "goal" as const, ...x })),
-          ...extract.result.moments.map((x) => ({
-            kind: "moment" as const,
-            ...x,
-          })),
-        ]
-      : [];
-    // 근거 검증을 통과한 항목만 생성에 넘긴다. 통과가 0개면 콜백 없이 쓴다 (ADR 0005)
-    const src = c.source ? prepareSource(c.source.markdown) : null;
-    const materials = src
-      ? items.filter((it) => checkEvidence(src, it.evidence).ok)
-      : [];
+    const { materials, dropped } = selectMaterials(
+      extract,
+      c.source?.markdown ?? null,
+    );
     const voteOpen = pickVoteOpen(c);
     return {
       name: c.memberName,
@@ -536,7 +140,7 @@ export const generateStage: Stage<GenerateInput, GenerateOutput> = {
       voteOpen,
       commonQuestion: pickQuestion(c),
       materials,
-      dropped: items.length - materials.length,
+      dropped,
       notice: buildNotice(c.session, voteOpen),
     };
   },
@@ -547,15 +151,9 @@ export const generateStage: Stage<GenerateInput, GenerateOutput> = {
       commonQuestion: input.commonQuestion,
       notice: input.notice,
     };
-    const res = await ctx.call(
-      {
-        system: GENERATE_SYSTEM,
-        messages: [{ role: "user", content: generateUserMessage(input) }],
-        maxTokens: GENERATE_MAX_TOKENS,
-        jsonSchema: GENERATE_SCHEMA,
-      },
-      { dryRunText: syntheticGenerateText(input) },
-    );
+    const res = await ctx.call(buildGenerateRequest(input), {
+      dryRunText: syntheticGenerateText(input),
+    });
     const parsed = parseGenerate(res.text);
     if (typeof parsed === "string") {
       return {
@@ -572,7 +170,7 @@ export const generateStage: Stage<GenerateInput, GenerateOutput> = {
       mail: composeMail(input, parsed),
     };
   },
-  grade: ruleGrade,
+  grade: gradeGenerate,
 };
 
 // --- LLM 채점 단계 ----------------------------------------------------------------------

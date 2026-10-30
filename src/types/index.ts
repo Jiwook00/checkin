@@ -127,6 +127,46 @@ export interface RetrospectiveEngagement {
 // 회고 세션("2026-09") → 승인된 공통 질문. checkin_session_questions의 approved만 들어온다
 export type SessionQuestions = Record<string, string>;
 
+// 관리자 리마인더 초안 (checkin_reminder_drafts, #79). 생성은 Edge Function, 관리자는 읽기와 검토 컬럼 수정만 한다
+export type ReminderDraftStatus = "draft" | "approved" | "edited" | "rejected";
+
+export interface ReminderMaterial {
+  kind: "goal" | "moment";
+  evidence: string;
+  text: string;
+}
+
+export interface ReminderRuleScore {
+  value: number;
+  reason?: string;
+}
+
+export interface ReminderDraft {
+  id: string;
+  session: string;
+  member_id: string;
+  input: {
+    // 근거 검증을 통과해 생성에 넘긴 재료와 탈락 수
+    materials: ReminderMaterial[];
+    dropped: number;
+    source: { state: "none" | "failed" | "ambiguous" | "normal" };
+  };
+  // 고른 재료 번호(1부터). 0이면 콜백 없이 쓴 메일
+  output: { result?: { callbackItem: number } } | null;
+  mail: string | null;
+  model: string;
+  prompt_sha256: string;
+  tokens_in: number;
+  tokens_out: number;
+  latency_ms: number;
+  rule_scores: Record<string, ReminderRuleScore>;
+  status: ReminderDraftStatus;
+  edited_mail: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
 export interface WriteArticleForm {
   title: string;
   session: string;

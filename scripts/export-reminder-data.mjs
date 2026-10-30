@@ -112,7 +112,7 @@ if (pErr) die(`투표 조회 실패: ${pErr.message}`);
 const poll = polls?.[0] ?? null;
 
 // 5) 이번 달 공통 질문 — checkin_session_questions의 approved 질문 (회고 세션 기준)
-//    승인된 질문이 없으면 비워두고 경고한다. 질문은 scripts/session-question.mjs로 승인한다
+//    승인된 질문이 없으면 비워두고 경고한다. 질문은 관리자 화면(/admin/reminders ①)에서 승인한다
 const { data: questionRows, error: qErr } = await supabase
   .from("checkin_session_questions")
   .select("question")
@@ -123,7 +123,7 @@ if (qErr) die(`공통 질문 조회 실패: ${qErr.message}`);
 const commonQuestion = questionRows?.[0]?.question ?? null;
 if (!commonQuestion) {
   console.warn(
-    `! ${session}에 승인된 공통 질문이 없어요 — node scripts/session-question.mjs propose/approve로 먼저 승인하세요.`,
+    `! ${session}에 승인된 공통 질문이 없어요 — 관리자 화면(/admin/reminders ①)에서 먼저 승인하세요.`,
   );
 }
 
