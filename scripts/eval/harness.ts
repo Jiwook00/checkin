@@ -50,6 +50,11 @@ import {
   loadApiKey,
   type Price,
 } from "./llm.ts";
+import {
+  SESSION_QUESTIONS_PATH,
+  type SessionQuestionSnapshot,
+  snapshotPayload,
+} from "./session-questions.ts";
 import { type AnyStage, type Score, STAGES } from "./stages.ts";
 import type { EvalCase } from "./types.ts";
 
@@ -275,6 +280,17 @@ async function loadDataset(opts: RunOptions) {
     if (notes[c.id]) c.notes = notes[c.id];
   }
 
+  // 생성 단계의 공통 질문 입력(#78). 스냅샷이 바뀌면 같은 case의 입력이 바뀌므로 해시를 config에 남긴다
+  let questionsSha256: string | null = null;
+  try {
+    const snap = JSON.parse(
+      await Deno.readTextFile(SESSION_QUESTIONS_PATH),
+    ) as SessionQuestionSnapshot;
+    questionsSha256 = await sha256(snapshotPayload(snap));
+  } catch {
+    // 없으면 기록하지 않는다 (생성 단계를 쓰지 않는 run)
+  }
+
   const byId = new Map(cases.map((c) => [c.id, c]));
   const pick = (ids: string[], what: string) =>
     ids.map((id) => {
@@ -301,6 +317,7 @@ async function loadDataset(opts: RunOptions) {
       caseIdsSha256,
       manifestGeneratedAt: manifest.generatedAt,
       notesSha256,
+      questionsSha256,
       selection,
       caseIds: selected.map((c) => c.id),
     },
@@ -637,6 +654,11 @@ async function runCommand(args: string[]) {
   const opts = parseRunOptions(args);
   const stages = opts.stages.map((n) => STAGES[n]);
   const { selected, dataset } = await loadDataset(opts);
+  // 생성 단계는 공통 질문 스냅샷이 있어야 입력을 만든다. 도중에 case마다 실패하지 않게 시작 전에 막는다
+  if (opts.stages.includes("generate") && !dataset.questionsSha256)
+    die(
+      `${SESSION_QUESTIONS_PATH} 가 없어요. 먼저 받아 두세요: scripts/eval-dataset.ts --questions`,
+    );
   const provider = await makeProvider(opts);
   const budget = new Budget(opts.maxTokens);
   const meter = new Meter(provider, budget, opts.dryRun);
@@ -1038,6 +1060,8 @@ interface RunConfig {
     caseIds: string[];
     // #76 이전 run에는 없다
     notesSha256?: string | null;
+    // #78 이전 run에는 없다
+    questionsSha256?: string | null;
   };
   maxTokens: number;
   // #75 이전 run에는 없다 (없으면 false로 본다). #76부터 단계 이름 배열도 된다
@@ -1181,6 +1205,11 @@ async function compareCommand(args: string[]) {
     "case 메모 해시",
     (a.config.dataset.notesSha256 ?? "(없음)").slice(0, 8),
     (b.config.dataset.notesSha256 ?? "(없음)").slice(0, 8),
+  );
+  diff(
+    "공통 질문 스냅샷 해시",
+    (a.config.dataset.questionsSha256 ?? "(없음)").slice(0, 8),
+    (b.config.dataset.questionsSha256 ?? "(없음)").slice(0, 8),
   );
   diff(
     "코드",

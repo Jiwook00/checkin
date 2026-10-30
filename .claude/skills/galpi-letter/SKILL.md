@@ -1,9 +1,11 @@
 ---
 name: galpi-letter
-description: 갈피(사서 페르소나)의 월간 회고 다이제스트 레터 HTML을 만든다. Supabase에서 그 달 데이터를 뽑아 멤버별 요약·댓글·다음 달 주제 예고를 채우고, 고정 템플릿에 슬롯을 교체해 발송용 HTML을 생성한다. 사용자가 "갈피 레터", "회고 다이제스트 메일", "이번 달 편지 만들어줘" 등을 요청할 때.
+description: "[사용 안 함 — 2026-10부터 다이제스트 레터는 보내지 않는다. 회고 메일은 galpi-reminder를 쓴다]" 갈피(사서 페르소나)의 월간 회고 다이제스트 레터 HTML을 만든다. Supabase에서 그 달 데이터를 뽑아 멤버별 요약·댓글·다음 달 주제 예고를 채우고, 고정 템플릿에 슬롯을 교체해 발송용 HTML을 생성한다. 사용자가 "갈피 레터", "회고 다이제스트 메일", "이번 달 편지 만들어줘" 등을 요청할 때.
 ---
 
 # 갈피 레터 생성
+
+> **사용 안 함 (2026-10~).** 모임 후 다이제스트 레터는 더 보내지 않는다. 메일은 모임 전 개인 리마인더(`galpi-reminder`) 월 1회뿐이고, 공통 질문도 리마인더를 준비할 때 정한다. 사용자가 이 스킬을 부르면 실행하지 말고 이 사실을 먼저 알린다. 기록용으로 남겨 둔다.
 
 체크인 회고 모임의 사서 페르소나 **갈피**가 매달 보내는 **회고 다이제스트 레터**(HTML)를 만든다.
 발송은 하지 않는다 — 사용자가 프리뷰를 검토한 뒤 직접 보낸다.
@@ -33,14 +35,14 @@ description: 갈피(사서 페르소나)의 월간 회고 다이제스트 레터
 
    → `letters/<session>/data.json` 생성. 세션이 안 맞으면 스크립트가 존재하는 세션을 알려주니 다시 시도.
 
-3. **ledger 읽기 + 회차 판단** — `letters/galpi-letters.json`에서 `nextNumber`(마스트헤드 No.), `topicsUsed`, `nextTopic`을 확인. `sent[]`에 이 세션 `round:1`이 있으면 이번은 **2차**, 없으면 **1차** (인자로 명시했으면 그대로).
+3. **ledger 읽기 + 회차 판단** — `letters/galpi-letters.json`에서 `nextNumber`(마스트헤드 No.)와 `sent[]`를 확인. (공통 질문은 ledger가 아니라 DB — 6단계.) `sent[]`에 이 세션 `round:1`이 있으면 이번은 **2차**, 없으면 **1차** (인자로 명시했으면 그대로).
 
 4. **요약 작성** — `data.json`의 각 `contentMarkdown`을 **중립 톤 불렛 2~3줄**로 간추린다.
    갈피 코멘트·감상 넣지 않는다. 본문에 없는 내용 지어내지 않는다. (가이드 §4)
 
 5. **댓글 정리** — `data.json`의 `comments[]`를 "누가 → 누구 글에 + 본문"으로 정리. 각 항목 링크는 `{articleUrl}#comment-{commentId}`. 댓글 없으면 그 섹션 생략. (가이드 §5)
 
-6. **다음 달 주제** — **1차**면 ledger `topicsUsed`에 **없는** 주제를 후보 뱅크(기획 §4-2)에서 골라 예시 한 줄과 함께 넣는다. **2차**면 새로 고르지 말고 그 세션 1차가 예고한 `nextTopic`을 **그대로** 싣는다. (가이드 §5-2)
+6. **다음 달 주제** — 사용 안 함. 공통 질문은 galpi-reminder 절차 2단계에서 DB(`checkin_session_questions`)에 승인한다.
 
 7. **템플릿 채우기** — 가장 최근 digest HTML을 복사해 `letters/<session>/digest-<회차>.html`(예: `digest-1.html`, `digest-2.html`)로 만들고, `<!-- SLOT: ... -->` / `CARD` / `COMMENT` 블록을 교체한다.
    - 멤버 카드·댓글 항목은 개수만큼 복제/삭제. `더 보기`=각 `articleUrl`, 댓글=각 딥링크.
@@ -52,7 +54,7 @@ description: 갈피(사서 페르소나)의 월간 회고 다이제스트 레터
 
 9. **프리뷰 안내** — 사용자에게 `letters/<session>/digest-<회차>.html`을 브라우저로 열어 검토하라고 안내한다(다크모드 포함). 발송은 사용자가 직접.
 
-10. **ledger 갱신 (발송 후)** — 사용자가 "발송했다"고 하면 `sent[]`에 이번 건 추가(`number`, `session`, `round`, `sentAt`=발송 시각 ISO, `topic`), `nextNumber`를 +1. **1차였다면** 예고 주제를 `topicsUsed`에 추가하고 `nextTopic`을 갱신(2차는 주제·nextTopic 안 건드림).
+10. **ledger 갱신 (발송 후)** — 사용자가 "발송했다"고 하면 `sent[]`에 이번 건 추가(`number`, `session`, `round`, `sentAt`=발송 시각 ISO, `topic`), `nextNumber`를 +1. `topic`에는 예고한 질문 문장을 기록용으로 적는다. 질문 자체는 6단계에서 이미 DB에 승인돼 있으므로 ledger에 `topicsUsed`·`nextTopic`을 더하지 않는다.
 
 ## 하지 않을 것
 

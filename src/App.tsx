@@ -8,10 +8,12 @@ import type {
   AvatarConfig,
   Retrospective,
   RetrospectiveEngagement,
+  SessionQuestions,
   VotePoll,
 } from "./types";
 import EditArticleModal from "./components/EditArticleModal";
 import { getActivePoll } from "./lib/vote";
+import { fetchSessionQuestions } from "./lib/session-questions";
 import { parseErrorMessage } from "./lib/parse-errors";
 import { detectSourceType } from "./lib/source-type";
 import Layout from "./components/Layout";
@@ -70,6 +72,9 @@ export default function App() {
   });
   const [activePoll, setActivePoll] = useState<VotePoll | null>(null);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [sessionQuestions, setSessionQuestions] = useState<SessionQuestions>(
+    {},
+  );
   const [engagement, setEngagement] = useState<
     Record<string, RetrospectiveEngagement>
   >({});
@@ -120,6 +125,7 @@ export default function App() {
     fetchArticles();
     getActivePoll().then(setActivePoll);
     fetchAnnouncement();
+    fetchSessionQuestions().then(setSessionQuestions);
   }, []);
 
   // 목록으로 돌아올 때마다 참여 신호를 최신화 (상세에서 반응·댓글 남긴 뒤 반영)
@@ -153,6 +159,15 @@ export default function App() {
       activePoll.month === 1 ? activePoll.year - 1 : activePoll.year;
     const retroMonth = activePoll.month === 1 ? 12 : activePoll.month - 1;
     return `${retroYear}-${String(retroMonth).padStart(2, "0")}`;
+  }, [activePoll]);
+
+  // 홈 배너가 가리키는 회고 회차 (SessionBanner 제목 "N월에 하는 (N-1)월 회고"와 같은 계산)
+  const bannerSession = useMemo(() => {
+    const today = new Date();
+    const year = activePoll?.year ?? today.getFullYear();
+    const month = activePoll?.month ?? today.getMonth() + 1;
+    const d = new Date(year, month - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }, [activePoll]);
 
   // 최근 3개월 세션 목록 (동적 계산)
@@ -384,6 +399,7 @@ export default function App() {
               <SessionBanner
                 onAddClick={() => setShowAddModal(true)}
                 activePoll={activePoll}
+                question={sessionQuestions[bannerSession]}
               />
               <div className="hidden md:block">
                 <SessionFilter
@@ -445,6 +461,7 @@ export default function App() {
             <WritePage
               memberId={authState.member.id}
               defaultSession={defaultSession}
+              sessionQuestions={sessionQuestions}
               onSave={fetchArticles}
             />
           }
@@ -455,6 +472,7 @@ export default function App() {
             <WritePage
               memberId={authState.member.id}
               defaultSession={defaultSession}
+              sessionQuestions={sessionQuestions}
               onSave={fetchArticles}
             />
           }
@@ -478,6 +496,7 @@ export default function App() {
         onSubmit={handleAddArticle}
         onSaveAvatar={handleSaveAvatar}
         defaultSession={defaultSession}
+        sessionQuestions={sessionQuestions}
       />
 
       <EditArticleModal

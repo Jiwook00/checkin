@@ -7,21 +7,15 @@
 // 설계 근거와 규칙의 출처: .claude/skills/galpi-reminder/SKILL.md (§개인 콜백, §톤 규칙, §체크리스트)
 
 import { checkEvidence, normalizeStrict, prepareSource } from "./evidence.ts";
+import { loadSessionQuestions } from "./session-questions.ts";
 import type { ExtractOutput, Score, Stage } from "./stages.ts";
 import type { EvalCase } from "./types.ts";
 
 // --- 평가용 입력: 공통 질문 · 투표 상태 · 일정 --------------------------------------------
-// 공통 질문 DB(#77)보다 앞이라 실제 데이터를 읽지 않는다. 입력은 case id로 정해지는 합성값이다 (같은 case는 항상 같다)
+// 공통 질문은 DB(checkin_session_questions, #78)에서 받아 둔 스냅샷 파일에서만 읽는다. 하네스는 DB에 접근하지 않는다.
+// 스냅샷 받기: eval-dataset.ts --questions. 투표 상태·일정은 case id로 정해지는 합성값이다 (같은 case는 항상 같다)
 
 const SITE = "https://monthly-checkin.vercel.app";
-
-// letters/galpi-letters.json의 topicsUsed 3개를 옮겼다. 8월 질문은 ledger와 발송한 8월 메일이 달라서
-// (ledger: "이번 달 산 것 중 최고(또는 최악)는?") 8월 메일 HTML에 실제로 나간 문장을 쓴다. 비교 리포트의 기준 답안과 맞추려는 것이다
-const COMMON_QUESTIONS = [
-  "요즘 제일 자주 여는 앱(또는 사이트)은?",
-  "이번 달 가장 만족스러웠던 소비 (잘 산 것)는?",
-  "긴 휴식 후 다시 원래의 리듬을 되찾는 나만의 방법은?",
-];
 
 // 문자열 → 32비트 정수 (FNV-1a). 동기 함수라서 sha256 대신 쓴다
 function hash32(s: string): number {
@@ -34,10 +28,14 @@ function hash32(s: string): number {
 }
 
 function pickQuestion(c: EvalCase): string {
-  // 실제로 나간 두 회차는 그 질문, 나머지는 case마다 고르게 섞는다
-  if (c.session === "2026-07") return COMMON_QUESTIONS[0];
-  if (c.session === "2026-08") return COMMON_QUESTIONS[1];
-  return COMMON_QUESTIONS[hash32(`${c.id}:question`) % COMMON_QUESTIONS.length];
+  // 그 회차에 승인된 질문이 있으면 그것(실제로 나간 질문). 없는 회차는 고정된 풀에서 case마다 고르게 섞는다
+  const snap = loadSessionQuestions();
+  const own = snap.questions.find((q) => q.session === c.session);
+  if (own) return own.question;
+  const pool = snap.fallbackSessions.map(
+    (s) => snap.questions.find((q) => q.session === s)!.question,
+  );
+  return pool[hash32(`${c.id}:question`) % pool.length];
 }
 
 // 투표가 닫혔는지는 case마다 반반으로 섞는다. LLM은 이 boolean만 본다
@@ -580,7 +578,7 @@ export const generateStage: Stage<GenerateInput, GenerateOutput> = {
 // --- LLM 채점 단계 ----------------------------------------------------------------------
 // 근거성(grounded) · 구체성(specific) · 톤(tone)을 0/1/2로 매기고 이유를 점수보다 먼저 쓴다 (#75 evidence → text와 같은 원리).
 // 콜백이 있는 case에만 돈다: 콜백이 없는 메일의 톤은 규칙 채점기(banned · form)가 본다.
-// 3단계 척도인 이유: 단계가 적을수록 같은 글에 같은 점수가 나오기 쉽고, 사람 라벨(#78)과 비교하기도 쉽다
+// 3단계 척도인 이유: 단계가 적을수록 같은 글에 같은 점수가 나오기 쉽고, 사람 라벨(#77)과 비교하기도 쉽다
 
 export interface JudgeScores {
   grounded: { reason: string; score: number };

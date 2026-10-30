@@ -124,6 +124,9 @@ export interface RetrospectiveEngagement {
   reaction_emojis: string[]; // 많이 눌린 순 최대 3개
 }
 
+// 회고 세션("2026-09") → 승인된 공통 질문. checkin_session_questions의 approved만 들어온다
+export type SessionQuestions = Record<string, string>;
+
 export interface WriteArticleForm {
   title: string;
   session: string;
