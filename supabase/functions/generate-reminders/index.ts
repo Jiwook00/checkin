@@ -4,7 +4,9 @@
 // 추출·생성·채점은 평가 하네스와 같은 모듈(_shared/reminder)이다. LLM 채점(judge)은 개발용이라 여기에 없다.
 // 요청 `POST { session, memberId }` — session은 회고 회차. 멤버별로 부르는 이유는 ADR 0007.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { authenticateAdmin } from "../_shared/admin-auth.ts";
+import { corsHeaders, fail, json } from "../_shared/http.ts";
 import {
   createClaudeProvider,
   DEFAULT_CLAUDE_MODEL,
@@ -39,25 +41,8 @@ import {
   prevMonth,
 } from "./input.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function json(status: number, body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-const fail = (status: number, error_code: string, message: string) =>
-  json(status, { ok: false, error_code, message });
 
 // 추출 결과는 같은 본문·같은 추출 프롬프트면 이전 초안의 것을 재사용한다 (같은 회고를 다시 읽을 이유가 없다)
 async function findReusableExtract(
@@ -91,27 +76,9 @@ Deno.serve(async (req) => {
 
   try {
     // --- 인증: JWT로 유저 확인 → 관리자 확인 (is_checkin_admin이 단일 출처) ---
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return fail(401, "UNAUTHENTICATED", "인증이 필요합니다");
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const asUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-      error: userError,
-    } = await asUser.auth.getUser();
-    if (userError || !user) {
-      return fail(401, "INVALID_SESSION", "유효하지 않은 세션입니다");
-    }
-    const { data: isAdmin } = await asUser.rpc("is_checkin_admin");
-    if (isAdmin !== true) {
-      return fail(403, "FORBIDDEN", "관리자만 사용할 수 있습니다");
-    }
+    const auth = await authenticateAdmin(req);
+    if (auth instanceof Response) return auth;
+    const { user, admin } = auth;
 
     // --- 요청 검증 ---
     let body: { session?: unknown; memberId?: unknown };
@@ -139,7 +106,6 @@ Deno.serve(async (req) => {
     }
 
     const startedAt = performance.now();
-    const admin = createClient(supabaseUrl, supabaseServiceKey);
 
     // --- 입력 만들기 ---
     const { data: member } = await admin
