@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import type {
   AddArticleForm,
@@ -31,6 +37,7 @@ import ProfilePage from "./components/ProfilePage";
 import ArchivePage from "./components/ArchivePage";
 import PhotoAlbumPage from "./components/PhotoAlbumPage";
 import WritePage from "./components/WritePage";
+import AdminRemindersPage from "./components/admin/AdminRemindersPage";
 
 const BUCKET_PREFIX = "/checkin-images/";
 
@@ -152,6 +159,10 @@ export default function App() {
     if (error) throw new Error(error.message);
     setAnnouncement(null);
   };
+
+  // 관리자가 승인한 질문을 App의 공통 질문 맵에 반영해 배너·글 등록 화면이 바로 바뀌게 한다
+  const handleQuestionApproved = (session: string, question: string) =>
+    setSessionQuestions((prev) => ({ ...prev, [session]: question }));
 
   const defaultSession = useMemo(() => {
     if (!activePoll?.confirmed_date) return undefined;
@@ -378,6 +389,7 @@ export default function App() {
   return (
     <Layout
       nickname={authState.member.nickname}
+      isAdmin={authState.member.is_admin}
       onLogout={signOut}
       onAddClick={() => setShowAddModal(true)}
       fullBleed={
@@ -475,6 +487,23 @@ export default function App() {
               sessionQuestions={sessionQuestions}
               onSave={fetchArticles}
             />
+          }
+        />
+        <Route
+          path="/admin/reminders"
+          element={
+            // 관리자만 들어온다. 서버(RLS · Edge Function)도 is_checkin_admin()으로 따로 막는다
+            authState.member.is_admin ? (
+              <AdminRemindersPage
+                memberId={authState.member.id}
+                articles={articles}
+                sessionQuestions={sessionQuestions}
+                defaultSession={bannerSession}
+                onQuestionApproved={handleQuestionApproved}
+              />
+            ) : (
+              <Navigate to="/" replace />
+            )
           }
         />
         <Route path="/updates" element={<UpdatesPage />} />
