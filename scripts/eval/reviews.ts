@@ -82,6 +82,9 @@ export interface ReviewTags {
   labels: Record<string, { tags: string[]; note?: string }>;
 }
 
+// 메일 내용과 무관하게 발송 대상에서 뺀 멤버. 품질 지표 분모에서 제외한다
+const NOT_TARGET = "not_target";
+
 export function toReviewRecords(
   rows: DraftRow[],
   nick: Map<string, string>,
@@ -168,9 +171,12 @@ export function buildReviewsSummary(
 ): string {
   const L: string[] = [];
   const members = new Set(records.map((r) => r.memberId));
-  const finals = records.filter((r) => r.isLatest);
+  const allFinals = records.filter((r) => r.isLatest);
   const firsts = records.filter((r) => r.isFirst);
   const regens = records.filter((r) => !r.isFirst);
+  const tagsOf = (r: ReviewRecord) => tags?.labels[r.id]?.tags ?? null;
+  const notTarget = allFinals.filter((r) => tagsOf(r)?.includes(NOT_TARGET));
+  const finals = allFinals.filter((r) => !notTarget.includes(r));
   const reviewed = finals.filter((r) => r.status !== "draft");
   const sentMembers = new Set(records.filter((r) => r.sentAt).map((r) => r.memberId));
   const count = (rs: ReviewRecord[], s: DraftRow["status"]) =>
@@ -178,7 +184,7 @@ export function buildReviewsSummary(
 
   L.push(`# 운영 지표 — 회차 ${session}`, "");
   L.push(
-    "분모: **대상 멤버** = 이 회차에 초안이 한 번이라도 만들어진 멤버(이미 쓴 멤버 제외). **최종 row** = 멤버별 가장 최근 초안.",
+    "분모: **대상 멤버** = 이 회차에 초안이 한 번이라도 만들어진 멤버(이미 쓴 멤버 제외). **최종 row** = 멤버별 가장 최근 초안에서 발송 대상 아님(`not_target` 태그)을 뺀 것.",
     "",
   );
 
@@ -189,10 +195,8 @@ export function buildReviewsSummary(
   L.push(`| └ 첫 생성 | ${firsts.length} |`);
   L.push(`| └ 재생성 | ${regens.length} |`);
   L.push(`| 발송 표시된 멤버 | ${pct(sentMembers.size, members.size)} |`);
-  L.push(
-    `| 발송 안 함 (대상 − 발송) | ${members.size - sentMembers.size} |`,
-    "",
-  );
+  L.push(`| 발송 안 함 (대상 − 발송) | ${members.size - sentMembers.size} |`);
+  L.push(`| └ 발송 대상 아님 (\`not_target\`) | ${notTarget.length} |`, "");
 
   L.push("## 검토 (최종 row 기준)", "");
   L.push("| 상태 | 건수 |", "| --- | ---: |");
@@ -210,6 +214,19 @@ export function buildReviewsSummary(
     `전체 row 기준 반려 ${pct(everRejected, records.length)} — 반려한 초안을 다시 생성하면 최종 row에서는 사라지지만 전체 row에는 남는다.`,
     "",
   );
+  // 사람 판단: 태그가 있으면 태그 기준(화면에서 승인했어도 발송 때 고쳤으면 태그가 붙는다), 없으면 화면 상태
+  const labeled = (r: ReviewRecord) => tagsOf(r) !== null;
+  const hasIssue = (r: ReviewRecord) =>
+    labeled(r)
+      ? tagsOf(r)!.length > 0
+      : r.status === "edited" || r.status === "rejected";
+  if (tags) {
+    const byTag = reviewed.filter(labeled);
+    L.push(
+      `태그 기준: 문제 없음 ${pct(byTag.filter((r) => !hasIssue(r)).length, byTag.length)} · 문제 있음 ${pct(byTag.filter(hasIssue).length, byTag.length)} (분모 = 태그를 붙인 검토 마친 최종 row)`,
+      "",
+    );
+  }
 
   L.push("## 콜백 (최종 row 기준)", "");
   const cb = finals.filter((r) => r.hasCallback);
@@ -217,12 +234,14 @@ export function buildReviewsSummary(
   L.push(`| 콜백 있음 | ${pct(cb.length, finals.length)} |`);
   L.push(`| 콜백 없음 | ${pct(finals.length - cb.length, finals.length)} |`, "");
 
-  L.push("## 규칙 채점 × 사람 판단 (검토를 마친 최종 row)", "");
+  L.push(
+    `## 규칙 채점 × 사람 판단 (검토를 마친 최종 row${tags ? ", 태그가 있으면 태그 기준" : ""})`,
+    "",
+  );
   const failed = reviewed.filter((r) => r.ruleFailed.length > 0);
   const passed = reviewed.filter((r) => r.ruleFailed.length === 0);
-  const touched = (rs: ReviewRecord[]) =>
-    rs.filter((r) => r.status === "edited" || r.status === "rejected").length;
-  L.push("| | 승인 | 수정·반려 | 합계 |", "| --- | ---: | ---: | ---: |");
+  const touched = (rs: ReviewRecord[]) => rs.filter(hasIssue).length;
+  L.push("| | 문제 없음 | 수정·반려 | 합계 |", "| --- | ---: | ---: | ---: |");
   L.push(
     `| 규칙 채점 걸림 | ${failed.length - touched(failed)} | ${touched(failed)} | ${failed.length} |`,
   );
@@ -276,19 +295,27 @@ export function buildReviewsSummary(
 
   if (tags) {
     L.push("## 검토 사유 유형 (손으로 붙인 태그)", "");
-    const labeled = finals.filter((r) => tags.labels[r.id]);
+    const tagged = finals.filter(labeled);
     const unknownIds = Object.keys(tags.labels).filter(
       (id) => !records.some((r) => r.id === id),
     );
     L.push(
-      `태그를 붙인 최종 row ${pct(labeled.length, touched(reviewed))} (수정·반려한 최종 row 대비)`,
+      `태그를 붙인 최종 row ${pct(tagged.length, finals.length)} (승인 row도 발송 때 고쳤으면 태그를 붙인다)`,
       "",
     );
     L.push("| 태그 | 연결 judge 항목 | 건수 | 분모 |", "| --- | --- | ---: | ---: |");
     for (const [tag, def] of Object.entries(tags.taxonomy)) {
-      const n = labeled.filter((r) => tags.labels[r.id].tags.includes(tag)).length;
+      // 발송 대상 아님은 품질 분모 밖이라 대상 멤버의 최종 row 전체로 센다
+      if (tag === NOT_TARGET) {
+        L.push(`| ${tag} | judge 밖 | ${notTarget.length} | ${allFinals.length} |`);
+        continue;
+      }
+      const n = tagged.filter((r) => tagsOf(r)!.includes(tag)).length;
       // 공통 질문 답변 재료는 콜백이 있는 메일에서만 생길 수 있다
-      const denom = tag === "common_q_material" ? cb.length : labeled.length;
+      const denom =
+        tag === "common_q_material"
+          ? tagged.filter((r) => r.hasCallback).length
+          : tagged.length;
       L.push(`| ${tag} | ${def.judge ?? "judge 밖"} | ${n} | ${denom} |`);
     }
     L.push("");
