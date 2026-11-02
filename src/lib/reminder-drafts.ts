@@ -104,6 +104,30 @@ export async function reviewDraft(
   return { ok: true, data: patch };
 }
 
+// 발송 표시. 복사와는 별개다 (복사했다고 보낸 것은 아니다). 제약 위반(승인 전, 이미 다른 row에 발송 표시)은 메시지로 돌려준다
+export async function setDraftSent(
+  id: string,
+  sent: boolean,
+): Promise<Result<Pick<ReminderDraft, "sent_at" | "sent_via">>> {
+  const patch = sent
+    ? { sent_at: new Date().toISOString(), sent_via: "manual" as const }
+    : { sent_at: null, sent_via: null };
+  const { error } = await supabase
+    .from("checkin_reminder_drafts")
+    .update(patch)
+    .eq("id", id);
+  if (error) {
+    const duplicated = error.code === "23505";
+    return {
+      ok: false,
+      message: duplicated
+        ? "이 멤버의 이 회차는 이미 다른 초안에 발송 표시가 있어요"
+        : error.message,
+    };
+  }
+  return { ok: true, data: patch };
+}
+
 export interface QuestionSuggestion {
   question: string;
   reason: string;

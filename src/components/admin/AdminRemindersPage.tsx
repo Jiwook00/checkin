@@ -4,6 +4,7 @@ import {
   fetchMembers,
   generateDraft,
   reviewDraft,
+  setDraftSent,
   type AdminMember,
   type ReviewInput,
 } from "../../lib/reminder-drafts";
@@ -172,6 +173,16 @@ export default function AdminRemindersPage({
     return null;
   };
 
+  const handleSend = async (
+    draft: ReminderDraft,
+    sent: boolean,
+  ): Promise<string | null> => {
+    const res = await setDraftSent(draft.id, sent);
+    if (!res.ok) return res.message;
+    dispatch({ type: "reviewed", id: draft.id, patch: res.data });
+    return null;
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -244,6 +255,7 @@ export default function AdminRemindersPage({
           progress={state.progress}
           onGenerate={generate}
           onReview={handleReview}
+          onSend={handleSend}
         />
       )}
     </div>

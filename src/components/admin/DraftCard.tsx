@@ -209,19 +209,30 @@ function ReviewActions({
   };
 
   if (draft.status !== "draft") {
+    // 되돌리면 edited_mail · review_note가 지워져 사람 라벨(평가 데이터)이 사라진다.
+    // 지울 게 없는 '승인'만 발송 전에 되돌릴 수 있고, 수정·반려는 '다시 생성'으로 새 초안을 만든다
+    const canRevert = draft.status === "approved" && !draft.sent_at;
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted">
           {draft.review_note ? `사유: ${draft.review_note}` : "검토 완료"}
+          {!canRevert && draft.status === "rejected" && (
+            <span className="block text-xs text-muted-soft">
+              기록을 남기려고 되돌리지 않아요. 다시 만들려면 “다시 생성”을
+              눌러요.
+            </span>
+          )}
         </p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => submit({ status: "draft" })}
-          className="shrink-0 rounded-[8px] border border-hairline px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface-card disabled:text-muted-soft"
-        >
-          다시 검토
-        </button>
+        {canRevert && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => submit({ status: "draft" })}
+            className="shrink-0 rounded-[8px] border border-hairline px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface-card disabled:text-muted-soft"
+          >
+            다시 검토
+          </button>
+        )}
       </div>
     );
   }
@@ -311,6 +322,58 @@ function ReviewActions({
   );
 }
 
+const SENT_FORMAT = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+// 승인된 초안만 보낸 것으로 표시한다. 복사와 별개다: 복사한다고 보낸 것은 아니고, 표시해야 발송 기록이 DB에 남는다
+function SendActions({
+  draft,
+  onSend,
+}: {
+  draft: ReminderDraft;
+  onSend: (sent: boolean) => Promise<string | null>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (sent: boolean) => {
+    setBusy(true);
+    setError(null);
+    const message = await onSend(sent);
+    setBusy(false);
+    if (message) setError(message);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      {error && <p className="text-right text-xs text-error">{error}</p>}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          {draft.sent_at
+            ? `발송됨 · ${SENT_FORMAT.format(new Date(draft.sent_at))}`
+            : "직접 보낸 뒤 눌러 기록해요"}
+        </p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => submit(!draft.sent_at)}
+          className={
+            draft.sent_at
+              ? "shrink-0 rounded-[8px] border border-hairline px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface-card disabled:text-muted-soft"
+              : "shrink-0 rounded-[8px] bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-active disabled:bg-primary-disabled disabled:text-muted-soft"
+          }
+        >
+          {draft.sent_at ? "표시 취소" : "발송함으로 표시"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface DraftCardProps {
   nickname: string;
   draft?: ReminderDraft;
@@ -323,6 +386,7 @@ interface DraftCardProps {
     draft: ReminderDraft,
     review: ReviewInput,
   ) => Promise<string | null>;
+  onSend: (draft: ReminderDraft, sent: boolean) => Promise<string | null>;
 }
 
 export default function DraftCard({
@@ -332,6 +396,7 @@ export default function DraftCard({
   generating,
   onGenerate,
   onReview,
+  onSend,
 }: DraftCardProps) {
   return (
     <section className="rounded-[12px] border border-hairline bg-canvas p-5">
@@ -345,6 +410,11 @@ export default function DraftCard({
           ) : draft ? (
             <>
               <DraftStatusBadge draft={draft} />
+              {draft.sent_at && (
+                <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-on-primary">
+                  발송됨
+                </span>
+              )}
               <RuleFailBadge draft={draft} />
             </>
           ) : (
@@ -353,7 +423,8 @@ export default function DraftCard({
             </span>
           )}
         </div>
-        {!written && (
+        {/* 이미 보낸 멤버는 다시 만들지 않는다 (새 초안이 최신으로 보이면 발송 기록이 가려진다) */}
+        {!written && !draft?.sent_at && (
           <button
             type="button"
             disabled={generating}
@@ -386,6 +457,14 @@ export default function DraftCard({
               onReview={(review) => onReview(draft, review)}
             />
           </div>
+          {(draft.status === "approved" || draft.status === "edited") && (
+            <div className="border-t border-hairline-soft pt-3">
+              <SendActions
+                draft={draft}
+                onSend={(sent) => onSend(draft, sent)}
+              />
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -26,6 +26,7 @@ interface ReviewStepProps {
     draft: ReminderDraft,
     review: ReviewInput,
   ) => Promise<string | null>;
+  onSend: (draft: ReminderDraft, sent: boolean) => Promise<string | null>;
 }
 
 // ③ 검토: 멤버별 카드에서 메일 · 고른 재료 · 규칙 채점을 보고 승인 / 수정 / 반려 후 복사한다
@@ -36,6 +37,7 @@ export default function ReviewStep({
   progress,
   onGenerate,
   onReview,
+  onSend,
 }: ReviewStepProps) {
   const [filter, setFilter] = useState<Filter>("전체");
 
@@ -78,6 +80,7 @@ export default function ReviewStep({
           generating={progress[m.id]?.state === "running"}
           onGenerate={() => onGenerate([m.id])}
           onReview={onReview}
+          onSend={onSend}
         />
       ))}
     </div>

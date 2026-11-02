@@ -164,6 +164,9 @@ export interface ReminderDraft {
   edited_mail: string | null;
   review_note: string | null;
   reviewed_at: string | null;
+  // 메일을 보냈다고 표시한 시각과 방법. 승인·수정 승인된 초안만 표시할 수 있다
+  sent_at: string | null;
+  sent_via: "manual" | "api" | null;
   created_at: string;
 }
 
