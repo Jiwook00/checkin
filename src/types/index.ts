@@ -141,18 +141,31 @@ export interface ReminderRuleScore {
   reason?: string;
 }
 
+// 생성 단계가 쓴 네 구간. callbackItem은 고른 재료 번호(1부터)이고 0이면 콜백 없이 쓴 메일
+export interface ReminderGenerated {
+  opening: string;
+  callbackItem: number;
+  callback: string;
+  commonQuestion: string;
+  closing: string;
+}
+
 export interface ReminderDraft {
   id: string;
   session: string;
   member_id: string;
   input: {
+    name: string;
+    month: string;
+    commonQuestion: string;
+    // 코드가 붙이는 공지 구간: 글쓰기 CTA 줄과 일정 줄 (일정 줄은 비어 있을 수 있다)
+    notice: { writeLine: string; scheduleLine: string };
     // 근거 검증을 통과해 생성에 넘긴 재료와 탈락 수
     materials: ReminderMaterial[];
     dropped: number;
     source: { state: "none" | "failed" | "ambiguous" | "normal" };
   };
-  // 고른 재료 번호(1부터). 0이면 콜백 없이 쓴 메일
-  output: { result?: { callbackItem: number } } | null;
+  output: { result?: ReminderGenerated } | null;
   mail: string | null;
   model: string;
   prompt_sha256: string;
