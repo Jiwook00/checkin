@@ -575,9 +575,12 @@ interface JudgeFile {
 
 interface HumanLabel {
   grounded?: number;
+  // 원점수. 사람이 grounded를 "재료 선택·질문 방식"의 뜻으로 매긴 것을 judge 정의(사실)에 맞춰 나눴다 (selectionIssue)
+  groundedRaw?: number;
   specific?: number;
   tone: number;
   toneRaw?: number;
+  selectionIssue?: boolean;
   specDefect: boolean;
   tags: string[];
   note: string;
@@ -713,9 +716,10 @@ interface Pair {
   judge: number;
 }
 
-// 사람 점수: tone은 스펙 결함(여는 문장 등)을 뺀 값. raw이면 원점수
+// 사람 점수: tone은 스펙 결함(여는 문장 등)을 뺀 값, grounded는 재료 선택 문제를 뺀 값. raw이면 원점수
 function humanScore(h: HumanLabel, item: Item, raw: boolean): number | undefined {
-  if (item === "tone" && raw) return h.toneRaw ?? h.tone;
+  if (raw && item === "tone") return h.toneRaw ?? h.tone;
+  if (raw && item === "grounded") return h.groundedRaw ?? h.grounded;
   return h[item];
 }
 
@@ -812,14 +816,20 @@ async function agree(args: string[]) {
       const pairs = pairsOf(j, human, ids, false);
       L.push(`### ${j.label}`, "");
       agreementTable(L, pairs);
-      const rawTone = pairsOf(j, human, ids, true).filter((p) => p.item === "tone");
-      L.push(
-        `tone 원점수 기준(스펙 결함 포함): 정확 일치 ${pct(rawTone.filter((p) => p.human === p.judge).length, rawTone.length)} · 통과 일치 ${pct(
-          rawTone.filter((p) => (p.human === 2) === (p.judge === 2)).length,
-          rawTone.length,
-        )}`,
-        "",
-      );
+      const raw = pairsOf(j, human, ids, true);
+      for (const [item, what] of [
+        ["grounded", "재료 선택 문제 포함"],
+        ["tone", "스펙 결함 포함"],
+      ] as const) {
+        const ps = raw.filter((p) => p.item === item);
+        L.push(
+          `${item} 원점수 기준(${what}): 정확 일치 ${pct(ps.filter((p) => p.human === p.judge).length, ps.length)} · 통과 일치 ${pct(
+            ps.filter((p) => (p.human === 2) === (p.judge === 2)).length,
+            ps.length,
+          )}`,
+        );
+      }
+      L.push("");
       const div = pairs.filter(diverges);
       L.push(`크게 어긋남(점수 차 2 또는 통과/미통과 갈림): ${div.length}항목 / ${new Set(div.map((p) => p.labelId)).size}건`, "");
       if (s === "calibrate") {
@@ -832,7 +842,7 @@ async function agree(args: string[]) {
           divergent.push(
             `### ${id} (${t.origin}, 기준 run 층 ${t.stratum})`,
             "",
-            `- 사람: grounded ${h.grounded} · specific ${h.specific} · tone ${h.tone}${h.toneRaw !== undefined ? ` (원점수 ${h.toneRaw})` : ""} · 태그 ${h.tags.join(", ") || "-"}`,
+            `- 사람: grounded ${h.grounded}${h.groundedRaw !== undefined ? ` (원점수 ${h.groundedRaw}, 재료 선택 문제)` : ""} · specific ${h.specific} · tone ${h.tone}${h.toneRaw !== undefined ? ` (원점수 ${h.toneRaw})` : ""} · 태그 ${h.tags.join(", ") || "-"}`,
             `- 사람 메모: ${h.note.trim() || "-"}`,
           );
           for (const item of ITEMS) {
@@ -868,6 +878,7 @@ async function agree(args: string[]) {
   L.push("## 사람 라벨 집계", "");
   L.push(
     `- 스펙 결함 표시: ${pct(all.filter((h) => h.specDefect).length, all.length)}`,
+    `- 재료 선택·질문 방식 문제(judge 밖): ${pct(all.filter((h) => h.selectionIssue).length, all.filter((h) => h.grounded !== undefined).length)} (분모 = 콜백 메일)`,
     `- 태그(보정 집합만 붙임): ${Object.entries(tagCount).map(([k, v]) => `${k} ${v}`).join(" · ") || "-"}`,
     "",
   );
