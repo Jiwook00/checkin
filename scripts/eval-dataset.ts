@@ -1,7 +1,7 @@
 // 리마인더 평가셋 추출 (Deno 2.x, #73)
 //
 //   deno run -A --no-lock --config supabase/functions/parse-content/deno.json \
-//     scripts/eval-dataset.ts [--check | --split | --questions]
+//     scripts/eval-dataset.ts [--check | --split | --questions | --reviews [--session YYYY-MM]]
 //
 // - DB에서 SELECT만 한다. DB에는 아무것도 쓰지 않는다 (.env의 VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 필요)
 // - 결과: local/eval/dataset/cases.json     (case 목록, id 순 정렬, 시각 정보 없음 → 같은 DB면 같은 파일)
@@ -18,6 +18,10 @@
 //         session-questions.json 스냅샷을 쓴다 (#78). 생성 단계는 이 파일만 읽고 DB에 접근하지 않는다.
 //         cases.json은 건드리지 않는다. 질문이 없는 옛 회차가 고르는 풀(fallbackSessions)은 처음 받을 때 정해지고
 //         다시 받아도 유지된다 (새 질문이 풀에 섞여 옛 case의 입력이 바뀌지 않게)
+// - --reviews: DB에서 checkin_reminder_drafts(회차의 모든 초안 row)와 멤버 닉네임만 SELECT해서 운영 검토 기록을 사람 라벨로 내보낸다 (#84).
+//         reviews.json (row마다 상태·사유·수정본·발송·재료·고른 번호·프롬프트 해시·규칙 채점·토큰·지연; 회고 원문은 없고 retroId·sha256만)
+//         reviews-summary.md (운영 지표 표, 분모 포함, 멤버 이름·사유 원문 없음 → PR·ADR에 붙인다)
+//         review-tags.json(손으로 붙인 사유 유형)이 있으면 요약에 태그별 건수를 더한다. 하네스는 이 파일들만 읽는다
 //
 // reference case: local/메일예시/checkin-galpi-<영문이름>-2026-07.html 에 발송한 메일을 둔다.
 //   없으면 reference 0건으로 계속 진행한다 (local/이라 다른 환경에는 없을 수 있다)
@@ -46,6 +50,12 @@ import {
   type SessionQuestionSnapshot,
   snapshotPayload,
 } from "./eval/session-questions.ts";
+import {
+  buildReviewsSummary,
+  type DraftRow,
+  type ReviewTags,
+  toReviewRecords,
+} from "./eval/reviews.ts";
 import type { CaseType, EvalCase, ReferenceMail } from "./eval/types.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -920,6 +930,66 @@ async function fetchQuestions() {
   console.log("");
 }
 
+// 운영 검토 기록을 사람 라벨로 내보낸다 (SELECT만, #84). 회차의 모든 초안 row를 가공 없이 옮기고 지표 요약을 쓴다
+async function exportReviews() {
+  const sb = await connect();
+  const arg = Deno.args.indexOf("--session");
+  let session = arg >= 0 ? Deno.args[arg + 1] : undefined;
+  if (session !== undefined && !/^\d{4}-\d{2}$/.test(session))
+    die("--session은 YYYY-MM 형식이에요.");
+
+  if (!session) {
+    const { data, error } = await sb
+      .from("checkin_reminder_drafts")
+      .select("session")
+      .order("session", { ascending: false })
+      .limit(1);
+    if (error) die(`초안 조회 실패: ${error.message}`);
+    session = data?.[0]?.session as string | undefined;
+    if (!session) die("초안이 한 건도 없어요.");
+  }
+
+  const { data: rows, error } = await sb
+    .from("checkin_reminder_drafts")
+    .select("*")
+    .eq("session", session)
+    .order("created_at", { ascending: true });
+  if (error) die(`초안 조회 실패: ${error.message}`);
+  if ((rows ?? []).length >= QUERY_ROW_LIMIT)
+    die(`초안이 ${QUERY_ROW_LIMIT}건 이상이에요. 페이지네이션을 추가해야 해요.`);
+  const { data: members, error: mErr } = await sb
+    .from("checkin_members")
+    .select("id, nickname");
+  if (mErr) die(`멤버 조회 실패: ${mErr.message}`);
+  const nick = new Map(
+    (members ?? []).map((m) => [m.id as string, m.nickname as string]),
+  );
+
+  const records = toReviewRecords((rows ?? []) as DraftRow[], nick);
+
+  // 손으로 붙인 태그(review-tags.json)가 있으면 요약에 넣는다. 없으면 건너뛴다
+  let tags: ReviewTags | null = null;
+  try {
+    tags = JSON.parse(await Deno.readTextFile(`${OUT_DIR}/review-tags.json`));
+  } catch {
+    // 아직 정리 전
+  }
+  const summary = buildReviewsSummary(session, records, tags);
+
+  await Deno.mkdir(OUT_DIR, { recursive: true });
+  await writeJson(`${OUT_DIR}/reviews.json`, {
+    session,
+    generatedAt: new Date().toISOString(),
+    gitCommit: await gitCommit(),
+    drafts: records,
+  });
+  await Deno.writeTextFile(`${OUT_DIR}/reviews-summary.md`, summary + "\n");
+  console.log(
+    `\n✓ 검토 기록 ${records.length}건 (회차 ${session}) → ${OUT_DIR}/reviews.json, reviews-summary.md\n`,
+  );
+  console.log(summary);
+}
+
 async function build() {
   const sb = await connect();
 
@@ -1017,6 +1087,8 @@ async function main() {
   if (Deno.args.includes("--split")) return await split();
   // --questions는 승인된 질문만 SELECT한다. 평가셋(cases.json)은 다시 만들지 않는다
   if (Deno.args.includes("--questions")) return await fetchQuestions();
+  // --reviews는 초안 테이블만 SELECT한다. 평가셋(cases.json)은 건드리지 않는다
+  if (Deno.args.includes("--reviews")) return await exportReviews();
   const built = await build();
   if (Deno.args.includes("--check")) return await check(built);
 
