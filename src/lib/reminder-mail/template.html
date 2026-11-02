@@ -42,7 +42,7 @@
   >
     <!-- ┌───────────────────────────────────────────────────────────────┐
      │  갈피 개별 리마인더 — 회고 모임 전 발송 · 멤버 1인당 1통          │
-     │  수신자: {{NAME}} · 회고 세션 {{SESSION}} · 분기 {{STATE}}        │
+     │  수신자: {{NAME}} · 회고 세션 {{SESSION}}                    │
      │  비주얼 껍데기(색·폰트·점선보더·갈피)는 다이제스트와 공용, 고정. │
      │  마스트헤드에 No.NN 번호 없음 (연재물 아님).                     │
      └───────────────────────────────────────────────────────────────┘ -->
@@ -247,24 +247,8 @@
                         <!-- ── SLOT: 반응 블록 (없으면 통째로 삭제) ── -->
                         {{REACTIONS}}
 
-                        <!-- ── 이번 세션 안내 ── -->
-                        <tr>
-                          <td
-                            class="px"
-                            style="
-                              padding: 24px 44px 0 44px;
-                              font-family:
-                                Georgia, &quot;Apple SD Gothic Neo&quot;,
-                                &quot;Malgun Gothic&quot;, serif;
-                              font-size: 16px;
-                              line-height: 32px;
-                              mso-line-height-rule: exactly;
-                              color: #4a423c;
-                            "
-                          >
-                            {{NOTICE}}
-                          </td>
-                        </tr>
+                        <!-- ── SLOT: 이번 세션 안내 (없으면 통째로 삭제) ── -->
+                        {{NOTICE}}
 
                         <!-- ── 이번 달 공통 질문 ── -->
                         <tr>
@@ -344,23 +328,6 @@
                                 <tr>
                                   <td
                                     style="
-                                      padding: 0 26px 22px 26px;
-                                      font-family:
-                                        Georgia,
-                                        &quot;Apple SD Gothic Neo&quot;,
-                                        &quot;Malgun Gothic&quot;, serif;
-                                      font-size: 14px;
-                                      line-height: 28px;
-                                      color: #6b6055;
-                                    "
-                                  >
-                                    예시 — “여름용 무선 선풍기요. 책상에 두니
-                                    생존템이 됐어요.”
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td
-                                    style="
                                       border-top: 1px dashed #2b4a6f;
                                       font-size: 0;
                                       line-height: 0;
@@ -422,25 +389,8 @@
                           </td>
                         </tr>
 
-                        <!-- ── 만남 정보 (사실만, 카운트다운 없음) ── -->
-                        <tr>
-                          <td
-                            class="px"
-                            align="center"
-                            style="
-                              padding: 20px 44px 0 44px;
-                              font-family:
-                                Georgia, &quot;Apple SD Gothic Neo&quot;,
-                                &quot;Malgun Gothic&quot;, serif;
-                              font-size: 14px;
-                              line-height: 26px;
-                              mso-line-height-rule: exactly;
-                              color: #6b6055;
-                            "
-                          >
-                            {{MEETING}}
-                          </td>
-                        </tr>
+                        <!-- ── SLOT: 만남 정보 (사실만, 카운트다운 없음. 없으면 통째로 삭제) ── -->
+                        {{MEETING_ROW}}
 
                         <!-- ── 서명 ── -->
                         <tr>

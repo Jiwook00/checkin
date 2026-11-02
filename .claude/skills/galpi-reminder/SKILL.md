@@ -134,7 +134,7 @@ description: "[관리자 화면으로 대체됨 — 리마인더는 /admin/remin
 6. **본문 작성** — 상태별 규칙(§개인화 규칙)에 따라 **4~7문장**. 다이제스트보다 짧게.
    데이터에 없는 근황·감상 지어내지 않는다. 갈피는 기록에 있는 것만 안다.
 
-7. **템플릿 채우기** — `letters/_reminder-template.html`을 복사해 `letters/<session>/reminder-{nickname}.html`로 저장.
+7. **템플릿 채우기** — `src/lib/reminder-mail/template.html`을 복사해 `letters/<session>/reminder-{nickname}.html`로 저장. 관리자 화면(`/admin/reminders`)은 같은 템플릿을 렌더 함수(`src/lib/reminder-mail/`)로 채운다(#89).
    비주얼 껍데기(색·폰트·보더·이미지 URL 구조)는 건드리지 않는다. 다이제스트 템플릿과 계열은 같되 마스트헤드 번호는 없다.
 
 8. **자가 점검** — §체크리스트를 항목별로 확인.
@@ -240,10 +240,10 @@ description: "[관리자 화면으로 대체됨 — 리마인더는 /admin/remin
 - ~~**[호칭]**~~ → `checkin_members.nickname`이 유일한 표시 이름이다(대니·벨라·원·아이리스·두도·로니·케이트·매드, 8명).
   다이제스트 본문 관례는 **"○○님"**이므로 그대로 따른다.
 - ~~**[템플릿 경로]** `templates/reminder.html`~~ → 리포 관례는 `letters/` 아래다(`letters/_template.html`).
-  경로를 `letters/_reminder-template.html`로 맞췄다.
+  경로를 `letters/_reminder-template.html`로 맞췄다. → #89에서 `src/lib/reminder-mail/template.html`로 옮겼다.
 - ~~**[결과물 파일명]** `reminder-{memberId}.html`~~ → memberId가 UUID라 사람이 못 읽는다. `reminder-{nickname}.html`로 바꿨다.
 - ~~**[voteUrl]** `https://checkin.dwook.co/vote`~~ → 실제 배포 도메인은 `https://monthly-checkin.vercel.app`이다.
-- ~~**[템플릿]**~~ → `letters/_reminder-template.html` 작성 완료. 2026-08 리마인더 8통이 이걸로 생성됐다.
+- ~~**[템플릿]**~~ → `letters/_reminder-template.html` 작성 완료. 2026-08 리마인더 8통이 이걸로 생성됐다. (#89에서 `src/lib/reminder-mail/template.html`로 이동)
 - ~~**[export 스크립트]**~~ → `scripts/export-reminder-data.mjs` 작성 완료.
   글이 0건인 세션도 정상 입력으로 받는다(리마인더는 원래 아무도 안 썼을 때 보낸다).
   같은 세션에 한 멤버가 글을 여러 개 올렸으면 **반응·댓글이 붙은 쪽**을 대표글로 고르고 콘솔에 경고를 남긴다.
