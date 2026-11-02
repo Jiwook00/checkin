@@ -3,14 +3,23 @@
 //   deno run -A --no-lock --config supabase/functions/parse-content/deno.json \
 //     scripts/eval/labels.ts pick  [--run <runId>] [--seed 77]
 //     scripts/eval/labels.ts sheet
+//     scripts/eval/labels.ts judge --label <name> [--set calibrate|check|all] [--model <id>] [--dry-run]
+//     scripts/eval/labels.ts agree --judge <name> [--judge <name>]... [--set calibrate|check|all] [--out <name>]
 //
 // - pick: 기준 run(기본 g9 최종)의 judge 점수로 low/mid/high 층을 나눠 라벨 대상을 시드 고정으로 뽑는다.
 //         tune → 보정(calibrate) 집합, holdout → 확인(check) 집합, 운영 최종 row(#84) → 보정 집합.
 //         출력 local/eval/labels/targets.json (층·집합 정보는 여기에만 있다. 시트에는 넣지 않는다)
 // - sheet: targets.json으로 라벨링 시트 한 장을 만든다 (local/eval/labels/sheet.html). judge 점수·이유는 넣지 않는다 (블라인드).
 //          저장은 브라우저 localStorage, "JSON 내보내기"로 human-labels.json을 내려받는다
+// - judge: 라벨 대상 중 콜백 메일만 judge(claude-cli, 구독)로 다시 채점한다. 생성은 기준 run의 결과(운영은 drafts의 결과)를
+//          그대로 쓴다 — 생성 흔들림 없이 채점만 잰다. 출력 local/eval/labels/judge-<name>.json (CLI 버전·judge 프롬프트 해시 포함)
+// - agree: human-labels.json과 judge 결과의 항목별 일치도. 요약 agreement-<out>.md에는 숫자만(멤버 이름·원문·이유 원문 없음),
+//          어긋난 case의 메모·이유는 divergent-<out>.md(보정 집합만). 확인(check) 집합은 숫자만 낸다
 // - 읽기만 한다. DB에 접근하지 않는다. 회고 원문이 시트에 들어가므로 local/ 밖으로 내보내지 않는다
 
+import { promptSha256, sha256 } from "../../supabase/functions/_shared/reminder/hash.ts";
+import { judgeStage, type JudgeOutput } from "./generate.ts";
+import { costUsd, createClaudeCliProvider, DEFAULT_JUDGE_MODEL } from "./llm.ts";
 import type { EvalCase } from "./types.ts";
 
 const DATASET = "local/eval/dataset";
@@ -54,6 +63,9 @@ interface Sections {
 interface SheetItem {
   labelId: string;
   kind: "callback" | "no_source";
+  // judge 입력을 하네스와 같게 만들려고 둔다 (시트에는 쓰지 않는다)
+  name: string;
+  voteOpen: boolean;
   month: string;
   materials: Material[];
   sections: Sections;
@@ -248,7 +260,12 @@ async function buildItems(): Promise<SheetItem[]> {
     drafts: Array<{
       id: string;
       session: string;
-      input: { materials: Material[]; notice?: { writeLine: string; scheduleLine: string } };
+      input: {
+        name: string;
+        voteOpen: boolean;
+        materials: Material[];
+        notice?: { writeLine: string; scheduleLine: string };
+      };
       output: { result: Sections };
     }>;
   }>(`${DATASET}/reviews.json`);
@@ -262,6 +279,8 @@ async function buildItems(): Promise<SheetItem[]> {
       return {
         labelId: t.labelId,
         kind: t.kind,
+        name: d.input.name,
+        voteOpen: d.input.voteOpen,
         month: `${Number(d.session.split("-")[1])}월`,
         materials: d.input.materials,
         sections: d.output.result,
@@ -273,12 +292,19 @@ async function buildItems(): Promise<SheetItem[]> {
     const caseId = t.ref.caseId;
     const c = cases.get(caseId);
     const gen = byCase.get(caseId)?.generate?.output as
-      | { materials: Material[]; result: Sections; notice: { writeLine: string; scheduleLine: string } }
+      | {
+        materials: Material[];
+        voteOpen: boolean;
+        result: Sections;
+        notice: { writeLine: string; scheduleLine: string };
+      }
       | undefined;
     if (!c || !gen?.result) throw new Error(`case ${caseId}의 생성 결과를 못 찾았어요`);
     return {
       labelId: t.labelId,
       kind: t.kind,
+      name: c.memberName,
+      voteOpen: gen.voteOpen,
       month: `${Number(c.session.split("-")[1])}월`,
       materials: gen.materials,
       sections: gen.result,
@@ -527,10 +553,339 @@ render();
 </html>
 `;
 
+// --- judge 재채점 -------------------------------------------------------------------------
+
+const ITEMS = ["grounded", "specific", "tone"] as const;
+type Item = (typeof ITEMS)[number];
+
+interface JudgeFile {
+  label: string;
+  createdAt: string;
+  gitCommit: string;
+  model: string;
+  cli: Record<string, unknown>;
+  judgePromptSha256: string;
+  set: string;
+  usage: { input: number; output: number; apiEquivalentUsd: number };
+  results: Record<
+    string,
+    { scores: Record<Item, { score: number; reason: string }>; latencyMs: number } | { error: string }
+  >;
+}
+
+interface HumanLabel {
+  grounded?: number;
+  specific?: number;
+  tone: number;
+  toneRaw?: number;
+  specDefect: boolean;
+  tags: string[];
+  note: string;
+}
+
+const inSet = (t: Target, set: string) => set === "all" || t.set === set;
+
+async function gitCommit(): Promise<string> {
+  try {
+    const out = await new Deno.Command("git", { args: ["rev-parse", "--short", "HEAD"] }).output();
+    return new TextDecoder().decode(out.stdout).trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+async function judge(args: string[]) {
+  const label = arg(args, "--label");
+  if (!label) throw new Error("--label이 필요해요");
+  const set = arg(args, "--set") ?? "all";
+  const model = arg(args, "--model") ?? DEFAULT_JUDGE_MODEL;
+  const dryRun = args.includes("--dry-run");
+  const outPath = `${OUT}/judge-${label}.json`;
+  try {
+    await Deno.stat(outPath);
+    throw new Error(`${outPath}가 이미 있어요. 다른 --label을 쓰세요`);
+  } catch (err) {
+    if (!(err instanceof Deno.errors.NotFound)) throw err;
+  }
+
+  const { targets } = await readJson<{ targets: Target[] }>(`${OUT}/targets.json`);
+  const items = (await buildItems()).filter((it) => {
+    const t = targets.find((x) => x.labelId === it.labelId)!;
+    return it.kind === "callback" && inSet(t, set);
+  });
+  const prompts = await promptSha256(judgeStage.prompts);
+  console.log(`judge 대상 ${items.length}건 (집합 ${set}, 모델 ${model}, judge 프롬프트 ${prompts.slice(0, 8)})`);
+
+  const provider = await createClaudeCliProvider({ model });
+  console.log(`CLI ${JSON.stringify(provider.info)}`);
+
+  if (dryRun) {
+    // 호출하지 않고, 만든 요청이 기준 run이 보낸 요청과 바이트 단위로 같은지 호출 캐시(harness.ts와 같은 키)로 확인한다.
+    // 운영 row는 judge를 부른 적이 없어 캐시에 없는 게 정상이다
+    let hit = 0;
+    for (const it of items) {
+      const ctx = {
+        async call(req: Parameters<typeof provider.complete>[0]) {
+          const key = await sha256(
+            [provider.name, provider.model, provider.cacheTag ?? "", JSON.stringify(req)].join("\n"),
+          );
+          try {
+            await Deno.stat(`local/eval/cache/calls/${key}.json`);
+            hit++;
+          } catch {
+            console.log(`  캐시 없음: ${it.labelId}`);
+          }
+          return { text: "{}", usage: { input: 0, output: 0 }, latencyMs: 0, model, stopReason: "dry-run" };
+        },
+      };
+      await judgeStage.run(
+        { name: it.name, month: it.month, voteOpen: it.voteOpen, materials: it.materials, sections: it.sections } as Parameters<
+          typeof judgeStage.run
+        >[0],
+        ctx,
+      );
+    }
+    console.log(`dry-run: 기준 run과 같은 요청 ${hit}/${items.length}`);
+    return;
+  }
+  const usage = { input: 0, output: 0 };
+  const results: JudgeFile["results"] = {};
+  for (const [i, it] of items.entries()) {
+    let latencyMs = 0;
+    const ctx = {
+      async call(req: Parameters<typeof provider.complete>[0]) {
+        const res = await provider.complete(req);
+        usage.input += res.usage.input;
+        usage.output += res.usage.output;
+        latencyMs += res.latencyMs;
+        return res;
+      },
+    };
+    try {
+      const out = (await judgeStage.run(
+        {
+          name: it.name,
+          month: it.month,
+          voteOpen: it.voteOpen,
+          materials: it.materials,
+          sections: it.sections,
+        } as Parameters<typeof judgeStage.run>[0],
+        ctx,
+      )) as JudgeOutput;
+      results[it.labelId] = out.result
+        ? { scores: out.result, latencyMs }
+        : { error: out.parseError ?? out.skipped ?? "결과 없음" };
+    } catch (err) {
+      results[it.labelId] = { error: (err as Error).message.slice(0, 200) };
+    }
+    const r = results[it.labelId];
+    console.log(
+      `  ${i + 1}/${items.length} ${it.labelId} ${"error" in r ? `실패: ${r.error}` : `${(latencyMs / 1000).toFixed(1)}초`}`,
+    );
+  }
+
+  const file: JudgeFile = {
+    label,
+    createdAt: new Date().toISOString(),
+    gitCommit: await gitCommit(),
+    model,
+    cli: provider.info ?? {},
+    judgePromptSha256: prompts,
+    set,
+    usage: { ...usage, apiEquivalentUsd: costUsd(provider.price, usage) },
+    results,
+  };
+  await Deno.writeTextFile(outPath, JSON.stringify(file, null, 2) + "\n");
+  const failed = Object.values(results).filter((r) => "error" in r).length;
+  console.log(
+    `→ ${outPath} (실패 ${failed}, 토큰 ${usage.input.toLocaleString()} / ${usage.output.toLocaleString()}, API 환산 $${file.usage.apiEquivalentUsd.toFixed(3)})`,
+  );
+}
+
+// --- 일치도 ------------------------------------------------------------------------------
+
+const pct = (n: number, d: number) => (d === 0 ? "-" : `${n}/${d} (${Math.round((n / d) * 100)}%)`);
+
+interface Pair {
+  labelId: string;
+  item: Item;
+  human: number;
+  judge: number;
+}
+
+// 사람 점수: tone은 스펙 결함(여는 문장 등)을 뺀 값. raw이면 원점수
+function humanScore(h: HumanLabel, item: Item, raw: boolean): number | undefined {
+  if (item === "tone" && raw) return h.toneRaw ?? h.tone;
+  return h[item];
+}
+
+function pairsOf(
+  jf: JudgeFile,
+  human: Record<string, HumanLabel>,
+  ids: string[],
+  raw: boolean,
+): Pair[] {
+  const out: Pair[] = [];
+  for (const id of ids) {
+    const r = jf.results[id];
+    const h = human[id];
+    if (!r || "error" in r || !h) continue;
+    for (const item of ITEMS) {
+      const hs = humanScore(h, item, raw);
+      if (typeof hs === "number") out.push({ labelId: id, item, human: hs, judge: r.scores[item].score });
+    }
+  }
+  return out;
+}
+
+const diverges = (p: Pair) => Math.abs(p.human - p.judge) >= 2 || (p.human === 2) !== (p.judge === 2);
+
+function agreementTable(L: string[], pairs: Pair[]) {
+  L.push(
+    "| 항목 | n | 정확 일치 | 통과 일치 (2 vs 2 미만) | 사람 평균 | judge 평균 | judge가 높음 / 낮음 |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+  );
+  for (const item of ITEMS) {
+    const ps = pairs.filter((p) => p.item === item);
+    const mean = (f: (p: Pair) => number) =>
+      ps.length ? (ps.reduce((s, p) => s + f(p), 0) / ps.length).toFixed(2) : "-";
+    L.push(
+      `| ${item} | ${ps.length} | ${pct(ps.filter((p) => p.human === p.judge).length, ps.length)} | ${pct(
+        ps.filter((p) => (p.human === 2) === (p.judge === 2)).length,
+        ps.length,
+      )} | ${mean((p) => p.human)} | ${mean((p) => p.judge)} | ${ps.filter((p) => p.judge > p.human).length} / ${
+        ps.filter((p) => p.judge < p.human).length
+      } |`,
+    );
+  }
+  L.push("");
+}
+
+function confusion(L: string[], pairs: Pair[]) {
+  for (const item of ITEMS) {
+    const ps = pairs.filter((p) => p.item === item);
+    if (ps.length === 0) continue;
+    L.push(`**${item}** (행 = 사람, 열 = judge)`, "", "| | judge 0 | judge 1 | judge 2 |", "| --- | ---: | ---: | ---: |");
+    for (const h of [0, 1, 2]) {
+      const row = [0, 1, 2].map((j) => ps.filter((p) => p.human === h && p.judge === j).length);
+      L.push(`| 사람 ${h} | ${row.join(" | ")} |`);
+    }
+    L.push("");
+  }
+}
+
+async function agree(args: string[]) {
+  const names: string[] = [];
+  for (let i = 0; i < args.length; i++) if (args[i] === "--judge") names.push(args[i + 1]);
+  if (names.length === 0) throw new Error("--judge <name>이 하나 이상 필요해요");
+  const set = arg(args, "--set") ?? "all";
+  const outName = arg(args, "--out") ?? names.join("+");
+
+  const { targets } = await readJson<{ targets: Target[] }>(`${OUT}/targets.json`);
+  const human = (await readJson<{ labels: Record<string, HumanLabel> }>(`${OUT}/human-labels.json`)).labels;
+  const judges = await Promise.all(names.map((n) => readJson<JudgeFile>(`${OUT}/judge-${n}.json`)));
+
+  const L: string[] = [`# 사람 라벨 × judge 일치도 — ${outName}`, ""];
+  L.push(
+    "사람 라벨 1명(운영자), 블라인드. tone 사람 점수는 스펙 결함(프롬프트가 지시한 여는 문장)을 뺀 값이고, 원점수 기준은 따로 적는다. judge는 콜백 있는 메일만 채점한다.",
+    "",
+  );
+  L.push("| judge 회차 | 모델 | CLI | judge 프롬프트 | 채점 / 실패 | API 환산 |", "| --- | --- | --- | --- | ---: | ---: |");
+  for (const j of judges) {
+    const rs = Object.values(j.results);
+    L.push(
+      `| ${j.label} | ${j.model} | ${String(j.cli.cliVersion ?? "?").replace(" (Claude Code)", "")} | ${j.judgePromptSha256.slice(0, 8)} | ${
+        rs.filter((r) => !("error" in r)).length
+      } / ${rs.filter((r) => "error" in r).length} | $${j.usage.apiEquivalentUsd.toFixed(3)} |`,
+    );
+  }
+  L.push("");
+
+  const sets = set === "all" ? (["calibrate", "check"] as const) : ([set] as const);
+  const divergent: string[] = [`# 어긋난 case (보정 집합만) — ${outName}`, "", "local 전용: 메모·judge 이유 원문 포함", ""];
+
+  for (const s of sets) {
+    const ts = targets.filter((t) => t.set === s && t.kind === "callback");
+    const ids = ts.map((t) => t.labelId);
+    L.push(`## ${s === "calibrate" ? "보정 집합 (운영 + tune)" : "확인 집합 (holdout)"} — 콜백 메일 ${ids.length}건`, "");
+    for (const j of judges) {
+      const pairs = pairsOf(j, human, ids, false);
+      L.push(`### ${j.label}`, "");
+      agreementTable(L, pairs);
+      const rawTone = pairsOf(j, human, ids, true).filter((p) => p.item === "tone");
+      L.push(
+        `tone 원점수 기준(스펙 결함 포함): 정확 일치 ${pct(rawTone.filter((p) => p.human === p.judge).length, rawTone.length)} · 통과 일치 ${pct(
+          rawTone.filter((p) => (p.human === 2) === (p.judge === 2)).length,
+          rawTone.length,
+        )}`,
+        "",
+      );
+      const div = pairs.filter(diverges);
+      L.push(`크게 어긋남(점수 차 2 또는 통과/미통과 갈림): ${div.length}항목 / ${new Set(div.map((p) => p.labelId)).size}건`, "");
+      if (s === "calibrate") {
+        confusion(L, pairs);
+        divergent.push(`## ${j.label}`, "");
+        for (const id of [...new Set(div.map((p) => p.labelId))]) {
+          const t = ts.find((x) => x.labelId === id)!;
+          const r = j.results[id] as { scores: Record<Item, { score: number; reason: string }> };
+          const h = human[id];
+          divergent.push(
+            `### ${id} (${t.origin}, 기준 run 층 ${t.stratum})`,
+            "",
+            `- 사람: grounded ${h.grounded} · specific ${h.specific} · tone ${h.tone}${h.toneRaw !== undefined ? ` (원점수 ${h.toneRaw})` : ""} · 태그 ${h.tags.join(", ") || "-"}`,
+            `- 사람 메모: ${h.note.trim() || "-"}`,
+          );
+          for (const item of ITEMS) {
+            const mark = div.some((p) => p.labelId === id && p.item === item) ? " ← 어긋남" : "";
+            divergent.push(`- judge ${item} ${r.scores[item].score}${mark}: ${r.scores[item].reason}`);
+          }
+          divergent.push("");
+        }
+      }
+    }
+    if (judges.length >= 2) {
+      // 같은 글을 두 번 채점했을 때 바뀐 항목 수 = 채점 흔들림. 보정 효과는 이 폭과 견줘 읽는다
+      const [a, b] = judges;
+      let changed = 0;
+      let total = 0;
+      for (const id of ids) {
+        const ra = a.results[id];
+        const rb = b.results[id];
+        if (!ra || !rb || "error" in ra || "error" in rb) continue;
+        for (const item of ITEMS) {
+          total++;
+          if (ra.scores[item].score !== rb.scores[item].score) changed++;
+        }
+      }
+      L.push(`**${a.label} ↔ ${b.label} 사이 바뀐 judge 항목**: ${changed}/${total}`, "");
+    }
+  }
+
+  // 태그·스펙 결함 집계 (사람 라벨 전체)
+  const all = targets.map((t) => human[t.labelId]).filter(Boolean);
+  const tagCount: Record<string, number> = {};
+  for (const h of all) for (const g of h.tags) tagCount[g] = (tagCount[g] ?? 0) + 1;
+  L.push("## 사람 라벨 집계", "");
+  L.push(
+    `- 스펙 결함 표시: ${pct(all.filter((h) => h.specDefect).length, all.length)}`,
+    `- 태그(보정 집합만 붙임): ${Object.entries(tagCount).map(([k, v]) => `${k} ${v}`).join(" · ") || "-"}`,
+    "",
+  );
+
+  await Deno.writeTextFile(`${OUT}/agreement-${outName}.md`, L.join("\n"));
+  await Deno.writeTextFile(`${OUT}/divergent-${outName}.md`, divergent.join("\n"));
+  console.log(L.join("\n"));
+  console.log(`→ ${OUT}/agreement-${outName}.md, ${OUT}/divergent-${outName}.md`);
+}
+
 const [cmd, ...rest] = Deno.args;
 if (cmd === "pick") await pick(rest);
 else if (cmd === "sheet") await sheet();
+else if (cmd === "judge") await judge(rest);
+else if (cmd === "agree") await agree(rest);
 else {
-  console.error("사용법: labels.ts pick [--run <runId>] [--seed 77] | sheet");
+  console.error(
+    "사용법: labels.ts pick [--run <runId>] [--seed 77] | sheet | judge --label <name> [--set …] [--dry-run] | agree --judge <name>…",
+  );
   Deno.exit(1);
 }
