@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { ReminderDraft, ReminderDraftStatus } from "../../types";
 import type { ReviewInput } from "../../lib/reminder-drafts";
+import { mailFileName, renderDraftHtml } from "../../lib/reminder-mail";
 
 const STATUS_LABEL: Record<ReminderDraftStatus, string> = {
   draft: "검토 전",
@@ -86,7 +87,7 @@ function MailPreview({ draft }: { draft: ReminderDraft }) {
           disabled={!text}
           className="rounded-[8px] border border-hairline px-2.5 py-1 text-xs font-semibold text-ink hover:bg-surface-card disabled:text-muted-soft"
         >
-          {copied ? "복사됨" : "복사"}
+          {copied ? "복사됨" : "평문 복사"}
         </button>
       </div>
       {text ? (
@@ -322,6 +323,94 @@ function ReviewActions({
   );
 }
 
+const EXPORT_BUTTON =
+  "rounded-[8px] border border-hairline px-2.5 py-1 text-xs font-semibold text-ink hover:bg-surface-card disabled:text-muted-soft";
+
+// 렌더된 갈피 메일(HTML)을 내보낸다. 열기 → 전체 복사해 메일 앱에 붙이는 흐름이 기본이고,
+// HTML 복사는 클립보드에 text/html과 text/plain을 함께 넣는다
+function HtmlExportActions({
+  draft,
+  nickname,
+}: {
+  draft: ReminderDraft;
+  nickname: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const rendered = useMemo(() => renderDraftHtml(draft), [draft]);
+
+  const makeUrl = (html: string) =>
+    URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+
+  const open = () => {
+    if (!rendered.ok) return;
+    const url = makeUrl(rendered.html);
+    window.open(url, "_blank");
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
+  const download = () => {
+    if (!rendered.ok) return;
+    const url = makeUrl(rendered.html);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = mailFileName(draft, nickname);
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const copyHtml = async () => {
+    if (!rendered.ok) return;
+    const plain = draft.edited_mail ?? draft.mail ?? "";
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([rendered.html], { type: "text/html" }),
+          "text/plain": new Blob([plain], { type: "text/plain" }),
+        }),
+      ]);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // 클립보드 권한이 없으면 '브라우저에서 열기'로 열어 전체 복사한다
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium text-muted">HTML 메일</p>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={open}
+            disabled={!rendered.ok}
+            className={EXPORT_BUTTON}
+          >
+            브라우저에서 열기
+          </button>
+          <button
+            type="button"
+            onClick={download}
+            disabled={!rendered.ok}
+            className={EXPORT_BUTTON}
+          >
+            HTML 다운로드
+          </button>
+          <button
+            type="button"
+            onClick={copyHtml}
+            disabled={!rendered.ok}
+            className={EXPORT_BUTTON}
+          >
+            {copied ? "복사됨" : "HTML 복사"}
+          </button>
+        </div>
+      </div>
+      {!rendered.ok && <p className="text-xs text-error">{rendered.reason}</p>}
+    </div>
+  );
+}
+
 const SENT_FORMAT = new Intl.DateTimeFormat("ko-KR", {
   month: "long",
   day: "numeric",
@@ -458,7 +547,8 @@ export default function DraftCard({
             />
           </div>
           {(draft.status === "approved" || draft.status === "edited") && (
-            <div className="border-t border-hairline-soft pt-3">
+            <div className="space-y-3 border-t border-hairline-soft pt-3">
+              <HtmlExportActions draft={draft} nickname={nickname} />
               <SendActions
                 draft={draft}
                 onSend={(sent) => onSend(draft, sent)}
