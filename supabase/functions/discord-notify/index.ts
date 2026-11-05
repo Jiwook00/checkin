@@ -1,11 +1,12 @@
 // DB 이벤트를 디스코드 채널로 보낸다 (이슈 #98). 호출하는 쪽은 DB(pg_net)다. 브라우저는 부르지 않는다
 //
 // 요청 `POST { type, ... }` + 헤더 `x-notify-secret`. 어느 채널에 어떤 형식으로 보낼지는 type 이 정하고 여기서 만든다.
-// 지금은 type "test" 만 있다. 회고 업로드(#99)·투표 공지(#100)가 타입을 하나씩 더한다.
+// type 은 "test"(연결 확인)와 "retro_uploaded"(#99, ref_id = 회고 id)가 있다. 투표 공지(#100)가 타입을 하나씩 더한다.
+// 제목·작성자 같은 내용은 DB가 보내지 않고 여기서 service role 로 조회한다.
 // 같은 (type, ref_id)는 한 번만 보낸다. 보내기 전에 pending 행으로 자리를 잡아서 동시 요청이 둘 다 보내지 못하게 한다.
 // verify_jwt=false 라서 비밀 헤더가 유일한 관문이다. 비밀이 설정돼 있지 않으면 모든 요청을 거절한다
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   type DiscordChannel,
   EMBED_COLOR,
@@ -24,8 +25,85 @@ interface DiscordEvent {
 
 const CHANNELS: DiscordChannel[] = ["announce", "retro"];
 
-function buildEvent(body: Record<string, unknown>): DiscordEvent | Response {
+// generate-reminders/input.ts 의 SITE 와 같은 값. 리마인더 코어는 평가 캐시 때문에 건드리지 않아서 따로 둔다
+const SITE_URL = "https://monthly-checkin.vercel.app";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// 디스코드 embed title 상한
+const TITLE_MAX = 256;
+
+interface RetroRow {
+  id: string;
+  title: string;
+  session: string;
+  created_at: string;
+  member_id: string;
+}
+
+interface MemberRow {
+  nickname: string | null;
+  avatar_url: string | null;
+}
+
+function retroUploadedPayload(retro: RetroRow, member: MemberRow | null): WebhookPayload {
+  const match = /^(\d{4})-(\d{2})$/.exec(retro.session);
+  const footer = match
+    ? `${match[1]}년 ${Number(match[2])}월 회고`
+    : retro.session;
+  const title =
+    retro.title.length > TITLE_MAX ? `${retro.title.slice(0, TITLE_MAX - 1)}…` : retro.title;
+  const avatar = member?.avatar_url;
+
+  return {
+    embeds: [
+      {
+        author: {
+          name: member?.nickname ?? "멤버",
+          ...(avatar?.startsWith("https://") ? { icon_url: avatar } : {}),
+        },
+        title,
+        url: `${SITE_URL}/articles/${retro.id}`,
+        color: EMBED_COLOR,
+        timestamp: retro.created_at,
+        footer: { text: footer },
+      },
+    ],
+  };
+}
+
+async function buildEvent(
+  body: Record<string, unknown>,
+  admin: SupabaseClient,
+): Promise<DiscordEvent | Response> {
   switch (body.type) {
+    case "retro_uploaded": {
+      const refId = body.ref_id;
+      if (typeof refId !== "string" || !UUID_PATTERN.test(refId)) {
+        return fail(400, "INVALID_REF", "ref_id는 회고 id(UUID)");
+      }
+      const { data: retro, error: retroError } = await admin
+        .from("checkin_retrospectives")
+        .select("id, title, session, created_at, member_id")
+        .eq("id", refId)
+        .maybeSingle<RetroRow>();
+      if (retroError) return fail(500, "DB_ERROR", "회고를 조회하지 못했습니다");
+      if (!retro) return fail(404, "NOT_FOUND", "회고를 찾을 수 없습니다");
+
+      const { data: member, error: memberError } = await admin
+        .from("checkin_members")
+        .select("nickname, avatar_url")
+        .eq("id", retro.member_id)
+        .maybeSingle<MemberRow>();
+      if (memberError) return fail(500, "DB_ERROR", "작성자를 조회하지 못했습니다");
+
+      return {
+        type: "retro_uploaded",
+        channel: "retro",
+        refId: retro.id,
+        payload: retroUploadedPayload(retro, member),
+      };
+    }
     case "test": {
       const channel = body.channel as DiscordChannel;
       if (!CHANNELS.includes(channel)) {
@@ -82,13 +160,13 @@ Deno.serve(async (req) => {
     return fail(400, "INVALID_BODY", "JSON 본문이 필요합니다");
   }
 
-  const event = buildEvent(body);
-  if (event instanceof Response) return event;
-
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  const event = await buildEvent(body, admin);
+  if (event instanceof Response) return event;
 
   const { data: row, error: insertError } = await admin
     .from("checkin_discord_deliveries")
