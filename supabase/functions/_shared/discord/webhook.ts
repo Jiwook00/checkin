@@ -22,6 +22,7 @@ export const EMBED_COLOR = 0x3b82f6;
 const MAX_RETRY_WAIT_SECONDS = 5;
 
 export interface DiscordEmbed {
+  author?: { name: string; url?: string; icon_url?: string };
   title?: string;
   description?: string;
   url?: string;
