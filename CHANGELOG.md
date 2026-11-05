@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.2.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.1.0...checkin-v1.2.0) (2026-11-05)
+
+
+### Features
+
+* checkin_reminder_drafts 테이블 ([7912077](https://github.com/Jiwook00/checkin/commit/79120773912ad0cdbaedd6e431614097c1122ece)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* checkin_session_questions 테이블과 기존 질문 시드 ([ff9f47d](https://github.com/Jiwook00/checkin/commit/ff9f47d4a0f38a8d04b0bb8f7f7f460450811e5b)), closes [#78](https://github.com/Jiwook00/checkin/issues/78)
+* DB에서 디스코드 알림 호출 ([65f1184](https://github.com/Jiwook00/checkin/commit/65f1184fffe993e558b2b0610533e1002db2be46)), closes [#98](https://github.com/Jiwook00/checkin/issues/98)
+* eval-dataset --reviews로 검토 기록 내보내기 ([9e33d4e](https://github.com/Jiwook00/checkin/commit/9e33d4e3a125acf1d036aebbb9524d41b6c1092a)), closes [#84](https://github.com/Jiwook00/checkin/issues/84)
+* generate-reminders Edge Function ([7b2e6dc](https://github.com/Jiwook00/checkin/commit/7b2e6dc875b9d0a04bc3b40532a97c54450bac52)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* suggest-questions Edge Function ([cfccde4](https://github.com/Jiwook00/checkin/commit/cfccde44de8f4510cafae121614129b86c597fb9)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* 공통 질문 DB 이관과 글 등록·작성 화면 노출 ([5502968](https://github.com/Jiwook00/checkin/commit/55029684face207989973ceed9bcd927703ccf4d))
+* 관리자 권한과 공통 질문 쓰기 정책 ([6cc857e](https://github.com/Jiwook00/checkin/commit/6cc857eed49892caa23103f5d368a97c7feb82f7)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* 관리자 리마인더 화면 ([9651f66](https://github.com/Jiwook00/checkin/commit/9651f6646269bda99e29986479ab814be57d3caa)), closes [#79](https://github.com/Jiwook00/checkin/issues/79)
+* 관리자 카드에 HTML 열기·다운로드·복사 ([63084fa](https://github.com/Jiwook00/checkin/commit/63084fa7ac6173fa82b60b0fdb6b87a971776544)), closes [#89](https://github.com/Jiwook00/checkin/issues/89)
+* 관리자 화면과 리마인더 초안 생성 API ([07efcb1](https://github.com/Jiwook00/checkin/commit/07efcb133b5acfed448a8e9a21f3537c2c20fccd))
+* 관리자 화면에 발송 표시 ([bbab57a](https://github.com/Jiwook00/checkin/commit/bbab57a9446c1a0910fdab660868ef7ee4835ea9)), closes [#84](https://github.com/Jiwook00/checkin/issues/84)
+* 글 등록·작성 화면과 배너에 공통 질문 노출 ([fc95520](https://github.com/Jiwook00/checkin/commit/fc95520fcb42e35c6e1490bf4d972963284fd58f)), closes [#78](https://github.com/Jiwook00/checkin/issues/78)
+* 디스코드 웹훅 발송 함수 ([e335aa2](https://github.com/Jiwook00/checkin/commit/e335aa245d8a4cfeea20d5404c5e52774dec76e9)), closes [#98](https://github.com/Jiwook00/checkin/issues/98)
+* 리마인더 발송 기록과 검토 기록 내보내기 ([468b2d0](https://github.com/Jiwook00/checkin/commit/468b2d0b356090d41e10a39e87d4fd2a09a902a0))
+* 리마인더 초안 HTML 렌더 ([58416d0](https://github.com/Jiwook00/checkin/commit/58416d0959e75d7ca186e0cf523666db9ba2c329)), closes [#89](https://github.com/Jiwook00/checkin/issues/89)
+* 리마인더 초안 발송 기록 컬럼 ([ba5f653](https://github.com/Jiwook00/checkin/commit/ba5f6532141cb97d6adde26c1825a9636f9db780)), closes [#84](https://github.com/Jiwook00/checkin/issues/84)
+* 리마인더 초안을 HTML 메일로 내보내기 ([0e0a1ec](https://github.com/Jiwook00/checkin/commit/0e0a1ec124cd45560f20457013c9397b0822c31d))
+* 회고 등록 시 디스코드 알림 트리거 ([69f2272](https://github.com/Jiwook00/checkin/commit/69f2272b95f7825026b4017785ff5bab8b6f79c4)), closes [#99](https://github.com/Jiwook00/checkin/issues/99)
+* 회고 업로드 디스코드 알림 이벤트 ([96f1811](https://github.com/Jiwook00/checkin/commit/96f1811a3c636614087834121a81faaa491abd05)), closes [#99](https://github.com/Jiwook00/checkin/issues/99)
+* 회고 업로드 시 디스코드 알림 ([3131ed6](https://github.com/Jiwook00/checkin/commit/3131ed620c8dab9f0636bc524ec51a6c8c2dbef7))
+
+
+### Bug Fixes
+
+* judge specific 보정 되돌리기 ([567fba0](https://github.com/Jiwook00/checkin/commit/567fba059056d5cf9d3af3347c7bb7e8f4dc0fb6)), closes [#77](https://github.com/Jiwook00/checkin/issues/77)
+* judge 채점 기준 보정 ([6480e37](https://github.com/Jiwook00/checkin/commit/6480e37fcc9b06e94d7a4efcc0ad610cc51779aa)), closes [#77](https://github.com/Jiwook00/checkin/issues/77)
+* 검토 요약에서 발송 대상 아님을 빼고 태그로 사람 판단 세기 ([afc9736](https://github.com/Jiwook00/checkin/commit/afc9736a98db76322e4d85dbfc754f0d077cb798)), closes [#84](https://github.com/Jiwook00/checkin/issues/84)
+* 리마인더 CTA를 메인 페이지로 ([04f2181](https://github.com/Jiwook00/checkin/commit/04f218155b5d388188769ee9902a702356de2be3)), closes [#89](https://github.com/Jiwook00/checkin/issues/89)
+
 ## [1.1.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.0.0...checkin-v1.1.0) (2026-10-22)
 
 
