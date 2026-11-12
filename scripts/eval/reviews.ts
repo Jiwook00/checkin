@@ -13,7 +13,11 @@ export interface DraftRow {
   session: string;
   member_id: string;
   input: Record<string, unknown> & {
-    source?: { state?: string; retroId?: string | null; sha256?: string | null };
+    source?: {
+      state?: string;
+      retroId?: string | null;
+      sha256?: string | null;
+    };
   };
   extract: {
     promptSha256?: string;
@@ -97,7 +101,10 @@ export function toReviewRecords(
   );
   const byMember = new Map<string, DraftRow[]>();
   for (const r of sorted) {
-    (byMember.get(r.member_id) ?? byMember.set(r.member_id, []).get(r.member_id)!).push(r);
+    (
+      byMember.get(r.member_id) ??
+      byMember.set(r.member_id, []).get(r.member_id)!
+    ).push(r);
   }
   return sorted.map((r) => {
     const mine = byMember.get(r.member_id)!;
@@ -158,7 +165,8 @@ function costOf(records: ReviewRecord[]): number {
   let total = 0;
   for (const r of records) {
     const price = CLAUDE_PRICES[r.model];
-    if (price) total += costUsd(price, { input: r.tokensIn, output: r.tokensOut });
+    if (price)
+      total += costUsd(price, { input: r.tokensIn, output: r.tokensOut });
   }
   return total;
 }
@@ -178,7 +186,9 @@ export function buildReviewsSummary(
   const notTarget = allFinals.filter((r) => tagsOf(r)?.includes(NOT_TARGET));
   const finals = allFinals.filter((r) => !notTarget.includes(r));
   const reviewed = finals.filter((r) => r.status !== "draft");
-  const sentMembers = new Set(records.filter((r) => r.sentAt).map((r) => r.memberId));
+  const sentMembers = new Set(
+    records.filter((r) => r.sentAt).map((r) => r.memberId),
+  );
   const count = (rs: ReviewRecord[], s: DraftRow["status"]) =>
     rs.filter((r) => r.status === s).length;
 
@@ -232,7 +242,10 @@ export function buildReviewsSummary(
   const cb = finals.filter((r) => r.hasCallback);
   L.push("| 항목 | 건수 |", "| --- | ---: |");
   L.push(`| 콜백 있음 | ${pct(cb.length, finals.length)} |`);
-  L.push(`| 콜백 없음 | ${pct(finals.length - cb.length, finals.length)} |`, "");
+  L.push(
+    `| 콜백 없음 | ${pct(finals.length - cb.length, finals.length)} |`,
+    "",
+  );
 
   L.push(
     `## 규칙 채점 × 사람 판단 (검토를 마친 최종 row${tags ? ", 태그가 있으면 태그 기준" : ""})`,
@@ -248,7 +261,10 @@ export function buildReviewsSummary(
   L.push(
     `| 규칙 채점 통과 | ${passed.length - touched(passed)} | ${touched(passed)} | ${passed.length} |`,
   );
-  L.push(`| 합계 | ${reviewed.length - touched(reviewed)} | ${touched(reviewed)} | ${reviewed.length} |`, "");
+  L.push(
+    `| 합계 | ${reviewed.length - touched(reviewed)} | ${touched(reviewed)} | ${reviewed.length} |`,
+    "",
+  );
   const ruleCounts = countBy(
     failed.flatMap((r) => r.ruleFailed),
     (x) => x,
@@ -269,7 +285,14 @@ export function buildReviewsSummary(
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
   );
   const sec = (ms: number[], p: number) =>
-    ms.length ? `${(percentile([...ms].sort((a, b) => a - b), p) / 1000).toFixed(1)}초` : "-";
+    ms.length
+      ? `${(
+          percentile(
+            [...ms].sort((a, b) => a - b),
+            p,
+          ) / 1000
+        ).toFixed(1)}초`
+      : "-";
   const row = (label: string, rs: ReviewRecord[]) => {
     const ms = rs.map((r) => r.latencyMs);
     const max = ms.length ? `${(Math.max(...ms) / 1000).toFixed(1)}초` : "-";
@@ -291,7 +314,10 @@ export function buildReviewsSummary(
   L.push("");
   const hashes = [...new Set(records.map((r) => r.promptSha256.slice(0, 8)))];
   const models = [...new Set(records.map((r) => r.model))];
-  L.push(`모델: ${models.join(", ")} · 생성 프롬프트 해시: ${hashes.join(", ")}`, "");
+  L.push(
+    `모델: ${models.join(", ")} · 생성 프롬프트 해시: ${hashes.join(", ")}`,
+    "",
+  );
 
   if (tags) {
     L.push("## 검토 사유 유형 (손으로 붙인 태그)", "");
@@ -303,11 +329,16 @@ export function buildReviewsSummary(
       `태그를 붙인 최종 row ${pct(tagged.length, finals.length)} (승인 row도 발송 때 고쳤으면 태그를 붙인다)`,
       "",
     );
-    L.push("| 태그 | 연결 judge 항목 | 건수 | 분모 |", "| --- | --- | ---: | ---: |");
+    L.push(
+      "| 태그 | 연결 judge 항목 | 건수 | 분모 |",
+      "| --- | --- | ---: | ---: |",
+    );
     for (const [tag, def] of Object.entries(tags.taxonomy)) {
       // 발송 대상 아님은 품질 분모 밖이라 대상 멤버의 최종 row 전체로 센다
       if (tag === NOT_TARGET) {
-        L.push(`| ${tag} | judge 밖 | ${notTarget.length} | ${allFinals.length} |`);
+        L.push(
+          `| ${tag} | judge 밖 | ${notTarget.length} | ${allFinals.length} |`,
+        );
         continue;
       }
       const n = tagged.filter((r) => tagsOf(r)!.includes(tag)).length;
@@ -325,7 +356,10 @@ export function buildReviewsSummary(
         .filter((t) => !(t in tags.taxonomy)),
     );
     if (unlisted.size > 0)
-      L.push(`⚠ 목록에 없는 태그: ${[...unlisted].join(", ")} (새 유형으로 따로 센다)`, "");
+      L.push(
+        `⚠ 목록에 없는 태그: ${[...unlisted].join(", ")} (새 유형으로 따로 센다)`,
+        "",
+      );
     if (unknownIds.length > 0)
       L.push(`⚠ reviews.json에 없는 draft id ${unknownIds.length}개`, "");
   }

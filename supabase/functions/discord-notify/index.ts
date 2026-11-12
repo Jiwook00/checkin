@@ -28,7 +28,8 @@ const CHANNELS: DiscordChannel[] = ["announce", "retro"];
 // generate-reminders/input.ts 의 SITE 와 같은 값. 리마인더 코어는 평가 캐시 때문에 건드리지 않아서 따로 둔다
 const SITE_URL = "https://monthly-checkin.vercel.app";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // 디스코드 embed title 상한
 const TITLE_MAX = 256;
@@ -46,13 +47,18 @@ interface MemberRow {
   avatar_url: string | null;
 }
 
-function retroUploadedPayload(retro: RetroRow, member: MemberRow | null): WebhookPayload {
+function retroUploadedPayload(
+  retro: RetroRow,
+  member: MemberRow | null,
+): WebhookPayload {
   const match = /^(\d{4})-(\d{2})$/.exec(retro.session);
   const footer = match
     ? `${match[1]}년 ${Number(match[2])}월 회고`
     : retro.session;
   const title =
-    retro.title.length > TITLE_MAX ? `${retro.title.slice(0, TITLE_MAX - 1)}…` : retro.title;
+    retro.title.length > TITLE_MAX
+      ? `${retro.title.slice(0, TITLE_MAX - 1)}…`
+      : retro.title;
   const avatar = member?.avatar_url;
 
   return {
@@ -87,7 +93,8 @@ async function buildEvent(
         .select("id, title, session, created_at, member_id")
         .eq("id", refId)
         .maybeSingle<RetroRow>();
-      if (retroError) return fail(500, "DB_ERROR", "회고를 조회하지 못했습니다");
+      if (retroError)
+        return fail(500, "DB_ERROR", "회고를 조회하지 못했습니다");
       if (!retro) return fail(404, "NOT_FOUND", "회고를 찾을 수 없습니다");
 
       const { data: member, error: memberError } = await admin
@@ -95,7 +102,8 @@ async function buildEvent(
         .select("nickname, avatar_url")
         .eq("id", retro.member_id)
         .maybeSingle<MemberRow>();
-      if (memberError) return fail(500, "DB_ERROR", "작성자를 조회하지 못했습니다");
+      if (memberError)
+        return fail(500, "DB_ERROR", "작성자를 조회하지 못했습니다");
 
       return {
         type: "retro_uploaded",
@@ -136,8 +144,11 @@ async function hasValidSecret(req: Request): Promise<boolean> {
   if (!expected || !given) return false;
   const encoder = new TextEncoder();
   const [a, b] = await Promise.all(
-    [expected, given].map(async (value) =>
-      new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value))),
+    [expected, given].map(
+      async (value) =>
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", encoder.encode(value)),
+        ),
     ),
   );
   let diff = 0;

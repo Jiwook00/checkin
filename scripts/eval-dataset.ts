@@ -956,7 +956,9 @@ async function exportReviews() {
     .order("created_at", { ascending: true });
   if (error) die(`초안 조회 실패: ${error.message}`);
   if ((rows ?? []).length >= QUERY_ROW_LIMIT)
-    die(`초안이 ${QUERY_ROW_LIMIT}건 이상이에요. 페이지네이션을 추가해야 해요.`);
+    die(
+      `초안이 ${QUERY_ROW_LIMIT}건 이상이에요. 페이지네이션을 추가해야 해요.`,
+    );
   const { data: members, error: mErr } = await sb
     .from("checkin_members")
     .select("id, nickname");

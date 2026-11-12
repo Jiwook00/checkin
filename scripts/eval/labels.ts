@@ -17,9 +17,16 @@
 //          어긋난 case의 메모·이유는 divergent-<out>.md(보정 집합만). 확인(check) 집합은 숫자만 낸다
 // - 읽기만 한다. DB에 접근하지 않는다. 회고 원문이 시트에 들어가므로 local/ 밖으로 내보내지 않는다
 
-import { promptSha256, sha256 } from "../../supabase/functions/_shared/reminder/hash.ts";
+import {
+  promptSha256,
+  sha256,
+} from "../../supabase/functions/_shared/reminder/hash.ts";
 import { judgeStage, type JudgeOutput } from "./generate.ts";
-import { costUsd, createClaudeCliProvider, DEFAULT_JUDGE_MODEL } from "./llm.ts";
+import {
+  costUsd,
+  createClaudeCliProvider,
+  DEFAULT_JUDGE_MODEL,
+} from "./llm.ts";
 import type { EvalCase } from "./types.ts";
 
 const DATASET = "local/eval/dataset";
@@ -105,7 +112,9 @@ function stratumOf(r: RunRecord): Stratum {
   return min === 0 ? "low" : min < 1 ? "mid" : "high";
 }
 
-async function loadRun(run: string): Promise<Map<string, Record<string, RunRecord>>> {
+async function loadRun(
+  run: string,
+): Promise<Map<string, Record<string, RunRecord>>> {
   const text = await Deno.readTextFile(`local/eval/runs/${run}/records.jsonl`);
   const byCase = new Map<string, Record<string, RunRecord>>();
   for (const line of text.split("\n")) {
@@ -118,7 +127,11 @@ async function loadRun(run: string): Promise<Map<string, Record<string, RunRecor
   return byCase;
 }
 
-function pickN<T extends { id: string }>(xs: T[], n: number, seed: string): T[] {
+function pickN<T extends { id: string }>(
+  xs: T[],
+  n: number,
+  seed: string,
+): T[] {
   return [...xs]
     .sort((a, b) => hash32(`${seed}:${a.id}`) - hash32(`${seed}:${b.id}`))
     .slice(0, n);
@@ -132,7 +145,9 @@ async function pick(args: string[]) {
     (await readJson<EvalCase[]>(`${DATASET}/cases.json`)).map((c) => [c.id, c]),
   );
   const subset = async (name: string) =>
-    new Set((await readJson<{ ids: string[] }>(`${DATASET}/subset-${name}.json`)).ids);
+    new Set(
+      (await readJson<{ ids: string[] }>(`${DATASET}/subset-${name}.json`)).ids,
+    );
   const tune = await subset("tune");
   const holdout = await subset("holdout");
 
@@ -151,7 +166,8 @@ async function pick(args: string[]) {
     for (const s of ["low", "mid", "high"] as const) {
       const cand = pool.filter((x) => x.stratum === s);
       const want = QUOTA[name][s];
-      if (cand.length < want) short.push(`${name} ${s}: 후보 ${cand.length} < ${want}`);
+      if (cand.length < want)
+        short.push(`${name} ${s}: 후보 ${cand.length} < ${want}`);
       for (const x of pickN(cand, want, `${seed}:${name}:${s}`)) {
         picked.push({
           origin: name,
@@ -178,7 +194,8 @@ async function pick(args: string[]) {
       )
       .map(([id]) => ({ id }));
     const want = NO_SOURCE_QUOTA[name];
-    if (cand.length < want) short.push(`${name} no_source: 후보 ${cand.length} < ${want}`);
+    if (cand.length < want)
+      short.push(`${name} no_source: 후보 ${cand.length} < ${want}`);
     for (const x of pickN(cand, want, `${seed}:${name}:no_source`)) {
       picked.push({
         origin: name,
@@ -191,16 +208,20 @@ async function pick(args: string[]) {
   }
 
   // 운영 최종 row(#84): 콜백이 있고 발송 대상 아님이 아닌 것
-  const reviews = await readJson<{ drafts: Array<{ id: string; isLatest: boolean; hasCallback: boolean }> }>(
-    `${DATASET}/reviews.json`,
-  );
+  const reviews = await readJson<{
+    drafts: Array<{ id: string; isLatest: boolean; hasCallback: boolean }>;
+  }>(`${DATASET}/reviews.json`);
   const tags = await readJson<{ labels: Record<string, { tags: string[] }> }>(
     `${DATASET}/review-tags.json`,
   );
   const ops = reviews.drafts.filter(
-    (d) => d.isLatest && d.hasCallback && !tags.labels[d.id]?.tags.includes("not_target"),
+    (d) =>
+      d.isLatest &&
+      d.hasCallback &&
+      !tags.labels[d.id]?.tags.includes("not_target"),
   );
-  if (ops.length !== OPS_EXPECT) short.push(`운영: ${ops.length} != ${OPS_EXPECT}`);
+  if (ops.length !== OPS_EXPECT)
+    short.push(`운영: ${ops.length} != ${OPS_EXPECT}`);
   for (const d of ops) {
     picked.push({
       origin: "ops",
@@ -219,7 +240,10 @@ async function pick(args: string[]) {
   // 층이 순서로 드러나지 않게 섞은 뒤 번호를 매긴다
   const key = (t: Omit<Target, "labelId">) =>
     "caseId" in t.ref ? t.ref.caseId : t.ref.draftId;
-  picked.sort((a, b) => hash32(`${seed}:order:${key(a)}`) - hash32(`${seed}:order:${key(b)}`));
+  picked.sort(
+    (a, b) =>
+      hash32(`${seed}:order:${key(a)}`) - hash32(`${seed}:order:${key(b)}`),
+  );
   const targets: Target[] = picked.map((t, i) => ({
     labelId: `L${String(i + 1).padStart(2, "0")}`,
     ...t,
@@ -232,7 +256,9 @@ async function pick(args: string[]) {
   );
 
   const count = (f: (t: Target) => boolean) => targets.filter(f).length;
-  console.log(`라벨 대상 ${targets.length}건 → ${OUT}/targets.json (기준 run ${run}, 시드 ${seed})`);
+  console.log(
+    `라벨 대상 ${targets.length}건 → ${OUT}/targets.json (기준 run ${run}, 시드 ${seed})`,
+  );
   console.log(
     `  보정 ${count((t) => t.set === "calibrate")} · 확인 ${count((t) => t.set === "check")}` +
       ` | 콜백 ${count((t) => t.kind === "callback")} · no_source ${count((t) => t.kind === "no_source")}`,
@@ -293,13 +319,14 @@ async function buildItems(): Promise<SheetItem[]> {
     const c = cases.get(caseId);
     const gen = byCase.get(caseId)?.generate?.output as
       | {
-        materials: Material[];
-        voteOpen: boolean;
-        result: Sections;
-        notice: { writeLine: string; scheduleLine: string };
-      }
+          materials: Material[];
+          voteOpen: boolean;
+          result: Sections;
+          notice: { writeLine: string; scheduleLine: string };
+        }
       | undefined;
-    if (!c || !gen?.result) throw new Error(`case ${caseId}의 생성 결과를 못 찾았어요`);
+    if (!c || !gen?.result)
+      throw new Error(`case ${caseId}의 생성 결과를 못 찾았어요`);
     return {
       labelId: t.labelId,
       kind: t.kind,
@@ -309,7 +336,9 @@ async function buildItems(): Promise<SheetItem[]> {
       materials: gen.materials,
       sections: gen.result,
       notice: [gen.notice.writeLine, gen.notice.scheduleLine],
-      source: c.source ? { title: c.source.title, markdown: c.source.markdown } : null,
+      source: c.source
+        ? { title: c.source.title, markdown: c.source.markdown }
+        : null,
     };
   });
 }
@@ -322,7 +351,10 @@ async function sheet() {
   const tags = Object.entries(review.taxonomy)
     .filter(([k]) => k !== "not_target")
     .map(([k, v]) => ({ key: k, def: v.def }));
-  tags.push({ key: "timeliness", def: "시의성: 그 시점에 더 알맞은 대목이 있었다" });
+  tags.push({
+    key: "timeliness",
+    def: "시의성: 그 시점에 더 알맞은 대목이 있었다",
+  });
 
   // 층·집합·출처는 시트에 넣지 않는다 (블라인드). </script> 방지를 위해 <를 이스케이프한다
   const data = JSON.stringify({ items, tags }).replace(/</g, "\\u003c");
@@ -569,7 +601,11 @@ interface JudgeFile {
   usage: { input: number; output: number; apiEquivalentUsd: number };
   results: Record<
     string,
-    { scores: Record<Item, { score: number; reason: string }>; latencyMs: number } | { error: string }
+    | {
+        scores: Record<Item, { score: number; reason: string }>;
+        latencyMs: number;
+      }
+    | { error: string }
   >;
 }
 
@@ -590,7 +626,9 @@ const inSet = (t: Target, set: string) => set === "all" || t.set === set;
 
 async function gitCommit(): Promise<string> {
   try {
-    const out = await new Deno.Command("git", { args: ["rev-parse", "--short", "HEAD"] }).output();
+    const out = await new Deno.Command("git", {
+      args: ["rev-parse", "--short", "HEAD"],
+    }).output();
     return new TextDecoder().decode(out.stdout).trim() || "unknown";
   } catch {
     return "unknown";
@@ -611,13 +649,17 @@ async function judge(args: string[]) {
     if (!(err instanceof Deno.errors.NotFound)) throw err;
   }
 
-  const { targets } = await readJson<{ targets: Target[] }>(`${OUT}/targets.json`);
+  const { targets } = await readJson<{ targets: Target[] }>(
+    `${OUT}/targets.json`,
+  );
   const items = (await buildItems()).filter((it) => {
     const t = targets.find((x) => x.labelId === it.labelId)!;
     return it.kind === "callback" && inSet(t, set);
   });
   const prompts = await promptSha256(judgeStage.prompts);
-  console.log(`judge 대상 ${items.length}건 (집합 ${set}, 모델 ${model}, judge 프롬프트 ${prompts.slice(0, 8)})`);
+  console.log(
+    `judge 대상 ${items.length}건 (집합 ${set}, 모델 ${model}, judge 프롬프트 ${prompts.slice(0, 8)})`,
+  );
 
   const provider = await createClaudeCliProvider({ model });
   console.log(`CLI ${JSON.stringify(provider.info)}`);
@@ -630,7 +672,12 @@ async function judge(args: string[]) {
       const ctx = {
         async call(req: Parameters<typeof provider.complete>[0]) {
           const key = await sha256(
-            [provider.name, provider.model, provider.cacheTag ?? "", JSON.stringify(req)].join("\n"),
+            [
+              provider.name,
+              provider.model,
+              provider.cacheTag ?? "",
+              JSON.stringify(req),
+            ].join("\n"),
           );
           try {
             await Deno.stat(`local/eval/cache/calls/${key}.json`);
@@ -638,13 +685,23 @@ async function judge(args: string[]) {
           } catch {
             console.log(`  캐시 없음: ${it.labelId}`);
           }
-          return { text: "{}", usage: { input: 0, output: 0 }, latencyMs: 0, model, stopReason: "dry-run" };
+          return {
+            text: "{}",
+            usage: { input: 0, output: 0 },
+            latencyMs: 0,
+            model,
+            stopReason: "dry-run",
+          };
         },
       };
       await judgeStage.run(
-        { name: it.name, month: it.month, voteOpen: it.voteOpen, materials: it.materials, sections: it.sections } as Parameters<
-          typeof judgeStage.run
-        >[0],
+        {
+          name: it.name,
+          month: it.month,
+          voteOpen: it.voteOpen,
+          materials: it.materials,
+          sections: it.sections,
+        } as Parameters<typeof judgeStage.run>[0],
         ctx,
       );
     }
@@ -707,7 +764,8 @@ async function judge(args: string[]) {
 
 // --- 일치도 ------------------------------------------------------------------------------
 
-const pct = (n: number, d: number) => (d === 0 ? "-" : `${n}/${d} (${Math.round((n / d) * 100)}%)`);
+const pct = (n: number, d: number) =>
+  d === 0 ? "-" : `${n}/${d} (${Math.round((n / d) * 100)}%)`;
 
 interface Pair {
   labelId: string;
@@ -717,7 +775,11 @@ interface Pair {
 }
 
 // 사람 점수: tone은 스펙 결함(여는 문장 등)을 뺀 값, grounded는 재료 선택 문제를 뺀 값. raw이면 원점수
-function humanScore(h: HumanLabel, item: Item, raw: boolean): number | undefined {
+function humanScore(
+  h: HumanLabel,
+  item: Item,
+  raw: boolean,
+): number | undefined {
   if (raw && item === "tone") return h.toneRaw ?? h.tone;
   if (raw && item === "grounded") return h.groundedRaw ?? h.grounded;
   return h[item];
@@ -736,13 +798,15 @@ function pairsOf(
     if (!r || "error" in r || !h) continue;
     for (const item of ITEMS) {
       const hs = humanScore(h, item, raw);
-      if (typeof hs === "number") out.push({ labelId: id, item, human: hs, judge: r.scores[item].score });
+      if (typeof hs === "number")
+        out.push({ labelId: id, item, human: hs, judge: r.scores[item].score });
     }
   }
   return out;
 }
 
-const diverges = (p: Pair) => Math.abs(p.human - p.judge) >= 2 || (p.human === 2) !== (p.judge === 2);
+const diverges = (p: Pair) =>
+  Math.abs(p.human - p.judge) >= 2 || (p.human === 2) !== (p.judge === 2);
 
 function agreementTable(L: string[], pairs: Pair[]) {
   L.push(
@@ -752,7 +816,9 @@ function agreementTable(L: string[], pairs: Pair[]) {
   for (const item of ITEMS) {
     const ps = pairs.filter((p) => p.item === item);
     const mean = (f: (p: Pair) => number) =>
-      ps.length ? (ps.reduce((s, p) => s + f(p), 0) / ps.length).toFixed(2) : "-";
+      ps.length
+        ? (ps.reduce((s, p) => s + f(p), 0) / ps.length).toFixed(2)
+        : "-";
     L.push(
       `| ${item} | ${ps.length} | ${pct(ps.filter((p) => p.human === p.judge).length, ps.length)} | ${pct(
         ps.filter((p) => (p.human === 2) === (p.judge === 2)).length,
@@ -769,9 +835,16 @@ function confusion(L: string[], pairs: Pair[]) {
   for (const item of ITEMS) {
     const ps = pairs.filter((p) => p.item === item);
     if (ps.length === 0) continue;
-    L.push(`**${item}** (행 = 사람, 열 = judge)`, "", "| | judge 0 | judge 1 | judge 2 |", "| --- | ---: | ---: | ---: |");
+    L.push(
+      `**${item}** (행 = 사람, 열 = judge)`,
+      "",
+      "| | judge 0 | judge 1 | judge 2 |",
+      "| --- | ---: | ---: | ---: |",
+    );
     for (const h of [0, 1, 2]) {
-      const row = [0, 1, 2].map((j) => ps.filter((p) => p.human === h && p.judge === j).length);
+      const row = [0, 1, 2].map(
+        (j) => ps.filter((p) => p.human === h && p.judge === j).length,
+      );
       L.push(`| 사람 ${h} | ${row.join(" | ")} |`);
     }
     L.push("");
@@ -780,21 +853,34 @@ function confusion(L: string[], pairs: Pair[]) {
 
 async function agree(args: string[]) {
   const names: string[] = [];
-  for (let i = 0; i < args.length; i++) if (args[i] === "--judge") names.push(args[i + 1]);
-  if (names.length === 0) throw new Error("--judge <name>이 하나 이상 필요해요");
+  for (let i = 0; i < args.length; i++)
+    if (args[i] === "--judge") names.push(args[i + 1]);
+  if (names.length === 0)
+    throw new Error("--judge <name>이 하나 이상 필요해요");
   const set = arg(args, "--set") ?? "all";
   const outName = arg(args, "--out") ?? names.join("+");
 
-  const { targets } = await readJson<{ targets: Target[] }>(`${OUT}/targets.json`);
-  const human = (await readJson<{ labels: Record<string, HumanLabel> }>(`${OUT}/human-labels.json`)).labels;
-  const judges = await Promise.all(names.map((n) => readJson<JudgeFile>(`${OUT}/judge-${n}.json`)));
+  const { targets } = await readJson<{ targets: Target[] }>(
+    `${OUT}/targets.json`,
+  );
+  const human = (
+    await readJson<{ labels: Record<string, HumanLabel> }>(
+      `${OUT}/human-labels.json`,
+    )
+  ).labels;
+  const judges = await Promise.all(
+    names.map((n) => readJson<JudgeFile>(`${OUT}/judge-${n}.json`)),
+  );
 
   const L: string[] = [`# 사람 라벨 × judge 일치도 — ${outName}`, ""];
   L.push(
     "사람 라벨 1명(운영자), 블라인드. tone 사람 점수는 스펙 결함(프롬프트가 지시한 여는 문장)을 뺀 값이고, 원점수 기준은 따로 적는다. judge는 콜백 있는 메일만 채점한다.",
     "",
   );
-  L.push("| judge 회차 | 모델 | CLI | judge 프롬프트 | 채점 / 실패 | API 환산 |", "| --- | --- | --- | --- | ---: | ---: |");
+  L.push(
+    "| judge 회차 | 모델 | CLI | judge 프롬프트 | 채점 / 실패 | API 환산 |",
+    "| --- | --- | --- | --- | ---: | ---: |",
+  );
   for (const j of judges) {
     const rs = Object.values(j.results);
     L.push(
@@ -805,13 +891,22 @@ async function agree(args: string[]) {
   }
   L.push("");
 
-  const sets = set === "all" ? (["calibrate", "check"] as const) : ([set] as const);
-  const divergent: string[] = [`# 어긋난 case (보정 집합만) — ${outName}`, "", "local 전용: 메모·judge 이유 원문 포함", ""];
+  const sets =
+    set === "all" ? (["calibrate", "check"] as const) : ([set] as const);
+  const divergent: string[] = [
+    `# 어긋난 case (보정 집합만) — ${outName}`,
+    "",
+    "local 전용: 메모·judge 이유 원문 포함",
+    "",
+  ];
 
   for (const s of sets) {
     const ts = targets.filter((t) => t.set === s && t.kind === "callback");
     const ids = ts.map((t) => t.labelId);
-    L.push(`## ${s === "calibrate" ? "보정 집합 (운영 + tune)" : "확인 집합 (holdout)"} — 콜백 메일 ${ids.length}건`, "");
+    L.push(
+      `## ${s === "calibrate" ? "보정 집합 (운영 + tune)" : "확인 집합 (holdout)"} — 콜백 메일 ${ids.length}건`,
+      "",
+    );
     for (const j of judges) {
       const pairs = pairsOf(j, human, ids, false);
       L.push(`### ${j.label}`, "");
@@ -831,13 +926,18 @@ async function agree(args: string[]) {
       }
       L.push("");
       const div = pairs.filter(diverges);
-      L.push(`크게 어긋남(점수 차 2 또는 통과/미통과 갈림): ${div.length}항목 / ${new Set(div.map((p) => p.labelId)).size}건`, "");
+      L.push(
+        `크게 어긋남(점수 차 2 또는 통과/미통과 갈림): ${div.length}항목 / ${new Set(div.map((p) => p.labelId)).size}건`,
+        "",
+      );
       if (s === "calibrate") {
         confusion(L, pairs);
         divergent.push(`## ${j.label}`, "");
         for (const id of [...new Set(div.map((p) => p.labelId))]) {
           const t = ts.find((x) => x.labelId === id)!;
-          const r = j.results[id] as { scores: Record<Item, { score: number; reason: string }> };
+          const r = j.results[id] as {
+            scores: Record<Item, { score: number; reason: string }>;
+          };
           const h = human[id];
           divergent.push(
             `### ${id} (${t.origin}, 기준 run 층 ${t.stratum})`,
@@ -846,8 +946,12 @@ async function agree(args: string[]) {
             `- 사람 메모: ${h.note.trim() || "-"}`,
           );
           for (const item of ITEMS) {
-            const mark = div.some((p) => p.labelId === id && p.item === item) ? " ← 어긋남" : "";
-            divergent.push(`- judge ${item} ${r.scores[item].score}${mark}: ${r.scores[item].reason}`);
+            const mark = div.some((p) => p.labelId === id && p.item === item)
+              ? " ← 어긋남"
+              : "";
+            divergent.push(
+              `- judge ${item} ${r.scores[item].score}${mark}: ${r.scores[item].reason}`,
+            );
           }
           divergent.push("");
         }
@@ -867,26 +971,39 @@ async function agree(args: string[]) {
           if (ra.scores[item].score !== rb.scores[item].score) changed++;
         }
       }
-      L.push(`**${a.label} ↔ ${b.label} 사이 바뀐 judge 항목**: ${changed}/${total}`, "");
+      L.push(
+        `**${a.label} ↔ ${b.label} 사이 바뀐 judge 항목**: ${changed}/${total}`,
+        "",
+      );
     }
   }
 
   // 태그·스펙 결함 집계 (사람 라벨 전체)
   const all = targets.map((t) => human[t.labelId]).filter(Boolean);
   const tagCount: Record<string, number> = {};
-  for (const h of all) for (const g of h.tags) tagCount[g] = (tagCount[g] ?? 0) + 1;
+  for (const h of all)
+    for (const g of h.tags) tagCount[g] = (tagCount[g] ?? 0) + 1;
   L.push("## 사람 라벨 집계", "");
   L.push(
     `- 스펙 결함 표시: ${pct(all.filter((h) => h.specDefect).length, all.length)}`,
     `- 재료 선택·질문 방식 문제(judge 밖): ${pct(all.filter((h) => h.selectionIssue).length, all.filter((h) => h.grounded !== undefined).length)} (분모 = 콜백 메일)`,
-    `- 태그(보정 집합만 붙임): ${Object.entries(tagCount).map(([k, v]) => `${k} ${v}`).join(" · ") || "-"}`,
+    `- 태그(보정 집합만 붙임): ${
+      Object.entries(tagCount)
+        .map(([k, v]) => `${k} ${v}`)
+        .join(" · ") || "-"
+    }`,
     "",
   );
 
   await Deno.writeTextFile(`${OUT}/agreement-${outName}.md`, L.join("\n"));
-  await Deno.writeTextFile(`${OUT}/divergent-${outName}.md`, divergent.join("\n"));
+  await Deno.writeTextFile(
+    `${OUT}/divergent-${outName}.md`,
+    divergent.join("\n"),
+  );
   console.log(L.join("\n"));
-  console.log(`→ ${OUT}/agreement-${outName}.md, ${OUT}/divergent-${outName}.md`);
+  console.log(
+    `→ ${OUT}/agreement-${outName}.md, ${OUT}/divergent-${outName}.md`,
+  );
 }
 
 const [cmd, ...rest] = Deno.args;

@@ -26,11 +26,11 @@
 
 ### 웹훅 URL과 인증
 
-| 값                                                    | 위치                                       |
-| ----------------------------------------------------- | ------------------------------------------ |
-| 웹훅 URL (`DISCORD_WEBHOOK_ANNOUNCE`, `..._RETRO`)    | Edge Function 시크릿에만                   |
-| 호출 비밀 (`DISCORD_NOTIFY_SECRET`)                   | Edge Function 시크릿 + Vault `discord_notify_secret` |
-| 함수 URL                                              | Vault `discord_notify_url`                 |
+| 값                                                 | 위치                                                 |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| 웹훅 URL (`DISCORD_WEBHOOK_ANNOUNCE`, `..._RETRO`) | Edge Function 시크릿에만                             |
+| 호출 비밀 (`DISCORD_NOTIFY_SECRET`)                | Edge Function 시크릿 + Vault `discord_notify_secret` |
+| 함수 URL                                           | Vault `discord_notify_url`                           |
 
 - 함수는 다른 함수와 같이 `verify_jwt = false`이고, `x-notify-secret` 헤더가 유일한 관문이다. 비밀이 설정돼 있지 않으면 모든 요청을 거절한다. 비교는 양쪽을 SHA-256으로 같은 길이로 만든 뒤 XOR로 한다.
 - service role 키를 DB에 두지 않으려고 JWT 대신 공유 비밀을 쓴다.
