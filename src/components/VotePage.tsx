@@ -442,6 +442,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       time_weekday: data.timeWeekday,
       time_start: data.timeStart,
       time_end: data.timeEnd,
+      vote_deadline: data.voteDeadline,
     });
     if (!error && newPoll) {
       onPollChange(newPoll);
@@ -652,6 +653,13 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
       )
     : null;
 
+  const deadlineLabel = (() => {
+    if (!poll.vote_deadline) return null;
+    const [y, m, d] = poll.vote_deadline.split("-").map(Number);
+    const dow = DAY_NAMES[new Date(y, m - 1, d).getDay()];
+    return `${m}월 ${d}일(${dow})`;
+  })();
+
   return (
     <div className="min-h-screen bg-surface-card">
       {/* 헤더 */}
@@ -717,6 +725,12 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
               {poll.type === "offline"
                 ? "가능한 날짜를 선택하고 시작 시간을 골라주세요."
                 : `가능한 날짜를 선택하세요. 평일은 ${poll.time_weekday ?? "22:00"}, 주말은 시간도 선택해주세요.`}
+              {deadlineLabel && (
+                <span className="font-semibold text-body">
+                  {" "}
+                  {deadlineLabel}까지 투표해주세요.
+                </span>
+              )}
             </p>
 
             {/* 메인 레이아웃: 모바일 1열 / 데스크톱 2열 */}

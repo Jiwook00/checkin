@@ -126,6 +126,31 @@ function MiniMonthPicker({
   );
 }
 
+// --- VoteDeadlineInput: 생성 폼·수정 모달 공용 ---
+
+function VoteDeadlineInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-hairline rounded-[8px] px-3 py-2 text-sm outline-none focus:border-muted"
+      />
+      <p className="text-xs text-muted mt-2 leading-relaxed">
+        이 날까지 투표를 받아요. 마감 전날 디스코드에 남은 인원을 알려요.
+        비워두면 알리지 않아요.
+      </p>
+    </div>
+  );
+}
+
 // --- EmptyState ---
 
 export function EmptyState({ onStart }: { onStart: () => void }) {
@@ -234,6 +259,7 @@ export function PollForm({
   const [weekendStart, setWeekendStart] = useState("10:00");
   const [weekendEnd, setWeekendEnd] = useState(isOnline ? "22:00" : "18:00");
   const [location, setLocation] = useState("");
+  const [voteDeadline, setVoteDeadline] = useState("");
 
   const toggleSpecific = (dateStr: string) => {
     setSpecificDates((prev) => {
@@ -271,6 +297,7 @@ export function PollForm({
       timeStart: weekendStart,
       timeEnd: weekendEnd,
       location: location.trim() || null,
+      voteDeadline: voteDeadline || null,
     });
   };
 
@@ -406,6 +433,13 @@ export function PollForm({
         )}
 
         <div className="p-5">
+          <label className="text-xs font-semibold text-muted block mb-3">
+            투표 마감
+          </label>
+          <VoteDeadlineInput value={voteDeadline} onChange={setVoteDeadline} />
+        </div>
+
+        <div className="p-5">
           <button
             onClick={handleSubmit}
             disabled={disabled || !canSubmit}
@@ -451,6 +485,8 @@ export function EditPollModal({
   const [meetingPassword, setMeetingPassword] = useState(
     poll.meeting_password ?? "",
   );
+  // 마감일은 투표가 있어도 바꿀 수 있다 (안내용이라 응답에 영향이 없다)
+  const [voteDeadline, setVoteDeadline] = useState(poll.vote_deadline ?? "");
 
   // 일정 범위 (투표 없을 때만 수정 가능)
   const [dateFrom, setDateFrom] = useState(poll.date_from);
@@ -466,7 +502,8 @@ export function EditPollModal({
     const metaChanged =
       location !== (poll.location ?? "") ||
       meetingUrl !== (poll.meeting_url ?? "") ||
-      meetingPassword !== (poll.meeting_password ?? "");
+      meetingPassword !== (poll.meeting_password ?? "") ||
+      voteDeadline !== (poll.vote_deadline ?? "");
 
     const scheduleChanged =
       scheduleEditable &&
@@ -481,6 +518,7 @@ export function EditPollModal({
         location: location.trim() || null,
         meeting_url: meetingUrl.trim() || null,
         meeting_password: meetingPassword.trim() || null,
+        vote_deadline: voteDeadline || null,
       });
     }
     if (scheduleChanged) {
@@ -582,6 +620,15 @@ export function EditPollModal({
           )}
 
           {/* 메타 정보 */}
+          {poll.status === "open" && (
+            <div>
+              <p className="text-xs font-semibold text-muted mb-2">투표 마감</p>
+              <VoteDeadlineInput
+                value={voteDeadline}
+                onChange={setVoteDeadline}
+              />
+            </div>
+          )}
           {poll.type === "offline" && (
             <div>
               <p className="text-xs font-semibold text-muted mb-2">장소</p>

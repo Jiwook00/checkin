@@ -89,6 +89,7 @@ export interface CreatePollData {
   time_weekday: string | null;
   time_start: string;
   time_end: string;
+  vote_deadline: string | null;
 }
 
 export async function createPoll(
@@ -116,6 +117,7 @@ export async function createPoll(
       time_weekday: data.time_weekday,
       time_start: data.time_start,
       time_end: data.time_end,
+      vote_deadline: data.vote_deadline,
       session,
       year,
       month,
@@ -147,6 +149,7 @@ export interface UpdatePollMetaData {
   location?: string | null;
   meeting_url?: string | null;
   meeting_password?: string | null;
+  vote_deadline?: string | null;
 }
 
 export async function updatePollMeta(
