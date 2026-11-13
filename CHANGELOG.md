@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.2.0...checkin-v1.3.0) (2026-11-13)
+
+
+### Features
+
+* 디스코드 Interactions 서명 검증과 PING 응답 ([2805556](https://github.com/Jiwook00/checkin/commit/2805556bb1cac38f223c3ebe4c4cb3f74d4bd068)), closes [#101](https://github.com/Jiwook00/checkin/issues/101)
+* 일정 투표 디스코드 공지 ([5cf981f](https://github.com/Jiwook00/checkin/commit/5cf981fdf3debde0e2590cef77ef4d2c83ac51c7))
+* 일정 투표 디스코드 공지 이벤트 ([4da853d](https://github.com/Jiwook00/checkin/commit/4da853d0236b7f9e67960abc890911b57fd4d5c3)), closes [#100](https://github.com/Jiwook00/checkin/issues/100)
+* 투표 마감일 입력 ([bfe3b32](https://github.com/Jiwook00/checkin/commit/bfe3b3281643bd5fc8c65dbfb9c7ea6d344cca94)), closes [#100](https://github.com/Jiwook00/checkin/issues/100)
+* 투표 오픈·확정 트리거와 마감 전날 cron ([8afa25a](https://github.com/Jiwook00/checkin/commit/8afa25aa80c7c211b6450b234350d1cc759b764e)), closes [#100](https://github.com/Jiwook00/checkin/issues/100)
+
 ## [1.2.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.1.0...checkin-v1.2.0) (2026-11-05)
 
 
