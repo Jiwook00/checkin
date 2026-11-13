@@ -1,7 +1,7 @@
 // DB 이벤트를 디스코드 채널로 보낸다 (이슈 #98). 호출하는 쪽은 DB(pg_net)다. 브라우저는 부르지 않는다
 //
 // 요청 `POST { type, ... }` + 헤더 `x-notify-secret`. 어느 채널에 어떤 형식으로 보낼지는 type 이 정하고 여기서 만든다.
-// type 은 "test"(연결 확인)와 "retro_uploaded"(#99, ref_id = 회고 id)가 있다. 투표 공지(#100)가 타입을 하나씩 더한다.
+// type 은 "test"(연결 확인), "retro_uploaded"(#99, ref_id = 회고 id), 투표 공지 3종(#100, ref_id = poll id, vote.ts)이 있다.
 // 제목·작성자 같은 내용은 DB가 보내지 않고 여기서 service role 로 조회한다.
 // 같은 (type, ref_id)는 한 번만 보낸다. 보내기 전에 pending 행으로 자리를 잡아서 동시 요청이 둘 다 보내지 못하게 한다.
 // verify_jwt=false 라서 비밀 헤더가 유일한 관문이다. 비밀이 설정돼 있지 않으면 모든 요청을 거절한다
@@ -14,6 +14,16 @@ import {
   type WebhookPayload,
 } from "../_shared/discord/webhook.ts";
 import { fail, json } from "../_shared/http.ts";
+import {
+  countRemaining,
+  POLL_COLUMNS,
+  type PollRow,
+  VOTE_EVENT_TYPES,
+  type VoteEventType,
+  voteConfirmedPayload,
+  voteDeadlineSoonPayload,
+  voteOpenedPayload,
+} from "./vote.ts";
 
 interface DiscordEvent {
   type: string;
@@ -78,10 +88,68 @@ function retroUploadedPayload(
   };
 }
 
+/** 투표 공지 세 종류. 상태가 시점과 맞지 않으면(삭제됨, 이미 확정됨, 남은 사람 없음) 기록 없이 건너뛴다 */
+async function buildVoteEvent(
+  type: VoteEventType,
+  refId: unknown,
+  admin: SupabaseClient,
+): Promise<DiscordEvent | Response> {
+  if (typeof refId !== "string" || !UUID_PATTERN.test(refId)) {
+    return fail(400, "INVALID_REF", "ref_id는 투표 id(UUID)");
+  }
+  const { data: poll, error } = await admin
+    .from("checkin_vote_polls")
+    .select(POLL_COLUMNS)
+    .eq("id", refId)
+    .maybeSingle<PollRow>();
+  if (error) return fail(500, "DB_ERROR", "투표를 조회하지 못했습니다");
+  if (!poll) return fail(404, "NOT_FOUND", "투표를 찾을 수 없습니다");
+
+  const skip = (reason: string) => json(200, { ok: true, skipped: reason });
+  const base = { type, channel: "announce" as const, refId: poll.id };
+
+  switch (type) {
+    case "vote_opened":
+      if (poll.status !== "open") return skip("not_open");
+      return { ...base, payload: voteOpenedPayload(poll, SITE_URL) };
+    case "vote_deadline_soon": {
+      const deadline = poll.vote_deadline;
+      if (poll.status !== "open" || !deadline) return skip("not_open");
+      const remaining = await countRemaining(admin, poll.id);
+      if (remaining === null) {
+        return fail(500, "DB_ERROR", "응답 현황을 조회하지 못했습니다");
+      }
+      if (remaining === 0) return skip("no_remaining");
+      return {
+        ...base,
+        payload: voteDeadlineSoonPayload(
+          { ...poll, vote_deadline: deadline },
+          remaining,
+          SITE_URL,
+        ),
+      };
+    }
+    case "vote_confirmed": {
+      const date = poll.confirmed_date;
+      if (poll.status !== "confirmed" || !date) return skip("not_confirmed");
+      return {
+        ...base,
+        payload: voteConfirmedPayload(
+          { ...poll, confirmed_date: date },
+          SITE_URL,
+        ),
+      };
+    }
+  }
+}
+
 async function buildEvent(
   body: Record<string, unknown>,
   admin: SupabaseClient,
 ): Promise<DiscordEvent | Response> {
+  if (VOTE_EVENT_TYPES.includes(body.type as VoteEventType)) {
+    return buildVoteEvent(body.type as VoteEventType, body.ref_id, admin);
+  }
   switch (body.type) {
     case "retro_uploaded": {
       const refId = body.ref_id;
