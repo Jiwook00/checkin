@@ -230,6 +230,7 @@ export interface VotePoll {
   time_weekday: string | null; // "22:00" (온라인 전용)
   time_start: string; // "10:00"
   time_end: string; // "22:00" or "18:00"
+  vote_deadline: string | null; // "2026-11-05" — 투표 받는 마지막 날. 안내·디스코드 공지용, 투표를 막지 않는다
   session: string;
   year: number;
   month: number;
@@ -289,4 +290,5 @@ export interface PollFormData {
   timeStart: string;
   timeEnd: string;
   location: string | null;
+  voteDeadline: string | null;
 }
