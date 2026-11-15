@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type {
+  PollDiscordEvent,
   VotePoll,
   VoteResponse,
   VoteDateSelection,
@@ -143,6 +144,29 @@ export async function confirmPoll(
     })
     .eq("id", pollId);
   return { error: error?.message ?? null };
+}
+
+/** 디스코드 서버 이벤트 상태. 동기화는 DB 트리거가 비동기로 돌려서 확정 직후에는 아직 비어 있을 수 있다 */
+export async function getPollDiscordEvent(
+  pollId: string,
+): Promise<PollDiscordEvent | null> {
+  const { data } = await supabase
+    .from("checkin_vote_polls")
+    .select("discord_event_id, discord_event_error, discord_event_synced_at")
+    .eq("id", pollId)
+    .maybeSingle();
+  return (data as PollDiscordEvent | null) ?? null;
+}
+
+/** 관리자 "다시 시도". 요청을 넣기만 하고 결과는 getPollDiscordEvent 로 다시 읽는다 */
+export async function syncDiscordEvent(
+  pollId: string,
+): Promise<{ error: string | null }> {
+  const { data, error } = await supabase.rpc("checkin_sync_discord_event", {
+    p_poll_id: pollId,
+  });
+  if (error) return { error: error.message };
+  return { error: data === false ? "요청을 보내지 못했어요" : null };
 }
 
 export interface UpdatePollMetaData {

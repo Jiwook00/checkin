@@ -1,6 +1,7 @@
 import type { DateInfo, TallyItem, VotePoll } from "../../types";
 import type { MemberInfo } from "../../lib/vote";
 import MemberAvatar from "../MemberAvatar";
+import DiscordEventStatus from "./DiscordEventStatus";
 
 interface VoteResultProps {
   poll: VotePoll;
@@ -8,6 +9,7 @@ interface VoteResultProps {
   confirmedDateInfo: DateInfo | undefined;
   confirmedTallyItem: TallyItem | undefined;
   memberNicknames: Record<string, MemberInfo>;
+  isAdmin: boolean;
   onCreateNext: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -19,6 +21,7 @@ export default function VoteResult({
   confirmedDateInfo,
   confirmedTallyItem,
   memberNicknames,
+  isAdmin,
   onCreateNext,
   onEdit,
   onDelete,
@@ -90,6 +93,7 @@ export default function VoteResult({
             </button>
           </div>
         </div>
+        {isAdmin && <DiscordEventStatus pollId={poll.id} />}
       </div>
     </div>
   );
