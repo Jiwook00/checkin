@@ -1,7 +1,8 @@
 // DB 이벤트를 디스코드 채널로 보낸다 (이슈 #98). 호출하는 쪽은 DB(pg_net)다. 브라우저는 부르지 않는다
 //
 // 요청 `POST { type, ... }` + 헤더 `x-notify-secret`. 어느 채널에 어떤 형식으로 보낼지는 type 이 정하고 여기서 만든다.
-// type 은 "test"(연결 확인), "retro_uploaded"(#99, ref_id = 회고 id), 투표 공지 3종(#100, ref_id = poll id, vote.ts)이 있다.
+// type 은 "test"(연결 확인), "retro_uploaded"(#99, ref_id = 회고 id), 투표 공지 3종(#100, ref_id = poll id, vote.ts),
+// "comment_created"(#105, ref_id = 댓글 id, 글 작성자에게 봇 DM, comment.ts)가 있다.
 // 제목·작성자 같은 내용은 DB가 보내지 않고 여기서 service role 로 조회한다.
 // 같은 (type, ref_id)는 한 번만 보낸다. 보내기 전에 pending 행으로 자리를 잡아서 동시 요청이 둘 다 보내지 못하게 한다.
 // verify_jwt=false 라서 비밀 헤더가 유일한 관문이다. 비밀이 설정돼 있지 않으면 모든 요청을 거절한다
@@ -13,7 +14,9 @@ import {
   sendWebhook,
   type WebhookPayload,
 } from "../_shared/discord/webhook.ts";
+import { sendDm } from "../_shared/discord/dm.ts";
 import { fail, json } from "../_shared/http.ts";
+import { buildCommentDm } from "./comment.ts";
 import {
   countRemaining,
   POLL_COLUMNS,
@@ -25,9 +28,14 @@ import {
   voteOpenedPayload,
 } from "./vote.ts";
 
+/** 채널(웹훅)이나 한 사람(봇 DM)으로 보낸다 */
+type DiscordTarget =
+  | { kind: "channel"; channel: DiscordChannel }
+  | { kind: "dm"; discordUserId: string };
+
 interface DiscordEvent {
   type: string;
-  channel: DiscordChannel;
+  target: DiscordTarget;
   /** 중복 방지 기준. null 이면 매번 보낸다 (test) */
   refId: string | null;
   payload: WebhookPayload;
@@ -106,7 +114,11 @@ async function buildVoteEvent(
   if (!poll) return fail(404, "NOT_FOUND", "투표를 찾을 수 없습니다");
 
   const skip = (reason: string) => json(200, { ok: true, skipped: reason });
-  const base = { type, channel: "announce" as const, refId: poll.id };
+  const base = {
+    type,
+    target: { kind: "channel", channel: "announce" } as const,
+    refId: poll.id,
+  };
 
   switch (type) {
     case "vote_opened":
@@ -175,9 +187,26 @@ async function buildEvent(
 
       return {
         type: "retro_uploaded",
-        channel: "retro",
+        target: { kind: "channel", channel: "retro" },
         refId: retro.id,
         payload: retroUploadedPayload(retro, member),
+      };
+    }
+    case "comment_created": {
+      const refId = body.ref_id;
+      if (typeof refId !== "string" || !UUID_PATTERN.test(refId)) {
+        return fail(400, "INVALID_REF", "ref_id는 댓글 id(UUID)");
+      }
+      const result = await buildCommentDm(refId, admin, SITE_URL);
+      if (result.kind === "error") return fail(500, "DB_ERROR", result.message);
+      if (result.kind === "skip") {
+        return json(200, { ok: true, skipped: result.reason });
+      }
+      return {
+        type: "comment_created",
+        target: { kind: "dm", discordUserId: result.discordUserId },
+        refId,
+        payload: result.payload,
       };
     }
     case "test": {
@@ -187,7 +216,7 @@ async function buildEvent(
       }
       return {
         type: "test",
-        channel,
+        target: { kind: "channel", channel },
         refId: null,
         payload: {
           embeds: [
@@ -252,7 +281,8 @@ Deno.serve(async (req) => {
     .insert({
       event_type: event.type,
       ref_id: event.refId,
-      channel: event.channel,
+      // DM은 받는 사람 id를 남기지 않는다. ref_id(댓글 id)로 따라간다
+      channel: event.target.kind === "dm" ? "dm" : event.target.channel,
       status: "pending",
     })
     .select("id")
@@ -265,7 +295,10 @@ Deno.serve(async (req) => {
     return fail(500, "DB_ERROR", "발송 기록을 남기지 못했습니다");
   }
 
-  const result = await sendWebhook(event.channel, event.payload);
+  const result =
+    event.target.kind === "dm"
+      ? await sendDm(event.target.discordUserId, event.payload)
+      : await sendWebhook(event.target.channel, event.payload);
 
   await admin
     .from("checkin_discord_deliveries")
