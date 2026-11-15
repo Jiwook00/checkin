@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-interface Member {
+export interface Member {
   id: string;
   email: string;
   nickname: string;
   avatar_url: string | null;
   // 관리자 화면 접근 여부. 서버(RLS·Edge Function)도 is_checkin_admin()으로 따로 막는다
   is_admin: boolean;
+  // 디스코드 계정이 연결됐는지 (#102, 관리자가 SQL로 넣는다). id 값 자체는 앱에서 쓰지 않는다
+  discord_linked: boolean;
+  // 내 글에 달린 댓글을 디스코드 DM으로 받을지 (#105)
+  notify_comment_dm: boolean;
 }
 
 type AuthState =
@@ -66,7 +70,7 @@ export function useAuth() {
 
     const { data: memberData } = await supabase
       .from("checkin_members")
-      .select("avatar_url, is_admin")
+      .select("avatar_url, is_admin, discord_user_id, notify_comment_dm")
       .eq("id", userId)
       .single();
 
@@ -78,6 +82,8 @@ export function useAuth() {
         nickname: allowed.nickname,
         avatar_url: memberData?.avatar_url ?? null,
         is_admin: memberData?.is_admin ?? false,
+        discord_linked: memberData?.discord_user_id != null,
+        notify_comment_dm: memberData?.notify_comment_dm ?? true,
       },
     });
   };
