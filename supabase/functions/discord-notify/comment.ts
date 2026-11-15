@@ -11,8 +11,8 @@ import {
 } from "../_shared/discord/webhook.ts";
 
 const BODY_MAX = 200;
-// 디스코드 embed title 상한
-const TITLE_MAX = 256;
+// 본문 아래 링크로 붙는 글 제목의 길이 상한
+const TITLE_MAX = 100;
 
 interface CommentRow {
   id: string;
@@ -48,6 +48,11 @@ function truncate(text: string, max: number): string {
     : chars.join("");
 }
 
+// 제목이 마스킹 링크 [제목](url) 안에 들어가므로 링크·서식을 깨는 문자를 이스케이프한다
+function escapeMarkdown(text: string): string {
+  return text.replace(/([\\[\]()*_~`|>])/g, "\\$1");
+}
+
 export function commentDmPayload(
   comment: CommentRow,
   retro: RetroRow,
@@ -56,16 +61,18 @@ export function commentDmPayload(
 ): WebhookPayload {
   const nickname = commenter?.nickname ?? "멤버";
   const avatar = commenter?.avatar_url;
+  const retroUrl = `${siteUrl}/articles/${retro.id}`;
+  const retroLink = `[${escapeMarkdown(truncate(retro.title, TITLE_MAX))}](${retroUrl})`;
+  // 누가 → 어떤 댓글 → 어느 글 순서. embed title 은 본문 위에 그려지므로 쓰지 않고 글 제목은 본문 아래 링크로 둔다
   return {
     embeds: [
       {
         author: {
           name: `${nickname}님이 댓글을 남겼어요`,
+          url: retroUrl,
           ...(avatar?.startsWith("https://") ? { icon_url: avatar } : {}),
         },
-        title: truncate(retro.title, TITLE_MAX),
-        url: `${siteUrl}/articles/${retro.id}`,
-        description: truncate(comment.body, BODY_MAX),
+        description: `${truncate(comment.body, BODY_MAX)}\n\n${retroLink}`,
         color: EMBED_COLOR,
         timestamp: comment.created_at,
         footer: { text: "댓글 알림 · 프로필에서 끌 수 있어요" },
