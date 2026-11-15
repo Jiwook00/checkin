@@ -2,7 +2,8 @@
 //
 // 요청 `POST { type, ... }` + 헤더 `x-notify-secret`. 어느 채널에 어떤 형식으로 보낼지는 type 이 정하고 여기서 만든다.
 // type 은 "test"(연결 확인), "retro_uploaded"(#99, ref_id = 회고 id), 투표 공지 3종(#100, ref_id = poll id, vote.ts),
-// "comment_created"(#105, ref_id = 댓글 id, 글 작성자에게 봇 DM, comment.ts)가 있다.
+// "comment_created"(#105, ref_id = 댓글 id, 글 작성자에게 봇 DM, comment.ts),
+// 서버 이벤트 동기화 "poll_event_sync"·"poll_event_delete"(#103, event.ts)가 있다. 서버 이벤트는 메시지가 아니라서 아래 발송 기록을 쓰지 않는다.
 // 제목·작성자 같은 내용은 DB가 보내지 않고 여기서 service role 로 조회한다.
 // 같은 (type, ref_id)는 한 번만 보낸다. 보내기 전에 pending 행으로 자리를 잡아서 동시 요청이 둘 다 보내지 못하게 한다.
 // verify_jwt=false 라서 비밀 헤더가 유일한 관문이다. 비밀이 설정돼 있지 않으면 모든 요청을 거절한다
@@ -17,6 +18,11 @@ import {
 import { sendDm } from "../_shared/discord/dm.ts";
 import { fail, json } from "../_shared/http.ts";
 import { buildCommentDm } from "./comment.ts";
+import {
+  handlePollEvent,
+  POLL_EVENT_TYPES,
+  type PollEventType,
+} from "./event.ts";
 import {
   countRemaining,
   POLL_COLUMNS,
@@ -272,6 +278,10 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  if (POLL_EVENT_TYPES.includes(body.type as PollEventType)) {
+    return handlePollEvent(body.type as PollEventType, body, admin, SITE_URL);
+  }
 
   const event = await buildEvent(body, admin);
   if (event instanceof Response) return event;
