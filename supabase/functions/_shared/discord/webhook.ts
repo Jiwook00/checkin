@@ -59,32 +59,44 @@ export async function sendWebhook(
   // 제목에 @everyone 이 들어가도 울리지 않게 멘션은 항상 막는다
   const body = JSON.stringify({ ...payload, allowed_mentions: { parse: [] } });
 
+  const result = await postDiscord(url, {}, body);
+  if ("error" in result) return { ok: false, error: result.error };
+  const { res } = result;
+  if (!res.ok) return { ok: false, error: `http_${res.status}` };
+  const data = await res.json().catch(() => null);
+  return { ok: true, messageId: String(data?.id ?? "") };
+}
+
+/**
+ * Discord에 JSON을 POST한다. 429는 한 번만 기다려 재시도한다 (#98, #105 DM도 쓴다).
+ * 429 외의 응답은 그대로 돌려주고, 판정은 부른 쪽이 한다. `error`는 network_error / http_429
+ */
+export async function postDiscord(
+  url: string | URL,
+  headers: Record<string, string>,
+  body: string,
+): Promise<{ res: Response } | { error: string }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     let res: Response;
     try {
       res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body,
       });
     } catch {
-      return { ok: false, error: "network_error" };
+      return { error: "network_error" };
     }
 
     if (res.status === 429 && attempt === 0) {
       const retryAfter = await readRetryAfter(res);
-      if (retryAfter > MAX_RETRY_WAIT_SECONDS) {
-        return { ok: false, error: "http_429" };
-      }
+      if (retryAfter > MAX_RETRY_WAIT_SECONDS) return { error: "http_429" };
       await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
       continue;
     }
-
-    if (!res.ok) return { ok: false, error: `http_${res.status}` };
-    const data = await res.json().catch(() => null);
-    return { ok: true, messageId: String(data?.id ?? "") };
+    return { res };
   }
-  return { ok: false, error: "http_429" };
+  return { error: "http_429" };
 }
 
 async function readRetryAfter(res: Response): Promise<number> {

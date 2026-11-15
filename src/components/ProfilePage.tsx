@@ -1,25 +1,23 @@
 import { useEffect, useRef, useState } from "react";
+import type { Member } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import AvatarCropModal from "./AvatarCropModal";
-
-interface Member {
-  id: string;
-  email: string;
-  nickname: string;
-  avatar_url: string | null;
-}
 
 interface ProfilePageProps {
   member: Member;
   onAvatarUpdate: (url: string) => void;
+  onNotifyCommentDmChange: (value: boolean) => void;
 }
 
 export default function ProfilePage({
   member,
   onAvatarUpdate,
+  onNotifyCommentDmChange,
 }: ProfilePageProps) {
   const [retroCount, setRetroCount] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [savingNotify, setSavingNotify] = useState(false);
+  const [notifyError, setNotifyError] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +39,22 @@ export default function ProfilePage({
       if (ev.target?.result) setCropSrc(ev.target.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleNotifyToggle = async () => {
+    const next = !member.notify_comment_dm;
+    setSavingNotify(true);
+    setNotifyError(false);
+    const { error } = await supabase
+      .from("checkin_members")
+      .update({ notify_comment_dm: next })
+      .eq("id", member.id);
+    setSavingNotify(false);
+    if (error) {
+      setNotifyError(true);
+      return;
+    }
+    onNotifyCommentDmChange(next);
   };
 
   const handleCropConfirm = async (blob: Blob) => {
@@ -125,6 +139,47 @@ export default function ProfilePage({
             </span>
           </div>
         </div>
+
+        {/* 알림 — 디스코드가 연결된 멤버에게만 (#105) */}
+        {member.discord_linked && (
+          <div className="bg-surface-card rounded-[12px] p-5 mt-4">
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+              알림
+            </h2>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p id="notify-comment-dm-label" className="text-sm text-body">
+                  댓글 알림
+                </p>
+                <p className="text-xs text-muted mt-0.5">
+                  내 회고에 댓글이 달리면 디스코드 DM으로 알려드려요
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={member.notify_comment_dm}
+                aria-labelledby="notify-comment-dm-label"
+                onClick={handleNotifyToggle}
+                disabled={savingNotify}
+                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                  member.notify_comment_dm ? "bg-primary" : "bg-surface-strong"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-canvas shadow-sm transition-transform ${
+                    member.notify_comment_dm ? "translate-x-5" : ""
+                  }`}
+                />
+              </button>
+            </div>
+            {notifyError && (
+              <p className="text-xs text-error mt-3">
+                설정을 저장하지 못했어요. 다시 시도해 주세요.
+              </p>
+            )}
+          </div>
+        )}
 
         <input
           ref={fileInputRef}
