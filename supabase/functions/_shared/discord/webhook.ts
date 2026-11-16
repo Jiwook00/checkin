@@ -67,21 +67,34 @@ export async function sendWebhook(
   return { ok: true, messageId: String(data?.id ?? "") };
 }
 
-/**
- * Discord에 JSON을 POST한다. 429는 한 번만 기다려 재시도한다 (#98, #105 DM도 쓴다).
- * 429 외의 응답은 그대로 돌려주고, 판정은 부른 쪽이 한다. `error`는 network_error / http_429
- */
-export async function postDiscord(
+/** Discord에 JSON을 POST한다. `requestDiscord`의 POST 판 (#98, #105 DM) */
+export function postDiscord(
   url: string | URL,
   headers: Record<string, string>,
   body: string,
+): Promise<{ res: Response } | { error: string }> {
+  return requestDiscord("POST", url, headers, body);
+}
+
+/**
+ * Discord REST를 부른다. 429는 한 번만 기다려 재시도한다. 서버 이벤트(#103)가 PATCH·DELETE를 쓴다.
+ * 429 외의 응답은 그대로 돌려주고, 판정은 부른 쪽이 한다. `error`는 network_error / http_429
+ */
+export async function requestDiscord(
+  method: "POST" | "PATCH" | "DELETE",
+  url: string | URL,
+  headers: Record<string, string>,
+  body?: string,
 ): Promise<{ res: Response } | { error: string }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     let res: Response;
     try {
       res = await fetch(url, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
+        method,
+        headers:
+          body === undefined
+            ? headers
+            : { ...headers, "Content-Type": "application/json" },
         body,
       });
     } catch {

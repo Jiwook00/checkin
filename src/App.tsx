@@ -463,6 +463,7 @@ export default function App() {
                 memberId={authState.member.id}
                 poll={activePoll}
                 onPollChange={setActivePoll}
+                isAdmin={authState.member.is_admin}
               />
             </>
           }

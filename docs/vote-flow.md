@@ -199,3 +199,29 @@ flowchart TD
 
 > `App.tsx`는 `activePoll`만 fetch. `responses`와 `totalMembers`는 VotePage 내부에서 직접 fetch.
 > Poll을 변경하는 모든 작업(생성·확정·삭제·수정) 후에는 `onPollChange()`로 App 상태를 동기화한다.
+
+---
+
+## 6. 디스코드 연동
+
+확정한 일정은 디스코드 서버 이벤트로 따라간다 (#103, [ADR 0013](madr/0013-discord-scheduled-event-sync.md)). 앱은 디스코드를 직접 부르지 않는다.
+
+```mermaid
+flowchart LR
+    VP[VotePage<br>확정 · 수정 · 새 투표] -- update --> POLL[(checkin_vote_polls)]
+    POLL -- "트리거<br>poll_event_sync / poll_event_delete" --> NOTIFY[discord-notify]
+    RETRO[(checkin_retrospectives)] -- "등록 · 삭제<br>발표 순서 갱신" --> NOTIFY
+    NOTIFY -- "POST · PATCH · DELETE" --> DISCORD[디스코드 서버 이벤트]
+    NOTIFY -- "discord_event_* 기록" --> POLL
+    ADMIN[관리자 다시 시도<br>checkin_sync_discord_event] --> NOTIFY
+```
+
+| 상태 전이                         | 이벤트          |
+| --------------------------------- | --------------- |
+| open → confirmed                  | 만든다          |
+| confirmed 일시·장소 변경 (SQL 등) | 고친다          |
+| confirmed → closed (다음 투표)    | 지운다          |
+| poll 삭제                         | 지운다          |
+| 시작 시각이 지남                  | 건드리지 않는다 |
+
+> `vote_confirmed` 채널 공지(#100)는 별도로 그대로 나간다.

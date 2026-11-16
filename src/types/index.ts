@@ -239,9 +239,18 @@ export interface VotePoll {
   confirmed_time: string | null; // "22:00" — 확정 시각
   meeting_url: string | null;
   meeting_password: string | null;
+  // 디스코드 서버 이벤트 (#103). discord-notify 만 쓴다. 앱에서는 읽기만 한다 (가드 트리거)
+  discord_event_id: string | null;
+  discord_event_error: string | null; // 마지막 동기화 실패 코드. 성공하면 null
+  discord_event_synced_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type PollDiscordEvent = Pick<
+  VotePoll,
+  "discord_event_id" | "discord_event_error" | "discord_event_synced_at"
+>;
 
 export interface VoteDateSelection {
   date: number;

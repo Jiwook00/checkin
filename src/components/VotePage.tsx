@@ -300,9 +300,15 @@ interface Props {
   memberId: string;
   poll: VotePoll | null;
   onPollChange: (poll: VotePoll | null) => void;
+  isAdmin: boolean;
 }
 
-export default function VotePage({ memberId, poll, onPollChange }: Props) {
+export default function VotePage({
+  memberId,
+  poll,
+  onPollChange,
+  isAdmin,
+}: Props) {
   const [responses, setResponses] = useState<VoteResponse[]>([]);
   const [totalMembers, setTotalMembers] = useState(0);
   const [memberNicknames, setMemberNicknames] = useState<
@@ -714,6 +720,7 @@ export default function VotePage({ memberId, poll, onPollChange }: Props) {
             confirmedDateInfo={confirmedDateInfo ?? undefined}
             confirmedTallyItem={confirmedTallyItem ?? undefined}
             memberNicknames={memberNicknames}
+            isAdmin={isAdmin}
             onCreateNext={() => setCreateStep("preset")}
             onEdit={() => setEditModalOpen(true)}
             onDelete={() => setDeleteConfirmOpen(true)}
