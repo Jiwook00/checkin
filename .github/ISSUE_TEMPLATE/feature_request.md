@@ -1,7 +1,7 @@
 ---
 name: 기능 제안
 about: 새로운 기능이나 개선 아이디어를 제안해주세요
-labels: enhancement
+labels: "type: feature"
 ---
 
 ## 어떤 기능인가요?
