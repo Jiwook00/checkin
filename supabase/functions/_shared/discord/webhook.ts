@@ -77,11 +77,11 @@ export function postDiscord(
 }
 
 /**
- * Discord REST를 부른다. 429는 한 번만 기다려 재시도한다. 서버 이벤트(#103)가 PATCH·DELETE를 쓴다.
+ * Discord REST를 부른다. 429는 한 번만 기다려 재시도한다. 서버 이벤트(#103)가 PATCH·DELETE를, 역할 부여(#133)가 PUT을 쓴다.
  * 429 외의 응답은 그대로 돌려주고, 판정은 부른 쪽이 한다. `error`는 network_error / http_429
  */
 export async function requestDiscord(
-  method: "POST" | "PATCH" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   url: string | URL,
   headers: Record<string, string>,
   body?: string,
