@@ -148,4 +148,5 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 - **UI 대규모 변경 시** (새 페이지, 레이아웃 교체 등) `/design-preview` 커맨드로 실물 프리뷰 먼저 생성 후 확정
 - **운영 반영은 메인테이너만** — 사용자가 저장소 오너(`Jiwook00`)가 아니면 운영 DB 마이그레이션 적용(`supabase db push`, Supabase MCP `apply_migration`), Edge Function 배포, 시크릿 등록을 하지 않는다. 파일만 만들고 PR 본문에 "운영 반영 필요"를 적는다 ([CONTRIBUTING](.github/CONTRIBUTING.md#메인테이너만-하는-일))
 - **DB·앱 테스트는 로컬 Supabase에서** — `supabase start` → `npm run dev:local`. 마이그레이션을 추가하면 `supabase db reset`으로 처음부터 적용되는지 확인한다. 가짜 데이터는 `supabase/seed.sql`(실제 멤버 데이터 금지). `npm run dev`는 운영 DB에 붙어서 글·댓글·투표가 실제 멤버에게 보이고 디스코드 알림이 나간다
+- **마이그레이션 파일 버전 = 운영 버전** — Supabase MCP `apply_migration`은 파일 이름의 타임스탬프가 아니라 적용한 시각으로 버전을 기록한다. MCP로 적용했다면 `list_migrations`로 운영 버전을 확인하고 파일 이름 앞부분을 그 값으로 바꾼다. 안 맞으면 `supabase db push`가 이미 적용한 마이그레이션을 다시 적용하려 한다
 - 로컬 전용 로그인(`src/lib/local-dev.ts`)은 `import.meta.env.DEV`이고 URL이 로컬일 때만 켜진다. 이 조건을 넓히지 않는다
