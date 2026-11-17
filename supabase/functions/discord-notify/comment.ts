@@ -1,8 +1,9 @@
-// 회고 댓글 DM 알림 (이슈 #105). ref_id = 댓글 id 라서 댓글 하나에 DM은 한 번만 나간다
+// 회고 댓글 DM 알림 (이슈 #105, #120)
 //
-// 글 작성자에게 보낸다. 연달아 달린 댓글도 묶지 않고 댓글마다 보낸다.
-// 본인 댓글, 디스코드 미연결, 알림 끔(notify_comment_dm), 그 사이 삭제된 댓글·글은 기록 없이 건너뛴다.
-// 본문은 앞 BODY_MAX 자만 넣는다. 받는 사람은 웹앱에서 원래 그 댓글을 읽을 수 있는 글 작성자 한 명이다
+// 받는 사람은 글 작성자와 그 글에 먼저 댓글을 단 사람들(참여자)이다. 댓글 쓴 본인은 빼고, 한 사람에게 한 통만 보낸다.
+// 작성자이면서 참여자면 작성자로 보낸다. 연달아 달린 댓글도 묶지 않고 댓글마다 보낸다.
+// 디스코드 미연결, 알림 끔(notify_comment_dm), 그 사이 삭제된 댓글·글은 기록 없이 건너뛴다.
+// 본문은 앞 BODY_MAX 자만 넣는다. 받는 사람은 모두 웹앱에서 원래 그 댓글을 읽을 수 있는 멤버다
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -36,8 +37,17 @@ interface MemberRow {
   notify_comment_dm: boolean;
 }
 
+/** 왜 받는가. author = 내 글에 달린 댓글, participant = 내가 댓글 단 글에 달린 새 댓글 */
+export type CommentDmReason = "author" | "participant";
+
+export interface CommentDm {
+  memberId: string;
+  discordUserId: string;
+  payload: WebhookPayload;
+}
+
 export type CommentDmResult =
-  | { kind: "dm"; discordUserId: string; payload: WebhookPayload }
+  | { kind: "dm"; dms: CommentDm[] }
   | { kind: "skip"; reason: string }
   | { kind: "error"; message: string };
 
@@ -53,10 +63,16 @@ function escapeMarkdown(text: string): string {
   return text.replace(/([\\[\]()*_~`|>])/g, "\\$1");
 }
 
+const HEADLINE: Record<CommentDmReason, string> = {
+  author: "님이 댓글을 남겼어요",
+  participant: "님이 댓글 단 글에 새 댓글을 남겼어요",
+};
+
 export function commentDmPayload(
   comment: CommentRow,
   retro: RetroRow,
   commenter: MemberRow | null,
+  reason: CommentDmReason,
   siteUrl: string,
 ): WebhookPayload {
   const nickname = commenter?.nickname ?? "멤버";
@@ -68,7 +84,7 @@ export function commentDmPayload(
     embeds: [
       {
         author: {
-          name: `${nickname}님이 댓글을 남겼어요`,
+          name: `${nickname}${HEADLINE[reason]}`,
           url: retroUrl,
           ...(avatar?.startsWith("https://") ? { icon_url: avatar } : {}),
         },
@@ -82,7 +98,7 @@ export function commentDmPayload(
 }
 
 /** commentId 는 호출 전에 UUID 형식을 확인한다 */
-export async function buildCommentDm(
+export async function buildCommentDms(
   commentId: string,
   admin: SupabaseClient,
   siteUrl: string,
@@ -105,26 +121,46 @@ export async function buildCommentDm(
     return { kind: "error", message: "회고를 조회하지 못했습니다" };
   if (!retro) return { kind: "skip", reason: "retro_deleted" };
 
-  if (retro.member_id === comment.member_id) {
-    return { kind: "skip", reason: "own_comment" };
+  // 이 댓글보다 먼저 달린 댓글의 작성자. 나중에 다시 불려도 같은 사람들이 나오도록 시각으로 자른다
+  const { data: earlier, error: earlierError } = await admin
+    .from("checkin_comments")
+    .select("member_id")
+    .eq("retrospective_id", retro.id)
+    .lt("created_at", comment.created_at)
+    .returns<{ member_id: string }[]>();
+  if (earlierError)
+    return { kind: "error", message: "참여자를 조회하지 못했습니다" };
+
+  // 작성자를 먼저 넣어서, 작성자이면서 참여자인 사람은 작성자로 남게 한다
+  const reasons = new Map<string, CommentDmReason>([
+    [retro.member_id, "author"],
+  ]);
+  for (const { member_id } of earlier ?? []) {
+    if (!reasons.has(member_id)) reasons.set(member_id, "participant");
   }
+  reasons.delete(comment.member_id);
+  if (reasons.size === 0) return { kind: "skip", reason: "own_comment" };
 
   const { data: members, error: memberError } = await admin
     .from("checkin_members")
     .select("id, nickname, avatar_url, discord_user_id, notify_comment_dm")
-    .in("id", [retro.member_id, comment.member_id])
+    .in("id", [...reasons.keys(), comment.member_id])
     .returns<MemberRow[]>();
   if (memberError)
     return { kind: "error", message: "멤버를 조회하지 못했습니다" };
 
-  const author = members?.find((m) => m.id === retro.member_id);
   const commenter = members?.find((m) => m.id === comment.member_id) ?? null;
-  if (!author?.discord_user_id) return { kind: "skip", reason: "not_linked" };
-  if (!author.notify_comment_dm) return { kind: "skip", reason: "opted_out" };
+  const dms: CommentDm[] = [];
+  for (const [memberId, reason] of reasons) {
+    const member = members?.find((m) => m.id === memberId);
+    if (!member?.discord_user_id || !member.notify_comment_dm) continue;
+    dms.push({
+      memberId,
+      discordUserId: member.discord_user_id,
+      payload: commentDmPayload(comment, retro, commenter, reason, siteUrl),
+    });
+  }
+  if (dms.length === 0) return { kind: "skip", reason: "no_recipients" };
 
-  return {
-    kind: "dm",
-    discordUserId: author.discord_user_id,
-    payload: commentDmPayload(comment, retro, commenter, siteUrl),
-  };
+  return { kind: "dm", dms };
 }

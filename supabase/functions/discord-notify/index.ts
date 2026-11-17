@@ -2,7 +2,7 @@
 //
 // 요청 `POST { type, ... }` + 헤더 `x-notify-secret`. 어느 채널에 어떤 형식으로 보낼지는 type 이 정하고 여기서 만든다.
 // type 은 "test"(연결 확인), "retro_uploaded"(#99, ref_id = 회고 id), 투표 공지 3종(#100, ref_id = poll id, vote.ts),
-// "comment_created"(#105, ref_id = 댓글 id, 글 작성자에게 봇 DM, comment.ts),
+// "comment_created"(#105·#120, ref_id = 댓글 id, 글 작성자와 먼저 댓글 단 사람들에게 봇 DM, comment.ts),
 // 서버 이벤트 동기화 "poll_event_sync"·"poll_event_delete"(#103, event.ts)가 있다. 서버 이벤트는 메시지가 아니라서 아래 발송 기록을 쓰지 않는다.
 // 제목·작성자 같은 내용은 DB가 보내지 않고 여기서 service role 로 조회한다.
 // 같은 (type, ref_id)는 한 번만 보낸다. 보내기 전에 pending 행으로 자리를 잡아서 동시 요청이 둘 다 보내지 못하게 한다.
@@ -17,7 +17,7 @@ import {
 } from "../_shared/discord/webhook.ts";
 import { sendDm } from "../_shared/discord/dm.ts";
 import { fail, json } from "../_shared/http.ts";
-import { buildCommentDm } from "./comment.ts";
+import { buildCommentDms } from "./comment.ts";
 import {
   handlePollEvent,
   POLL_EVENT_TYPES,
@@ -164,7 +164,7 @@ async function buildVoteEvent(
 async function buildEvent(
   body: Record<string, unknown>,
   admin: SupabaseClient,
-): Promise<DiscordEvent | Response> {
+): Promise<DiscordEvent | DiscordEvent[] | Response> {
   if (VOTE_EVENT_TYPES.includes(body.type as VoteEventType)) {
     return buildVoteEvent(body.type as VoteEventType, body.ref_id, admin);
   }
@@ -203,17 +203,18 @@ async function buildEvent(
       if (typeof refId !== "string" || !UUID_PATTERN.test(refId)) {
         return fail(400, "INVALID_REF", "ref_id는 댓글 id(UUID)");
       }
-      const result = await buildCommentDm(refId, admin, SITE_URL);
+      const result = await buildCommentDms(refId, admin, SITE_URL);
       if (result.kind === "error") return fail(500, "DB_ERROR", result.message);
       if (result.kind === "skip") {
         return json(200, { ok: true, skipped: result.reason });
       }
-      return {
+      // 받는 사람마다 한 건. 발송 기록 ref_id 는 "댓글 id:멤버 id"라서 한 사람에게 한 번만 나간다 (#120)
+      return result.dms.map((dm) => ({
         type: "comment_created",
-        target: { kind: "dm", discordUserId: result.discordUserId },
-        refId,
-        payload: result.payload,
-      };
+        target: { kind: "dm", discordUserId: dm.discordUserId },
+        refId: `${refId}:${dm.memberId}`,
+        payload: dm.payload,
+      }));
     }
     case "test": {
       const channel = body.channel as DiscordChannel;
@@ -238,6 +239,55 @@ async function buildEvent(
     default:
       return fail(400, "UNKNOWN_EVENT", "알 수 없는 type");
   }
+}
+
+type DeliveryResult =
+  | { status: "sent"; messageId: string }
+  | { status: "failed"; error: string }
+  | { status: "duplicate" }
+  | { status: "db_error" };
+
+/** 발송 기록으로 자리를 잡은 뒤 보내고, 결과를 기록에 남긴다 */
+async function deliver(
+  event: DiscordEvent,
+  admin: SupabaseClient,
+): Promise<DeliveryResult> {
+  const { data: row, error: insertError } = await admin
+    .from("checkin_discord_deliveries")
+    .insert({
+      event_type: event.type,
+      ref_id: event.refId,
+      // DM은 디스코드 id를 남기지 않는다. ref_id(댓글 id:멤버 id)로 따라간다
+      channel: event.target.kind === "dm" ? "dm" : event.target.channel,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (insertError) {
+    // unique (event_type, ref_id) 위반 = 이미 보냈거나 보내는 중
+    return insertError.code === "23505"
+      ? { status: "duplicate" }
+      : { status: "db_error" };
+  }
+
+  const result =
+    event.target.kind === "dm"
+      ? await sendDm(event.target.discordUserId, event.payload)
+      : await sendWebhook(event.target.channel, event.payload);
+
+  await admin
+    .from("checkin_discord_deliveries")
+    .update({
+      status: result.ok ? "sent" : "failed",
+      error: result.ok ? null : result.error,
+      discord_message_id: result.ok ? result.messageId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+
+  return result.ok
+    ? { status: "sent", messageId: result.messageId }
+    : { status: "failed", error: result.error };
 }
 
 // 두 값을 SHA-256으로 같은 길이로 만든 뒤 XOR로 비교해서 길이·내용이 시간으로 새지 않게 한다
@@ -283,43 +333,30 @@ Deno.serve(async (req) => {
     return handlePollEvent(body.type as PollEventType, body, admin, SITE_URL);
   }
 
-  const event = await buildEvent(body, admin);
-  if (event instanceof Response) return event;
+  const built = await buildEvent(body, admin);
+  if (built instanceof Response) return built;
 
-  const { data: row, error: insertError } = await admin
-    .from("checkin_discord_deliveries")
-    .insert({
-      event_type: event.type,
-      ref_id: event.refId,
-      // DM은 받는 사람 id를 남기지 않는다. ref_id(댓글 id)로 따라간다
-      channel: event.target.kind === "dm" ? "dm" : event.target.channel,
-      status: "pending",
-    })
-    .select("id")
-    .single();
-  if (insertError) {
-    // unique (event_type, ref_id) 위반 = 이미 보냈거나 보내는 중
-    if (insertError.code === "23505") {
-      return json(200, { ok: true, skipped: "duplicate" });
+  if (!Array.isArray(built)) {
+    const result = await deliver(built, admin);
+    switch (result.status) {
+      case "duplicate":
+        return json(200, { ok: true, skipped: "duplicate" });
+      case "db_error":
+        return fail(500, "DB_ERROR", "발송 기록을 남기지 못했습니다");
+      case "failed":
+        return fail(502, "DISCORD_FAILED", result.error);
+      case "sent":
+        return json(200, { ok: true, message_id: result.messageId });
     }
-    return fail(500, "DB_ERROR", "발송 기록을 남기지 못했습니다");
   }
 
-  const result =
-    event.target.kind === "dm"
-      ? await sendDm(event.target.discordUserId, event.payload)
-      : await sendWebhook(event.target.channel, event.payload);
-
-  await admin
-    .from("checkin_discord_deliveries")
-    .update({
-      status: result.ok ? "sent" : "failed",
-      error: result.ok ? null : result.error,
-      discord_message_id: result.ok ? result.messageId : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", row.id);
-
-  if (!result.ok) return fail(502, "DISCORD_FAILED", result.error);
-  return json(200, { ok: true, message_id: result.messageId });
+  // 받는 사람이 여럿이면(댓글 DM) 한 사람이 실패해도 나머지에게는 보낸다. 받는 사람이 몇 명 안 돼서 차례로 보낸다
+  const results: (DeliveryResult & { ref_id: string | null })[] = [];
+  for (const event of built) {
+    results.push({ ref_id: event.refId, ...(await deliver(event, admin)) });
+  }
+  const ok = results.every(
+    (r) => r.status === "sent" || r.status === "duplicate",
+  );
+  return json(ok ? 200 : 502, { ok, results });
 });
