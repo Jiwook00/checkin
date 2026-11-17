@@ -152,7 +152,8 @@ export default function ProfilePage({
                   댓글 알림
                 </p>
                 <p className="text-xs text-muted mt-0.5">
-                  내 회고에 댓글이 달리면 디스코드 DM으로 알려드려요
+                  내 회고나 내가 댓글 단 회고에 새 댓글이 달리면 디스코드 DM으로
+                  알려드려요
                 </p>
               </div>
               <button
