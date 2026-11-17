@@ -35,7 +35,7 @@ supabase functions deploy parse-content # Deploy
 - `supabase/functions/parse-content/` — Edge Function (Deno) for parsing Notion/blog URLs into markdown
 - `supabase/functions/generate-reminders/`, `suggest-questions/` — 관리자 전용 리마인더 초안 생성·공통 질문 제안 (ADR 0007)
 - `supabase/functions/discord-notify/` — DB 이벤트를 디스코드 채널로 보낸다 (ADR 0010). 웹훅 URL은 함수 시크릿에만 있고, DB는 `checkin_notify_discord()`로 부른다. 확정한 일정의 서버 이벤트도 여기서 동기화한다 (ADR 0013, `event.ts`)
-- `supabase/functions/discord-interactions/` — 디스코드 봇 HTTP Interactions 진입점 (ADR 0011). JWT 검증 없이 Ed25519 서명이 유일한 관문이라 `--no-verify-jwt`로 배포한다
+- `supabase/functions/discord-interactions/` — 디스코드 봇 HTTP Interactions 진입점 (ADR 0011). JWT 검증 없이 Ed25519 서명이 유일한 관문이라 `--no-verify-jwt`로 배포한다. 슬래시 커맨드(type 2)는 `data.name`으로 `commands/`의 핸들러에 분기한다 (`/기여`, ADR 0015). 커맨드를 추가·변경하면 `scripts/discord-register-commands.ts`를 다시 돌려 길드에 등록한다
 - `supabase/functions/_shared/reminder/` — 리마인더 생성 코어. 평가 하네스(`scripts/eval/`)와 Edge Function이 함께 import한다. 프롬프트·요청 객체를 바꾸면 하네스 호출 캐시와 평가 기준선이 끊긴다
 - `supabase/migrations/` — SQL migration files
 
