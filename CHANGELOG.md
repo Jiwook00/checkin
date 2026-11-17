@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.3.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.2.0...checkin-v1.3.0) (2026-11-17)
+
+
+### Features
+
+* 관리자에게 디스코드 이벤트 상태와 다시 시도 표시 ([ee57f73](https://github.com/Jiwook00/checkin/commit/ee57f737a356eb66913bee869e480882f7a5b9d4))
+* 기여 커맨드 실행 기록 테이블 ([82a8098](https://github.com/Jiwook00/checkin/commit/82a80980bb6712c700cf96f55954ee8293ba9cae))
+* 댓글 DM 알림 설정과 댓글 트리거 ([932a9f7](https://github.com/Jiwook00/checkin/commit/932a9f70a49cc226bd450a21f3ad92decedacaeb))
+* 댓글 DM을 누가·댓글·글 순서로 ([6e82df0](https://github.com/Jiwook00/checkin/commit/6e82df036029584e9cb02ddafaae34c38e4ef4ff))
+* 댓글 단 글에 새 댓글이 달리면 디스코드 DM 알림 ([5f29460](https://github.com/Jiwook00/checkin/commit/5f294609b9820b4c453bccc3037a43ba87c32b3f))
+* 댓글 단 글에 새 댓글이 달리면 디스코드 DM 알림 ([ed75863](https://github.com/Jiwook00/checkin/commit/ed758639602629ed119daf3055fed9c407109597)), closes [#120](https://github.com/Jiwook00/checkin/issues/120)
+* 디스코드 /기여 커맨드로 GitHub 초대와 개발자 역할 받기 ([72b4113](https://github.com/Jiwook00/checkin/commit/72b41133b012f739f8b0551f796c23e7a921feb6))
+* 디스코드 /기여 커맨드로 GitHub 초대와 개발자 역할 부여 ([fbbde1d](https://github.com/Jiwook00/checkin/commit/fbbde1d3116ef24dcef8ae35f65ed1334975cf87))
+* 디스코드 Interactions 서명 검증과 PING 응답 ([2805556](https://github.com/Jiwook00/checkin/commit/2805556bb1cac38f223c3ebe4c4cb3f74d4bd068)), closes [#101](https://github.com/Jiwook00/checkin/issues/101)
+* 로컬 Supabase 시드와 로컬 전용 로그인 ([9c8b4cc](https://github.com/Jiwook00/checkin/commit/9c8b4cce0c3a929ed61dd9dd86cc427179f81ba7))
+* 멤버 디스코드 id 컬럼과 앱 변경 차단 ([714ba13](https://github.com/Jiwook00/checkin/commit/714ba13e6aba1e9176d55a2994e8d7bcd2827a32))
+* 멤버와 디스코드 계정 연결 ([e4b0b71](https://github.com/Jiwook00/checkin/commit/e4b0b71d28eab5b010dd8168338dcfdf8896e31e))
+* 봇 DM 발송과 댓글 이벤트 ([33f6bb3](https://github.com/Jiwook00/checkin/commit/33f6bb3f9f9591454f168508245fbba15de4bfb7))
+* 일정 투표 디스코드 공지 ([5cf981f](https://github.com/Jiwook00/checkin/commit/5cf981fdf3debde0e2590cef77ef4d2c83ac51c7))
+* 일정 투표 디스코드 공지 이벤트 ([4da853d](https://github.com/Jiwook00/checkin/commit/4da853d0236b7f9e67960abc890911b57fd4d5c3)), closes [#100](https://github.com/Jiwook00/checkin/issues/100)
+* 일정 확정 시 디스코드 서버 이벤트 동기화 ([f5be001](https://github.com/Jiwook00/checkin/commit/f5be001f611382392db7b55a8d24ea63c45cb4a4))
+* 투표 디스코드 이벤트 컬럼과 동기화 트리거 ([4db2aee](https://github.com/Jiwook00/checkin/commit/4db2aee82afc7eccfc1b9e01818526f04693d81f))
+* 투표 마감일 입력 ([bfe3b32](https://github.com/Jiwook00/checkin/commit/bfe3b3281643bd5fc8c65dbfb9c7ea6d344cca94)), closes [#100](https://github.com/Jiwook00/checkin/issues/100)
+* 투표 오픈·확정 트리거와 마감 전날 cron ([8afa25a](https://github.com/Jiwook00/checkin/commit/8afa25aa80c7c211b6450b234350d1cc759b764e)), closes [#100](https://github.com/Jiwook00/checkin/issues/100)
+* 프로필 댓글 DM 알림 토글 ([e7ebe85](https://github.com/Jiwook00/checkin/commit/e7ebe852ed304c504728dccc4ce634bb89f4cfb9)), closes [#105](https://github.com/Jiwook00/checkin/issues/105)
+* 확정한 일정을 디스코드 서버 이벤트로 동기화 ([5ac40cd](https://github.com/Jiwook00/checkin/commit/5ac40cd5feab4151d299a7532674b4e5cf7289fc))
+* 회고 댓글 디스코드 DM 알림 ([68e4552](https://github.com/Jiwook00/checkin/commit/68e45529a4ce3cd0caaba41bfab17d36e3393429))
+
 ## [1.2.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.1.0...checkin-v1.2.0) (2026-11-05)
 
 
