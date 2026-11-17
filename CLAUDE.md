@@ -145,3 +145,5 @@ Breaking changes use `!` suffix (e.g., `feat!: ...`). Versioning is managed by `
 - Do not add `console.log` statements to production code
 - UI language is **Korean** — keep user-facing strings in Korean
 - **UI 대규모 변경 시** (새 페이지, 레이아웃 교체 등) `/design-preview` 커맨드로 실물 프리뷰 먼저 생성 후 확정
+- **운영 반영은 메인테이너만** — 사용자가 저장소 오너(`Jiwook00`)가 아니면 운영 DB 마이그레이션 적용(`supabase db push`, Supabase MCP `apply_migration`), Edge Function 배포, 시크릿 등록을 하지 않는다. 파일만 만들고 PR 본문에 "운영 반영 필요"를 적는다 ([CONTRIBUTING](.github/CONTRIBUTING.md#메인테이너만-하는-일))
+- 로컬 앱은 운영 DB에 붙는다 — 브라우저 테스트로 만든 글·댓글·투표는 실제 멤버에게 보이고 디스코드 알림이 나간다

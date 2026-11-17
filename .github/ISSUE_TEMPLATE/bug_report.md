@@ -1,7 +1,7 @@
 ---
 name: 버그 리포트
 about: 버그를 발견했을 때 제보해주세요
-labels: bug
+labels: "type: bug"
 ---
 
 ## 어떤 버그인가요?
