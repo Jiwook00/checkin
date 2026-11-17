@@ -5,7 +5,7 @@ Checkin은 우리 회고 모임이 쓰는 앱입니다. 쓰다가 불편한 점�
 
 ## 처음 한 번
 
-1. **콜라보레이터 초대 수락** — 메인테이너에게 GitHub 아이디를 알려 주고 초대를 받으세요. 초대를 받아야 이 저장소에 브랜치를 올리고 라벨을 붙일 수 있습니다. fork는 필요 없습니다.
+1. **콜라보레이터 초대 받기** — 체크인 디스코드 서버에서 `/기여 github:<내 GitHub 아이디>`를 실행하고, 메일이나 <https://github.com/Jiwook00/checkin/invitations>에서 초대를 수락하세요. 초대를 받아야 이 저장소에 브랜치를 올리고 라벨을 붙일 수 있습니다. 같은 커맨드로 `개발자` 역할도 받아 `#개발` 채널이 보입니다. fork는 필요 없습니다. 디스코드 계정이 멤버와 연결돼 있지 않다는 안내가 나오면 메인테이너에게 연결을 부탁하세요.
 2. **도구 설치** — Node.js, [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started).
 3. **실행** — 아래 "로컬 개발"대로 띄웁니다. 운영 키는 받지 않아도 됩니다.
 
