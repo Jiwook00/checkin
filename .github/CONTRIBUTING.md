@@ -6,10 +6,28 @@ Checkin은 우리 회고 모임이 쓰는 앱입니다. 쓰다가 불편한 점�
 ## 처음 한 번
 
 1. **콜라보레이터 초대 수락** — 메인테이너에게 GitHub 아이디를 알려 주고 초대를 받으세요. 초대를 받아야 이 저장소에 브랜치를 올리고 라벨을 붙일 수 있습니다. fork는 필요 없습니다.
-2. **환경변수 받기** — `cp .env.example .env` 후, Supabase URL과 anon key를 메인테이너에게 받아 채웁니다.
-3. **실행** — `npm install && npm run dev`. 로그인은 평소 쓰는 구글 계정으로 하면 됩니다.
+2. **도구 설치** — Node.js, [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started).
+3. **실행** — 아래 "로컬 개발"대로 띄웁니다. 운영 키는 받지 않아도 됩니다.
 
-> **로컬 앱은 운영 DB에 붙습니다.** 로컬에서 쓴 글, 댓글, 투표는 실제 멤버에게 보이고 디스코드 알림도 나갑니다. 테스트할 때는 지워도 되는 글에서만 하고, 끝나면 정리해 주세요.
+## 로컬 개발
+
+기본은 **로컬 Supabase**입니다. 내 컴퓨터에 DB·인증·스토리지를 띄우고, 저장소의 마이그레이션과 가짜 데이터(`supabase/seed.sql`)를 넣어서 씁니다. 무엇을 해도 운영과 다른 멤버에게 영향이 없습니다.
+
+```bash
+npm install
+supabase start      # Docker가 켜져 있어야 함. 처음엔 이미지 받느라 몇 분 걸림
+npm run dev:local   # 로컬 Supabase에 붙은 개발 서버
+```
+
+- **로그인**: 로그인 화면 아래의 시드 계정 버튼(관리자·민지·준호·서연)을 누릅니다. 로컬에서는 Google 로그인이 동작하지 않습니다.
+- **DB 변경 테스트**: `supabase/migrations/`에 파일을 추가하고 `supabase db reset`을 돌립니다. 모든 마이그레이션과 시드가 처음부터 다시 들어갑니다. 에러 없이 끝나야 PR을 올릴 수 있는 상태입니다.
+- **DB 직접 보기**: Studio(http://127.0.0.1:54323)에서 테이블과 데이터를 봅니다.
+- **디스코드 알림**: 로컬에는 디스코드 시크릿이 없어서 알림 트리거는 경고만 남기고 보내지 않습니다. 알림 내용을 확인해야 하는 작업이면 PR에 적어 주세요. 메인테이너가 운영에서 확인합니다.
+- **끄기**: `supabase stop`
+
+새 기능에 맞는 가짜 데이터가 필요하면 `supabase/seed.sql`에 추가해 주세요. 실제 멤버의 이름이나 글을 넣으면 안 됩니다.
+
+> **`npm run dev`는 운영 DB에 붙습니다.** `.env`에 운영 키가 있을 때만 동작하고, 그때 쓴 글, 댓글, 투표는 실제 멤버에게 보이며 디스코드 알림도 나갑니다. 기여 작업에는 `npm run dev:local`을 써 주세요.
 
 ## 작업 흐름
 

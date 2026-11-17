@@ -39,6 +39,8 @@ cp .env.example .env
 npm run dev
 ```
 
+로컬 Supabase로 개발하려면 `supabase start` 후 `npm run dev:local`을 씁니다. 자세한 내용은 [기여 가이드 - 로컬 개발](.github/CONTRIBUTING.md#로컬-개발)을 참고하세요.
+
 ### Supabase 설정 (메인테이너 전용)
 
 운영 DB 적용과 함수 배포는 메인테이너만 합니다. 기여자는 [기여 가이드](.github/CONTRIBUTING.md#메인테이너만-하는-일)를 참고하세요.
