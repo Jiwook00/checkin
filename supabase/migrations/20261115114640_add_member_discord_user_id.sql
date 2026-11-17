@@ -6,7 +6,7 @@
 --   update checkin_members set discord_user_id = '<디스코드 사용자 id>' where nickname = '<닉네임>';
 --   update checkin_members set discord_user_id = null where nickname = '<닉네임>';
 --
--- 주의: checkin_members 의 "Allow own update"는 USING 만 있고 WITH CHECK 이 없다 (is_admin 과 같은 문제, 20261030000000).
+-- 주의: checkin_members 의 "Allow own update"는 USING 만 있고 WITH CHECK 이 없다 (is_admin 과 같은 문제, 20261030060724).
 --       컬럼만 추가하면 멤버가 자기 row 에 다른 사람의 디스코드 id 를 넣어 DM 을 가로채거나 커맨드에서 그 사람으로 보일 수 있다.
 --       그래서 authenticated/anon 롤은 본인 row 라도 이 값을 넣거나 바꾸지 못하게 트리거로 막는다.
 --       리포가 공개라 실제 id 는 이 파일에 넣지 않는다.

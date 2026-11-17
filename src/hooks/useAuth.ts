@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { IS_LOCAL_SUPABASE, LOCAL_SEED_PASSWORD } from "../lib/local-dev";
 
 export interface Member {
   id: string;
@@ -27,6 +28,22 @@ export function useAuth() {
       provider: "google",
       options: { redirectTo: window.location.origin },
     });
+  };
+
+  // 로컬 Supabase 전용: 시드 계정으로 로그인한다. 그 뒤 흐름(화이트리스트 확인·upsert)은 Google과 같다
+  const signInAsLocalSeed = async (email: string) => {
+    if (!IS_LOCAL_SUPABASE) return;
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: LOCAL_SEED_PASSWORD,
+    });
+    if (error) {
+      setAuthState({
+        status: "unauthenticated",
+        error:
+          "로컬 계정으로 로그인하지 못했습니다. supabase db reset으로 시드를 다시 넣어 보세요.",
+      });
+    }
   };
 
   const signOut = async () => {
@@ -120,5 +137,11 @@ export function useAuth() {
     );
   };
 
-  return { authState, signInWithGoogle, signOut, updateMember };
+  return {
+    authState,
+    signInWithGoogle,
+    signInAsLocalSeed,
+    signOut,
+    updateMember,
+  };
 }

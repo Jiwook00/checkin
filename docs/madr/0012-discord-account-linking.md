@@ -47,7 +47,7 @@ update checkin_members set discord_user_id = null where nickname = '<닉네임>'
 
 `checkin_members`의 "Allow own update"에는 `USING`만 있고 `WITH CHECK`가 없다. 컬럼만 추가하면 멤버가 자기 row에 다른 사람의 디스코드 id를 넣을 수 있다. 그러면 그 사람에게 갈 DM을 가로채고, 커맨드에서 그 사람으로 보인다.
 
-그래서 트리거 `checkin_members_guard_discord`가 `authenticated`·`anon` 롤이 이 값을 넣거나 바꾸는 것을 `42501`로 막는다. `is_admin` 트리거(ADR 0007, `20261030000000`)와 같은 패턴이다. service role과 SQL 편집기(`postgres`)는 막지 않는다.
+그래서 트리거 `checkin_members_guard_discord`가 `authenticated`·`anon` 롤이 이 값을 넣거나 바꾸는 것을 `42501`로 막는다. `is_admin` 트리거(ADR 0007, `20261030060724`)와 같은 패턴이다. service role과 SQL 편집기(`postgres`)는 막지 않는다.
 
 이슈의 "본인과 관리자만 바꿀 수 있다"보다 강하다. 셀프 연결·해제를 쓸 화면이 없으니 열어 둘 이유가 없다. "DM을 그만 받고 싶다"는 #105의 알림 끄기로 푼다.
 

@@ -1,9 +1,16 @@
+import { IS_LOCAL_SUPABASE, LOCAL_SEED_ACCOUNTS } from "../lib/local-dev";
+
 interface LoginPageProps {
   onLogin: () => void;
+  onLocalLogin: (email: string) => void;
   error?: string;
 }
 
-export default function LoginPage({ onLogin, error }: LoginPageProps) {
+export default function LoginPage({
+  onLogin,
+  onLocalLogin,
+  error,
+}: LoginPageProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-card">
       <div className="w-full max-w-sm rounded-[12px] bg-canvas p-10 shadow-sm">
@@ -50,6 +57,25 @@ export default function LoginPage({ onLogin, error }: LoginPageProps) {
           </svg>
           Google로 로그인
         </button>
+
+        {IS_LOCAL_SUPABASE && (
+          <div className="mt-8 border-t border-dashed border-hairline pt-6">
+            <p className="mb-3 text-xs text-muted">
+              로컬 Supabase · 시드 계정으로 로그인
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {LOCAL_SEED_ACCOUNTS.map((account) => (
+                <button
+                  key={account.email}
+                  onClick={() => onLocalLogin(account.email)}
+                  className="rounded-[8px] border border-hairline bg-surface-soft px-3 py-2 text-sm text-body transition-colors hover:bg-surface-card"
+                >
+                  {account.nickname}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -42,3 +42,4 @@ letters/**/reminder-*.html
 
 # Supabase CLI 로컬 상태 (자동 생성)
 supabase/.temp/
+supabase/.branches/

@@ -66,7 +66,13 @@ function extractStorageImagePaths(
 }
 
 export default function App() {
-  const { authState, signInWithGoogle, signOut, updateMember } = useAuth();
+  const {
+    authState,
+    signInWithGoogle,
+    signInAsLocalSeed,
+    signOut,
+    updateMember,
+  } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [articles, setArticles] = useState<Retrospective[]>([]);
@@ -383,7 +389,13 @@ export default function App() {
   }
 
   if (authState.status === "unauthenticated") {
-    return <LoginPage onLogin={signInWithGoogle} error={authState.error} />;
+    return (
+      <LoginPage
+        onLogin={signInWithGoogle}
+        onLocalLogin={signInAsLocalSeed}
+        error={authState.error}
+      />
+    );
   }
 
   return (
