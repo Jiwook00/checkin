@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.1](https://github.com/Jiwook00/checkin/compare/checkin-v1.3.0...checkin-v1.3.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* 글 상세에서 조회가 끝난 뒤에만 없는 글 안내 표시 ([e6d7791](https://github.com/Jiwook00/checkin/commit/e6d7791fa650dde9c4596b3a275b439ceb7217df))
+* 글 상세에서 조회가 끝난 뒤에만 없는 글 안내 표시 ([814b53d](https://github.com/Jiwook00/checkin/commit/814b53d89a46c4d0302f9cbe7ca7753d8462f7e9)), closes [#122](https://github.com/Jiwook00/checkin/issues/122)
+* 포맷 훅이 저장소 전체 대신 수정한 파일만 포맷 ([2843536](https://github.com/Jiwook00/checkin/commit/284353610984b60de7b260a1f18dd7b3ba7c0c05))
+
 ## [1.3.0](https://github.com/Jiwook00/checkin/compare/checkin-v1.2.0...checkin-v1.3.0) (2026-11-17)
 
 
