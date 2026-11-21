@@ -456,6 +456,7 @@ export default function App() {
           element={
             <ArticleReader
               articles={articles}
+              loading={loading}
               currentMemberId={authState.member.id}
               onEdit={handleEditArticleAction}
             />

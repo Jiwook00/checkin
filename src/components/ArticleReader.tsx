@@ -8,12 +8,14 @@ import DegradedBanner from "./DegradedBanner";
 
 interface ArticleReaderProps {
   articles: Retrospective[];
+  loading: boolean;
   currentMemberId: string;
   onEdit: (article: Retrospective) => void;
 }
 
 export default function ArticleReader({
   articles,
+  loading,
   currentMemberId,
   onEdit,
 }: ArticleReaderProps) {
@@ -30,7 +32,9 @@ export default function ArticleReader({
 
   if (!article) {
     return (
-      <div className="py-20 text-center text-muted">글을 찾을 수 없습니다.</div>
+      <div className="py-20 text-center text-muted" role="status">
+        {loading ? "불러오는 중..." : "글을 찾을 수 없습니다."}
+      </div>
     );
   }
 
