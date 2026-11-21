@@ -1,0 +1,71 @@
+---
+name: source-command-commit
+description: 변경을 검토하고 이슈를 참조하는 커밋을 만든다.
+---
+
+Analyze the current git changes and guide the user through creating a commit interactively.
+
+## Commit Message Rules
+
+- Language: **Korean**
+- Format: Conventional Commits
+
+```
+<type>: <short description>
+
+- bullet points describing what changed
+- keep each bullet concise
+```
+
+### Types
+
+| Type       | When to use                              |
+| ---------- | ---------------------------------------- |
+| `feat`     | New feature                              |
+| `fix`      | Bug fix                                  |
+| `style`    | UI/CSS changes (no logic change)         |
+| `refactor` | Code restructure without behavior change |
+| `chore`    | Config, dependencies, tooling            |
+| `docs`     | Documentation only                       |
+
+### Rules
+
+- Title: lowercase, no period, under 72 chars
+- Bullets: group by file or concern, skip obvious details
+- If changes are small enough, omit the body entirely
+- Also consider the current conversation context (not just diff) to better capture intent
+
+## Steps
+
+1. Run these in parallel:
+   - `git diff HEAD` — 변경 내용 확인
+   - `git branch --show-current` — 현재 브랜치명에서 이슈 번호 추출 (e.g. `fix/issue-6-parser` → `#6`)
+
+2. **Analyze change groups**: Identify whether the changes belong to one concern or multiple distinct concerns (e.g., a config file change + a feature change). If multiple distinct concerns exist, suggest splitting into separate commits and ask the user which grouping to proceed with.
+
+3. **Present commit message(s)** in a code block based on the chosen grouping.
+
+   브랜치명에서 이슈 번호가 감지되면 메시지 마지막에 footer 추가:
+
+   ```
+   Closes #6
+   ```
+
+4. **Ask for confirmation**: After showing the message, ask:
+
+   > Commit with this message? (y / edit / cancel)
+   - `y` → run `git add -A && git commit -m "..."` with the message
+   - `edit` → ask what to change, revise the message, then confirm again
+   - `cancel` → stop, do nothing
+
+5. **체크포인트 업데이트 (커밋 성공 후)**
+
+   커밋이 성공하면, `local/` 폴더에 `progress-issue-*.md` 파일이 있는지 확인한다.
+
+   파일이 존재하면:
+
+   > 체크포인트 파일을 업데이트할까요? (y / skip)
+   - `y` → `$source-command-checkpoint-update` 로직 실행 (파일에서 첫 번째 ⬜ 항목을 ✅로 업데이트, 커밋 해시 기록)
+   - `skip` → 아무것도 하지 않음
+
+   파일이 없으면: 이 단계 생략.
