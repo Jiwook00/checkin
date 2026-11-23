@@ -13,6 +13,7 @@ export interface Member {
   discord_linked: boolean;
   // 내 글에 달린 댓글을 디스코드 DM으로 받을지 (#105)
   notify_comment_dm: boolean;
+  notify_comment_participant_dm: boolean;
 }
 
 type AuthState =
@@ -87,7 +88,9 @@ export function useAuth() {
 
     const { data: memberData } = await supabase
       .from("checkin_members")
-      .select("avatar_url, is_admin, discord_user_id, notify_comment_dm")
+      .select(
+        "avatar_url, is_admin, discord_user_id, notify_comment_dm, notify_comment_participant_dm",
+      )
       .eq("id", userId)
       .single();
 
@@ -101,6 +104,8 @@ export function useAuth() {
         is_admin: memberData?.is_admin ?? false,
         discord_linked: memberData?.discord_user_id != null,
         notify_comment_dm: memberData?.notify_comment_dm ?? true,
+        notify_comment_participant_dm:
+          memberData?.notify_comment_participant_dm ?? true,
       },
     });
   };

@@ -2,7 +2,7 @@
 //
 // 받는 사람은 글 작성자와 그 글에 먼저 댓글을 단 사람들(참여자)이다. 댓글 쓴 본인은 빼고, 한 사람에게 한 통만 보낸다.
 // 작성자이면서 참여자면 작성자로 보낸다. 연달아 달린 댓글도 묶지 않고 댓글마다 보낸다.
-// 디스코드 미연결, 알림 끔(notify_comment_dm), 그 사이 삭제된 댓글·글은 기록 없이 건너뛴다.
+// 디스코드 미연결, 해당 이유의 알림 끔, 그 사이 삭제된 댓글·글은 기록 없이 건너뛴다.
 // 본문은 앞 BODY_MAX 자만 넣는다. 받는 사람은 모두 웹앱에서 원래 그 댓글을 읽을 수 있는 멤버다
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -35,6 +35,7 @@ interface MemberRow {
   avatar_url: string | null;
   discord_user_id: string | null;
   notify_comment_dm: boolean;
+  notify_comment_participant_dm: boolean;
 }
 
 /** 왜 받는가. author = 내 글에 달린 댓글, participant = 내가 댓글 단 글에 달린 새 댓글 */
@@ -143,7 +144,9 @@ export async function buildCommentDms(
 
   const { data: members, error: memberError } = await admin
     .from("checkin_members")
-    .select("id, nickname, avatar_url, discord_user_id, notify_comment_dm")
+    .select(
+      "id, nickname, avatar_url, discord_user_id, notify_comment_dm, notify_comment_participant_dm",
+    )
     .in("id", [...reasons.keys(), comment.member_id])
     .returns<MemberRow[]>();
   if (memberError)
@@ -153,7 +156,12 @@ export async function buildCommentDms(
   const dms: CommentDm[] = [];
   for (const [memberId, reason] of reasons) {
     const member = members?.find((m) => m.id === memberId);
-    if (!member?.discord_user_id || !member.notify_comment_dm) continue;
+    if (!member?.discord_user_id) continue;
+    const notificationsEnabled =
+      reason === "author"
+        ? member.notify_comment_dm
+        : member.notify_comment_participant_dm;
+    if (!notificationsEnabled) continue;
     dms.push({
       memberId,
       discordUserId: member.discord_user_id,

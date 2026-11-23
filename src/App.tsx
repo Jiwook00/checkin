@@ -528,8 +528,8 @@ export default function App() {
             <ProfilePage
               member={authState.member}
               onAvatarUpdate={(url) => updateMember({ avatar_url: url })}
-              onNotifyCommentDmChange={(value) =>
-                updateMember({ notify_comment_dm: value })
+              onNotifyCommentDmChange={(preference, value) =>
+                updateMember({ [preference]: value })
               }
             />
           }

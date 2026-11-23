@@ -3,10 +3,23 @@ import type { Member } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import AvatarCropModal from "./AvatarCropModal";
 
+const commentDmPreferences = [
+  { key: "notify_comment_dm", label: "내 회고의 댓글" },
+  {
+    key: "notify_comment_participant_dm",
+    label: "내가 댓글 단 다른 회고의 새 댓글",
+  },
+] as const;
+
+type CommentDmPreference = (typeof commentDmPreferences)[number]["key"];
+
 interface ProfilePageProps {
   member: Member;
   onAvatarUpdate: (url: string) => void;
-  onNotifyCommentDmChange: (value: boolean) => void;
+  onNotifyCommentDmChange: (
+    preference: CommentDmPreference,
+    value: boolean,
+  ) => void;
 }
 
 export default function ProfilePage({
@@ -41,20 +54,20 @@ export default function ProfilePage({
     reader.readAsDataURL(file);
   };
 
-  const handleNotifyToggle = async () => {
-    const next = !member.notify_comment_dm;
+  const handleNotifyToggle = async (preference: CommentDmPreference) => {
+    const next = !member[preference];
     setSavingNotify(true);
     setNotifyError(false);
     const { error } = await supabase
       .from("checkin_members")
-      .update({ notify_comment_dm: next })
+      .update({ [preference]: next })
       .eq("id", member.id);
     setSavingNotify(false);
     if (error) {
       setNotifyError(true);
       return;
     }
-    onNotifyCommentDmChange(next);
+    onNotifyCommentDmChange(preference, next);
   };
 
   const handleCropConfirm = async (blob: Blob) => {
@@ -143,36 +156,40 @@ export default function ProfilePage({
         {/* 알림 — 디스코드가 연결된 멤버에게만 (#105) */}
         {member.discord_linked && (
           <div className="bg-surface-card rounded-[12px] p-5 mt-4">
-            <h2 className="text-xs font-semibold text-muted uppercase tracking-widest mb-4">
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-widest">
               알림
             </h2>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p id="notify-comment-dm-label" className="text-sm text-body">
-                  댓글 알림
-                </p>
-                <p className="text-xs text-muted mt-0.5">
-                  내 회고나 내가 댓글 단 회고에 새 댓글이 달리면 디스코드 DM으로
-                  알려드려요
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={member.notify_comment_dm}
-                aria-labelledby="notify-comment-dm-label"
-                onClick={handleNotifyToggle}
-                disabled={savingNotify}
-                className={`relative shrink-0 w-11 h-6 rounded-full transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                  member.notify_comment_dm ? "bg-primary" : "bg-surface-strong"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-canvas shadow-sm transition-transform ${
-                    member.notify_comment_dm ? "translate-x-5" : ""
-                  }`}
-                />
-              </button>
+            <p className="text-xs text-muted mt-1">
+              새 댓글을 디스코드 DM으로 알려드려요.
+            </p>
+            <div className="mt-4 space-y-3">
+              {commentDmPreferences.map(({ key, label }) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between gap-4"
+                >
+                  <p id={`${key}-label`} className="text-sm text-body">
+                    {label}
+                  </p>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={member[key]}
+                    aria-labelledby={`${key}-label`}
+                    onClick={() => handleNotifyToggle(key)}
+                    disabled={savingNotify}
+                    className={`relative shrink-0 w-11 h-6 rounded-full transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                      member[key] ? "bg-primary" : "bg-surface-strong"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-canvas shadow-sm transition-transform ${
+                        member[key] ? "translate-x-5" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
             </div>
             {notifyError && (
               <p className="text-xs text-error mt-3">
